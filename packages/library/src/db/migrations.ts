@@ -213,6 +213,33 @@ CREATE TABLE online_lookups (
   checked_at INTEGER NOT NULL
 );`,
   },
+  {
+    id: 5,
+    name: 'artwork from online cover sources',
+    // artwork_cache.source gains 'online' (covers the user let Studio fetch). SQLite cannot
+    // change a CHECK constraint, so the table is rebuilt. Dropping the old table would fire
+    // albums.artwork_id's ON DELETE SET NULL, so the album → artwork links are parked in a
+    // temporary table and put back afterwards.
+    sql: `
+CREATE TEMP TABLE _album_artwork AS
+  SELECT id, artwork_id FROM albums WHERE artwork_id IS NOT NULL;
+CREATE TABLE artwork_cache_v5 (
+  id TEXT PRIMARY KEY,
+  mime TEXT NOT NULL,
+  byte_size INTEGER NOT NULL,
+  source TEXT NOT NULL CHECK (source IN ('embedded', 'folder', 'generated', 'online')),
+  file_name TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+INSERT INTO artwork_cache_v5 (id, mime, byte_size, source, file_name, created_at)
+  SELECT id, mime, byte_size, source, file_name, created_at FROM artwork_cache;
+DROP TABLE artwork_cache;
+ALTER TABLE artwork_cache_v5 RENAME TO artwork_cache;
+UPDATE albums
+  SET artwork_id = (SELECT a.artwork_id FROM _album_artwork a WHERE a.id = albums.id)
+  WHERE id IN (SELECT id FROM _album_artwork);
+DROP TABLE _album_artwork;`,
+  },
 ];
 
 export function migrate(db: DatabaseSync): number[] {

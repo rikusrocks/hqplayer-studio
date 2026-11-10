@@ -13,6 +13,7 @@ export * from './lyrics/local-lyrics';
 export * from './seed/demo-lyrics';
 export * from './artwork/artwork-store';
 export * from './artwork/generated-cover';
+export * from './artwork/local-artwork';
 export * from './scanner/metadata';
 export * from './scanner/legacy-encoding';
 export * from './scanner/album-grouping';

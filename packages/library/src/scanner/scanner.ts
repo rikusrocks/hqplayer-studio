@@ -1,6 +1,7 @@
-import { opendir, readFile, stat } from 'node:fs/promises';
+import { opendir, stat } from 'node:fs/promises';
 import { basename, extname, join, relative, sep } from 'node:path';
 import type { ArtworkStore } from '../artwork/artwork-store';
+import { findLocalArtwork } from '../artwork/local-artwork';
 import { AUDIO_EXTENSIONS } from '../format';
 import { albumFolderOf, discNumberFromFolder, pathKey } from '../normalize';
 import type { LibraryRepository } from '../repositories/library-repo';
@@ -66,18 +67,6 @@ const SKIP_DIRS = new Set([
   '#recycle',
   'lost+found',
 ]);
-const FOLDER_IMAGES = [
-  'cover.jpg',
-  'cover.jpeg',
-  'cover.png',
-  'folder.jpg',
-  'folder.jpeg',
-  'folder.png',
-  'front.jpg',
-  'front.png',
-  'albumart.jpg',
-];
-
 /** Paths the scanner never indexes: hidden entries, recycle bins, NAS metadata folders. */
 export function isIgnoredLibraryPath(relPath: string): boolean {
   return relPath
@@ -404,7 +393,7 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     ? library.markUnseenUnavailableUnder(root.id, startedAt, subtrees)
     : library.markUnseenUnavailable(root.id, startedAt);
 
-  // Artwork pass: folder image first (cheap), embedded picture second.
+  // Artwork pass: cover image in the album folder first (cheap), embedded picture second.
   const underSubtrees = subtrees ? library.albumIdsUnder(root.id, subtrees) : new Set<string>();
   const artworkCandidates = library
     .albumsMissingArtwork(root.id)
@@ -416,35 +405,13 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     );
   for (const a of artworkCandidates) {
     if (opts.signal?.aborted) break;
-    let artId: string | null = null;
-    const dirs = [a.folderPath];
-    if (discNumberFromFolder(a.folderPath.replace(/\\/g, '/')) !== null)
-      dirs.push(a.folderPath.replace(/[\\/][^\\/]*$/, ''));
-    for (const dir of dirs) {
-      for (const name of FOLDER_IMAGES) {
-        try {
-          const bytes = await readFile(join(dir, name));
-          artId = opts.artwork.put(
-            bytes,
-            name.endsWith('.png') ? 'image/png' : 'image/jpeg',
-            'folder',
-          );
-          if (artId) break;
-        } catch {
-          // not present
-        }
-      }
-      if (artId) break;
-    }
-    if (!artId) {
-      try {
-        await opts.pace?.();
-        const pic = await readPic(a.sourcePath);
-        if (pic) artId = opts.artwork.put(pic.data, pic.mime, 'embedded');
-      } catch {
-        // unreadable picture: leave placeholder
-      }
-    }
+    const artId = await findLocalArtwork({
+      folderPath: a.folderPath,
+      sourcePath: a.sourcePath,
+      artwork: opts.artwork,
+      readPicture: readPic,
+      pace: opts.pace,
+    });
     if (artId) library.setAlbumArtwork(a.albumId, artId);
   }
 

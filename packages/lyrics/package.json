@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "LRC parsing and lyric line synchronisation (LRCLIB client lands in P1).",
+  "description": "LRC parsing, lyric line synchronisation and the online lyric sources (LRCLIB, NetEase, Kugou, lyrics.ovh).",
   "exports": {
     ".": "./src/index.ts"
   },

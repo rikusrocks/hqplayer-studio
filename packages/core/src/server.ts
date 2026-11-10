@@ -21,6 +21,7 @@ import { sanitizeForLan } from './remote/sanitize';
 import { EngineService, type EngineServiceOptions } from './services/engine-service';
 import { LibraryService, type LibraryServiceOptions } from './services/library-service';
 import { MusicBrainzClient, OnlineAlbumChecker } from './services/online-albums';
+import { CoverService, type CoverServiceOptions } from './services/cover-service';
 import { LyricsService, type LyricsServiceOptions } from './services/lyrics-service';
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
 
@@ -41,6 +42,8 @@ export interface StudioServerOptions {
   library?: LibraryServiceOptions;
   /** Lyrics (LRCLIB client, file readers) — tests inject fakes. */
   lyrics?: Omit<LyricsServiceOptions, 'appVersion'>;
+  /** Online covers (sources, fetch) — tests inject fakes. */
+  covers?: Partial<Omit<CoverServiceOptions, 'appVersion'>>;
   /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
   scanPaceWhilePlayingMs?: number;
   /** Web Remote LAN listener (off unless enabled in Settings → 网页遥控). */
@@ -68,6 +71,7 @@ export interface StudioServices {
   library: LibraryService;
   remote: RemoteAccessService;
   lyrics: LyricsService;
+  covers: CoverService;
   ctx: LibraryContext;
 }
 
@@ -93,17 +97,18 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   const engine = new EngineService(opts.adapter, hub, opts.ctx.library, opts.engine);
   const queue = new QueueService(engine, opts.ctx, hub, opts.queue);
   const paceMs = opts.scanPaceWhilePlayingMs ?? 25;
+  // One MusicBrainz client for the album check and the cover lookups (one request per second
+  // in total). MusicBrainz asks clients to identify themselves; no personal data is sent.
+  const musicbrainz =
+    opts.covers?.musicbrainz ??
+    new MusicBrainzClient({
+      userAgent: `HQPlayerStudio/${opts.appVersion} ( third-party HQPlayer library client )`,
+    });
   const library = new LibraryService(opts.ctx, hub, {
     // Scans yield to playback: while HQPlayer plays, every file read waits a little, so a big
     // rescan never competes with DSD512 for disk/NAS bandwidth or CPU.
     onTracksRemoved: (ids) => queue.forgetTracks(ids),
-    onlineChecker: new OnlineAlbumChecker(
-      opts.ctx,
-      new MusicBrainzClient({
-        // MusicBrainz asks clients to identify themselves; no personal data is sent.
-        userAgent: `HQPlayerStudio/${opts.appVersion} ( third-party HQPlayer library client )`,
-      }),
-    ),
+    onlineChecker: new OnlineAlbumChecker(opts.ctx, musicbrainz),
     pace: async () => {
       if (paceMs > 0 && engine.getStatus().transport === 'playing') {
         await new Promise((r) => setTimeout(r, paceMs));
@@ -122,6 +127,12 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     },
     { appVersion: opts.appVersion, ...opts.lyrics },
   );
+  // Online covers: opt-in; by itself only for the album that is playing and has no cover.
+  const covers = new CoverService(opts.ctx, hub, {
+    appVersion: opts.appVersion,
+    ...opts.covers,
+    musicbrainz,
+  });
   // The LAN app is built only when the user turns LAN access on (after `services` exists).
   const remote: RemoteAccessService = new RemoteAccessService(
     opts.ctx,
@@ -147,6 +158,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     library,
     remote,
     lyrics,
+    covers,
     ctx: opts.ctx,
   };
 
@@ -175,6 +187,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     async close() {
       queue.dispose();
       await remote.stop();
+      await covers.stop();
       await library.stop();
       await engine.stop();
       await app.close();

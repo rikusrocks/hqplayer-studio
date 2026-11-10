@@ -38,6 +38,7 @@ import { ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
 import {
   BlockHead,
+  CoverSettings,
   DesktopIntegration,
   DspSettings,
   LayerTag,
@@ -279,6 +280,7 @@ function LibrarySettings() {
         {formatNumber(roots.data?.reduce((n, r) => n + r.trackCount, 0) ?? 0, locale)}{' '}
         {t('home.statsTracks')}
       </p>
+      {trusted && <CoverSettings />}
       {trusted && <LibraryCleanupCard />}
     </div>
   );

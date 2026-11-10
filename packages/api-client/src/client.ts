@@ -1,10 +1,13 @@
 import {
   API_PREFIX,
+  AlbumCoverSchema,
   AlbumDetailSchema,
   AlbumPageSchema,
   ApiErrorSchema,
   ArtistDetailSchema,
   ArtistPageSchema,
+  CoverCandidateSchema,
+  CoverSettingsSchema,
   DspStateSchema,
   EngineCapabilitiesSchema,
   EngineCommandResultSchema,
@@ -34,10 +37,13 @@ import {
   WS_PROTOCOL,
   type AddPlaylistItemsRequest,
   type ApiErrorCode,
+  type CoverProviderId,
+  type CoverRef,
   type CreatePlaylistRequest,
   type FolderQuery,
   type LibraryQuery,
   type MockControlRequest,
+  type OnlineLyricsProviderId,
   type PairRequest,
   type QueueAddRequest,
   type QueueReplaceRequest,
@@ -267,7 +273,7 @@ export function createStudioClient(options: StudioClientOptions = {}) {
     },
 
     lyrics: {
-      /** Lyrics of a library track (local file / tags / cache / LRCLIB when enabled). */
+      /** Lyrics of a library track (local file / tags / cache / online sources when enabled). */
       get: (trackId: string) => get(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics`),
       setOffset: (trackId: string, offsetMs: number) =>
         post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/offset`, {
@@ -276,12 +282,42 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       // --- this computer only
       search: (trackId: string, q?: string) =>
         get(z.array(LyricsCandidateSchema), `/tracks/${enc(trackId)}/lyrics/search`, { q }),
-      select: (trackId: string, lrclibId: number) =>
-        post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/select`, { lrclibId }),
+      select: (trackId: string, candidate: { provider: OnlineLyricsProviderId; ref: string }) =>
+        post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/select`, {
+          provider: candidate.provider,
+          ref: candidate.ref,
+        }),
       reset: (trackId: string) => post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/reset`),
       settings: () => get(LyricsSettingsSchema, '/settings/lyrics'),
       setOnline: (online: boolean) => post(LyricsSettingsSchema, '/settings/lyrics', { online }),
+      /** Choose which online sources may be asked (the order is fixed). */
+      setProviders: (providers: OnlineLyricsProviderId[]) =>
+        post(LyricsSettingsSchema, '/settings/lyrics', { providers }),
       clearCache: () => post(LyricsSettingsSchema, '/settings/lyrics/clear-cache'),
+    },
+
+    /** Online covers — this computer only. */
+    covers: {
+      search: (albumId: string, q?: string) =>
+        get(z.array(CoverCandidateSchema), `/library/albums/${enc(albumId)}/cover/search`, { q }),
+      /** URL of a candidate's thumbnail (Core fetches it; the page never talks to the source). */
+      previewUrl: (candidate: CoverRef): string =>
+        `${baseUrl}${API_PREFIX}/covers/preview?provider=${enc(candidate.provider)}&ref=${enc(candidate.ref)}`,
+      select: (albumId: string, candidate: CoverRef) =>
+        post(AlbumCoverSchema, `/library/albums/${enc(albumId)}/cover/select`, {
+          provider: candidate.provider,
+          ref: candidate.ref,
+        }),
+      /** Drop the cover and look in the album's folder and tags again. */
+      reset: (albumId: string) =>
+        post(AlbumCoverSchema, `/library/albums/${enc(albumId)}/cover/reset`),
+      settings: () => get(CoverSettingsSchema, '/settings/covers'),
+      setOnline: (online: boolean) => post(CoverSettingsSchema, '/settings/covers', { online }),
+      setProviders: (providers: CoverProviderId[]) =>
+        post(CoverSettingsSchema, '/settings/covers', { providers }),
+      /** Look up every album without a cover (background job; poll `settings()`). */
+      fill: () => post(CoverSettingsSchema, '/settings/covers/fill'),
+      cancelFill: () => post(CoverSettingsSchema, '/settings/covers/fill/cancel'),
     },
 
     playback: {

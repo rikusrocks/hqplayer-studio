@@ -20,6 +20,14 @@ export interface MbRelease {
   trackCount: number;
 }
 
+export interface MbReleaseInfo {
+  id: string;
+  title: string;
+  artist: string;
+  year: number | null;
+  trackCount: number | null;
+}
+
 export interface MbTrack {
   disc: number;
   position: number;
@@ -59,6 +67,48 @@ export class MusicBrainzClient {
       title: r.title,
       trackCount: r['track-count'] ?? 0,
     }));
+  }
+
+  /**
+   * Releases for a cover lookup: by album title + artist, or free text typed by the user.
+   * Only names go to musicbrainz.org.
+   */
+  async findReleases(
+    q: { title: string; artist?: string | null } | { text: string },
+    limit = 8,
+  ): Promise<MbReleaseInfo[]> {
+    const query =
+      'text' in q
+        ? luceneEscape(q.text)
+        : `release:"${luceneEscape(q.title)}"` +
+          (q.artist ? ` AND artist:"${luceneEscape(q.artist)}"` : '');
+    const body = (await this.get(
+      `/release/?query=${encodeURIComponent(query)}&fmt=json&limit=${limit}`,
+    )) as {
+      releases?: {
+        id?: unknown;
+        title?: unknown;
+        date?: unknown;
+        'track-count'?: unknown;
+        'artist-credit'?: { name?: unknown }[];
+      }[];
+    };
+    const out: MbReleaseInfo[] = [];
+    for (const r of Array.isArray(body?.releases) ? body.releases : []) {
+      if (typeof r.id !== 'string' || typeof r.title !== 'string') continue;
+      const year = typeof r.date === 'string' ? Number(r.date.slice(0, 4)) : NaN;
+      out.push({
+        id: r.id,
+        title: r.title,
+        artist: (Array.isArray(r['artist-credit']) ? r['artist-credit'] : [])
+          .map((c) => (typeof c?.name === 'string' ? c.name : ''))
+          .filter(Boolean)
+          .join(', '),
+        year: Number.isInteger(year) && year > 0 ? year : null,
+        trackCount: typeof r['track-count'] === 'number' ? r['track-count'] : null,
+      });
+    }
+    return out;
   }
 
   async releaseTracks(id: string): Promise<MbTrack[]> {
