@@ -775,6 +775,13 @@
   flex-direction: column;
   gap: 4px;
 }
+.engine-control {
+  margin-top: 4px;
+}
+.engine-control.is-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .engine-queue {
   max-height: 360px;
   overflow-y: auto;

@@ -120,7 +120,9 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     const caps = await adapter.getCapabilities();
     expect(caps.engine?.version).toBe('6.0.1');
     expect(caps.items['status.read']).toMatchObject({ status: 'confirmed', usable: true });
-    expect(caps.items['transport.play']).toMatchObject({ status: 'untested', usable: false });
+    // confirmed in Gate C, but unusable until the user enables “allow Studio to control”
+    expect(caps.items['transport.play']).toMatchObject({ status: 'confirmed', usable: false });
+    expect(caps.items['transport.play'].note).toBe('control-disabled');
     expect(caps.items['mode.album'].status).toBe('unsupported');
 
     const s = await adapter.getStatus();
@@ -212,6 +214,7 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
       ['PlaylistAdd', { uri: 'D:\\音乐\\02.dsf', queued: '1', clear: '0' }],
       ['SelectTrack', { index: '2' }], // Studio index 1 → engine index 2 (1-based)
       ['Play', { last: '0' }],
+      ['PlaylistGet', { picture: '0' }], // re-read so queue sync sees the new length
     ]);
     await adapter.disconnect();
   });
@@ -320,6 +323,68 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     expect(s.trackIndex).toBe(1);
     q = await adapter.getEngineQueue();
     expect(q.currentMatchedBy).toBe('uri');
+    await adapter.disconnect();
+  });
+
+  it('with control enabled: idempotent pause, toggle-resume, composite previous, no volume', async () => {
+    let transport = 2;
+    const position = 12.5;
+    const track = 2;
+    server = await startFakeHqpServer({
+      GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE, // enabled="0" as on the user's engine
+      PlaylistGet: () => playlistGet(),
+      Status: () =>
+        xmlDoc(
+          `<Status state="${transport}" track="${track}" position="${position}" length="230" output_delay="0" track_serial="1" transport_serial="1"><metadata uri="file:D:\\Music\\A\\0${track === 2 ? '2 南方的风' : track}.flac" song="x"/></Status>`,
+        ),
+    });
+    const adapter = new LiveHQPlayerAdapter({ port: server.port });
+    await adapter.connect();
+    const before = server.received.length;
+    await expect(adapter.pause()).rejects.toBeInstanceOf(CapabilityUnavailableError); // switch off
+    expect(server.received.length).toBe(before);
+
+    adapter.setPolicy({ controlEnabled: true });
+    const caps = await adapter.getCapabilities();
+    expect(caps.items['transport.pause'].usable).toBe(true);
+    expect(caps.items['queue.replace'].usable).toBe(true);
+    expect(caps.items['volume.set'].usable).toBe(false); // HQPlayer reports volume control disabled
+    expect(caps.items['dsp.write'].usable).toBe(false); // never
+    await expect(adapter.setVolume(-6)).rejects.toBeInstanceOf(CapabilityUnavailableError);
+
+    const READS = new Set(['PlaylistGet', 'State', 'Status', 'VolumeRange', 'GetInfo']);
+    const sent = () =>
+      server!.received
+        .slice(before)
+        .filter((r) => !READS.has(r.name)) // compare write traffic only
+        .map((r) => [r.name, r.attributes]);
+    await adapter.pause(); // playing → Pause
+    transport = 1;
+    server.push(xmlDoc(`<Status state="1" track="2" position="12.5" length="230"/>`));
+    await vi.waitFor(async () => expect((await adapter.getStatus()).transport).toBe('paused'));
+    await adapter.pause(); // already paused → nothing sent (Pause would toggle back)
+    await adapter.play(); // paused → resume with Pause (toggle)
+    expect(sent()).toEqual([
+      ['Pause', {}],
+      ['Pause', {}],
+    ]);
+
+    // previous: > 3 s into the track → restart via Seek 0
+    transport = 2;
+    server.push(xmlDoc(`<Status state="2" track="2" position="40" length="230"/>`));
+    await vi.waitFor(async () => expect((await adapter.getStatus()).positionMs).toBe(40_000));
+    await adapter.previous();
+    // ≤ 3 s in → select the previous item (engine index 1) and play
+    server.push(xmlDoc(`<Status state="2" track="2" position="1" length="230"/>`));
+    await vi.waitFor(async () => expect((await adapter.getStatus()).positionMs).toBe(1000));
+    await adapter.previous();
+    expect(sent().slice(2)).toEqual([
+      ['Seek', { position: '0' }],
+      ['SelectTrack', { index: '1' }],
+      ['Play', { last: '0' }],
+    ]);
+    expect(server.received.map((r) => r.name)).not.toContain('Previous');
     await adapter.disconnect();
   });
 });

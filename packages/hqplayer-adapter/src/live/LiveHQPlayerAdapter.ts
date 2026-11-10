@@ -38,6 +38,7 @@ import {
   resolveCapabilities,
   type CapabilityEvidence,
   type CapabilityPolicy,
+  type RuntimeLimits,
 } from './capability-matrix';
 
 export interface LiveAdapterOptions {
@@ -50,12 +51,13 @@ export interface LiveAdapterOptions {
 }
 
 /**
- * EXPERIMENTAL (Phase 1 spike) adapter for a real HQPlayer Desktop 6 over TCP/XML.
+ * Adapter for a real HQPlayer Desktop 6 over TCP/XML.
  *
- * Read paths (GetInfo, Status subscription, State, PlaylistGet, DSP lists) are allowed because
- * they are side-effect free. Every write path is gated by the capability matrix: until a command
- * is confirmed on Desktop 6 — or the user explicitly opts into Gate C testing — it throws
- * CapabilityUnavailableError instead of touching the engine.
+ * Read paths (GetInfo, Status subscription, State, PlaylistGet, DSP lists) are always allowed —
+ * they are side-effect free. Write paths need BOTH evidence (confirmed/observed in Gate C on the
+ * user's engine) AND the user's switch “允许 Studio 控制 HQPlayer” (`policy.controlEnabled`);
+ * otherwise they throw CapabilityUnavailableError without touching the engine, and the
+ * connection-level interlock refuses side-effect commands as a second line of defence.
  */
 export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   readonly kind = 'live' as const;
@@ -75,6 +77,8 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
    */
   private statusTrackBase: number | null = null;
   private currentMatchedBy: 'uri' | 'index' | 'none' = 'none';
+  private policy: CapabilityPolicy;
+  private runtime: RuntimeLimits = {};
   private readonly listeners = new Set<StatusListener>();
   private readonly evidence: Record<EngineCapabilityKey, CapabilityEvidence>;
   private readonly host: string;
@@ -84,6 +88,21 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     this.host = options.host ?? '127.0.0.1';
     this.port = options.port ?? DEFAULT_CONTROL_PORT;
     this.evidence = options.evidence ?? DESKTOP6_EVIDENCE;
+    this.policy = { ...options.policy };
+  }
+
+  /** Change the control policy at runtime (the user's switch). Read paths are unaffected. */
+  setPolicy(policy: CapabilityPolicy): void {
+    this.policy = { ...policy };
+    this.connection?.setAllowSideEffects(this.sideEffectsAllowed());
+  }
+
+  getPolicy(): CapabilityPolicy {
+    return { ...this.policy };
+  }
+
+  private sideEffectsAllowed(): boolean {
+    return Boolean(this.policy.controlEnabled || this.policy.allowUntestedWrites);
   }
 
   isConnected(): boolean {
@@ -95,8 +114,9 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     const conn = new HqpConnection({
       host: this.host,
       port: this.port,
-      requestTimeoutMs: this.options.requestTimeoutMs ?? 4000,
-      allowSideEffects: Boolean(this.options.policy?.allowUntestedWrites),
+      // Stop takes ~3.8 s to acknowledge while playing (Gate C, engine 6.1.0).
+      requestTimeoutMs: this.options.requestTimeoutMs ?? 10_000,
+      allowSideEffects: this.sideEffectsAllowed(),
       onTranscript: this.options.onTranscript,
     });
     this.publish({ ...this.last, connection: 'connecting', lastError: null });
@@ -131,6 +151,11 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       const min = attrFloat(range, 'min');
       const max = attrFloat(range, 'max');
       if (min !== null && max !== null) this.volumeRange = { min, max };
+      const enabled = range.attributes.enabled;
+      this.runtime = {
+        ...this.runtime,
+        volumeControlEnabled: enabled === undefined ? null : enabled === '1',
+      };
     } catch {
       // optional
     }
@@ -161,7 +186,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     return {
       adapter: 'live',
       engine: this.identity,
-      items: resolveCapabilities(this.evidence, this.isConnected(), this.options.policy),
+      items: resolveCapabilities(this.evidence, this.isConnected(), this.policy, this.runtime),
     };
   }
 
@@ -174,11 +199,16 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     return () => this.listeners.delete(listener);
   }
 
-  play(): Promise<void> {
-    return this.write('transport.play', 'Play', { last: 0 });
+  /** From pause, resume with Pause (it toggles and resumes in place — Gate C); otherwise Play. */
+  async play(): Promise<void> {
+    const conn = this.requireWrite('transport.play');
+    if (this.last.transport === 'paused') await conn.request('Pause');
+    else if (this.last.transport !== 'playing') await conn.request('Play', { last: 0 });
   }
-  pause(): Promise<void> {
-    return this.write('transport.pause', 'Pause');
+  /** HQPlayer's Pause toggles, so only send it while playing (a 2nd click must not resume). */
+  async pause(): Promise<void> {
+    const conn = this.requireWrite('transport.pause');
+    if (this.last.transport === 'playing') await conn.request('Pause');
   }
   stop(): Promise<void> {
     return this.write('transport.stop', 'Stop');
@@ -186,8 +216,20 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   next(): Promise<void> {
     return this.write('transport.next', 'Next');
   }
-  previous(): Promise<void> {
-    return this.write('transport.previous', 'Previous');
+  /**
+   * HQPlayer's own Previous was inconclusive in Gate C, so “previous” is built from confirmed
+   * commands: restart the track if we are more than 3 s in, otherwise select the previous item.
+   */
+  async previous(): Promise<void> {
+    const conn = this.requireWrite('transport.previous');
+    const st = this.last;
+    if (st.positionMs > 3000 || st.trackIndex === null || st.trackIndex <= 0) {
+      await conn.request('Seek', { position: 0 });
+      return;
+    }
+    const wasPlaying = st.transport === 'playing';
+    await conn.request('SelectTrack', { index: toEngineIndex(st.trackIndex - 1) });
+    if (wasPlaying) await conn.request('Play', { last: 0 });
   }
   seek(positionMs: number): Promise<void> {
     return this.write('transport.seek', 'Seek', { position: Math.round(positionMs / 1000) });
@@ -213,20 +255,43 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     }
     await conn.request('SelectTrack', { index: toEngineIndex(options.startIndex) });
     if (options.autoplay) await conn.request('Play', { last: 0 });
+    await this.refreshAfterEdit(conn);
   }
 
   async appendToQueue(items: PlayableTrack[]): Promise<void> {
     const conn = this.requireWrite('queue.append');
     for (const item of items)
       await conn.request('PlaylistAdd', { uri: item.uri, queued: 1, clear: 0 });
+    await this.refreshAfterEdit(conn);
   }
 
   async removeFromQueue(engineIndex: number): Promise<void> {
-    await this.write('queue.replace', 'PlaylistRemove', { index: toEngineIndex(engineIndex) });
+    const conn = this.requireWrite('queue.replace');
+    await conn.request('PlaylistRemove', { index: toEngineIndex(engineIndex) });
+    await this.refreshAfterEdit(conn);
   }
 
   async clearQueue(): Promise<void> {
-    await this.write('queue.replace', 'PlaylistClear');
+    const conn = this.requireWrite('queue.replace');
+    await conn.request('PlaylistClear');
+    await this.refreshAfterEdit(conn);
+  }
+
+  /**
+   * After Studio edits HQPlayer's playlist, re-read it before returning so the next status (and
+   * Studio's queue sync check) sees the new length rather than the stale cache.
+   */
+  private async refreshAfterEdit(conn: HqpConnection): Promise<void> {
+    try {
+      this.playlist = await this.readPlaylist(conn);
+      this.publish({
+        ...this.last,
+        trackCount: this.playlist.entries.length,
+        albumMode: this.playlist.albumMode,
+      });
+    } catch {
+      // the serial-change refresh will catch up
+    }
   }
 
   async selectIndex(index: number, autoplay: boolean): Promise<void> {
@@ -379,7 +444,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   }
 
   private capabilityEntry(key: EngineCapabilityKey) {
-    return resolveCapabilities(this.evidence, this.isConnected(), this.options.policy)[key];
+    return resolveCapabilities(this.evidence, this.isConnected(), this.policy, this.runtime)[key];
   }
 
   private requireRead(key: EngineCapabilityKey): HqpConnection {

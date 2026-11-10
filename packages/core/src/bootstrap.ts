@@ -6,7 +6,7 @@ import {
   type HQPlayerAdapter,
 } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
-import { ENGINE_ADAPTER_SETTING } from './settings-keys';
+import { ENGINE_ADAPTER_SETTING, ENGINE_CONTROL_SETTING } from './settings-keys';
 import { createStudioServer, DEFAULT_PORT, type StudioServer } from './server';
 
 export { ENGINE_ADAPTER_SETTING };
@@ -49,7 +49,12 @@ export async function bootstrapStudio(opts: BootstrapOptions): Promise<Bootstrap
   const source = opts.adapter ? 'override' : saved ? 'setting' : 'default';
   const hqplayer = { host: opts.hqplayer?.host ?? '127.0.0.1', port: opts.hqplayer?.port ?? 4321 };
   const adapter: HQPlayerAdapter =
-    kind === 'live' ? new LiveHQPlayerAdapter(hqplayer) : new MockHQPlayerAdapter();
+    kind === 'live'
+      ? new LiveHQPlayerAdapter({
+          ...hqplayer,
+          policy: { controlEnabled: ctx.settings.get<boolean>(ENGINE_CONTROL_SETTING, false) },
+        })
+      : new MockHQPlayerAdapter();
   const server = await createStudioServer({
     adapter,
     ctx,

@@ -66,8 +66,16 @@ export class HqpConnection {
   private readonly unsolicited = new Set<DocListener>();
   private readonly closeListeners = new Set<CloseListener>();
   private closing = false;
+  private allowSideEffects: boolean;
 
-  constructor(private readonly options: HqpConnectionOptions) {}
+  constructor(private readonly options: HqpConnectionOptions) {
+    this.allowSideEffects = Boolean(options.allowSideEffects);
+  }
+
+  /** Switch the read-only interlock (e.g. when the user enables “allow Studio to control”). */
+  setAllowSideEffects(on: boolean): void {
+    this.allowSideEffects = on;
+  }
 
   get connected(): boolean {
     return this.socket !== null && !this.socket.destroyed && this.socket.readyState === 'open';
@@ -148,7 +156,7 @@ export class HqpConnection {
   }
 
   private assertAllowed(spec: CommandSpec, attributes: Record<string, AttributeValue>): void {
-    if (this.options.allowSideEffects) return;
+    if (this.allowSideEffects) return;
     if (isReadOnly(spec)) return;
     if (spec.name === 'Status') return; // subscription is connection-scoped
     void attributes;

@@ -89,7 +89,8 @@ export class EngineService {
   run<T>(label: string, fn: (adapter: HQPlayerAdapter) => Promise<T>): Promise<T> {
     const exec = async () => {
       if (!this.adapter.isConnected()) throw new EngineUnavailableError();
-      const timeoutMs = this.options.commandTimeoutMs ?? 8000;
+      // HQPlayer's Stop takes ~3.8 s to acknowledge; a queue load sends many commands.
+      const timeoutMs = this.options.commandTimeoutMs ?? 20_000;
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         return await Promise.race([
@@ -176,7 +177,7 @@ export class EngineService {
     }, delay);
   }
 
-  private async refreshCapabilities(): Promise<void> {
+  async refreshCapabilities(): Promise<void> {
     this.capabilities = await this.adapter.getCapabilities();
     this.hub.publish({ type: 'engine.capabilities', capabilities: this.capabilities });
   }

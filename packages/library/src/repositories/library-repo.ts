@@ -102,6 +102,8 @@ export interface TrackSource {
   channels: number | null;
   isDsd: boolean;
   available: boolean;
+  /** Belongs to the fictional demo library — its files do not exist. */
+  isFixture: boolean;
 }
 
 const ALBUM_AGG = `
@@ -436,8 +438,10 @@ export class LibraryRepository {
     const unique = [...new Set(ids)];
     const rows = this.db
       .prepare(
-        `SELECT id, source_path, title, artist, album, duration_ms, sample_rate, bit_depth, channels, is_dsd, available
-         FROM tracks WHERE id IN (${unique.map(() => '?').join(',')})`,
+        `SELECT t.id, t.source_path, t.title, t.artist, t.album, t.duration_ms, t.sample_rate, t.bit_depth, t.channels, t.is_dsd, t.available,
+                (r.kind = 'fixture' OR t.metadata_source = 'fixture') AS is_fixture
+         FROM tracks t LEFT JOIN library_roots r ON r.id = t.root_id
+         WHERE t.id IN (${unique.map(() => '?').join(',')})`,
       )
       .all(...unique) as {
       id: string;
@@ -451,6 +455,7 @@ export class LibraryRepository {
       channels: number | null;
       is_dsd: number;
       available: number;
+      is_fixture: number | null;
     }[];
     const map = new Map(rows.map((r) => [r.id, r]));
     return ids.map((id) => {
@@ -468,6 +473,7 @@ export class LibraryRepository {
         channels: r.channels,
         isDsd: r.is_dsd === 1,
         available: r.available === 1,
+        isFixture: r.is_fixture === 1,
       };
     });
   }

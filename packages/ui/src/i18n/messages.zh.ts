@@ -279,9 +279,9 @@ export const zh = {
 
   'engine.mode.title': '引擎连接',
   'engine.mode.mock': 'Mock 引擎（演示，不连接 HQPlayer）',
-  'engine.mode.live': '真实 HQPlayer（只读，实验）',
+  'engine.mode.live': '真实 HQPlayer（实验）',
   'engine.mode.liveHint':
-    '连接本机 {host}:{port}，只读取播放状态、HQPlayer 播放列表与 DSP 信息。播放、队列、音量、DSP 等写操作在真机验证前保持禁用。',
+    '连接本机 {host}:{port}。默认只读；开启下方“允许 Studio 控制 HQPlayer”后，才可使用在你的 HQPlayer 上验证过的播放与队列命令。DSP / 输出设置始终不修改。',
   'engine.mode.active': '当前运行：{adapter}',
   'engine.mode.restartRequired': '已保存。需要重启 Studio 才能切换引擎。',
   'engine.mode.restart': '立即重启',
@@ -302,6 +302,17 @@ export const zh = {
     '当前曲目已按文件 URI 定位；HQPlayer 的 track 编号从 {base} 开始（已核对）。',
   'engine.queue.check.index': '当前曲目按 HQPlayer 的 track 编号定位（编号基数尚未核对）。',
   'engine.queue.check.none': '当前没有正在播放的曲目。',
+  'engine.control.title': '允许 Studio 控制 HQPlayer',
+  'engine.control.hint':
+    '开启后可使用已在你的 HQPlayer 上验证通过的命令：播放、暂停、停止、上/下一首、跳转、重复/随机，以及用 Studio 的队列替换 HQPlayer 当前播放列表。不包括音量（你的 HQPlayer 已禁用远程音量）和任何 DSP / 输出设置。随时可以关闭。',
+  'engine.control.mockOnly': '仅在“真实 HQPlayer”模式下可用。',
+  'engine.control.confirmTitle': '允许 Studio 控制 HQPlayer？',
+  'engine.control.confirmMessage':
+    'Studio 将可以控制 HQPlayer 的播放。注意：“播放专辑 / 播放列表”会清空并替换 HQPlayer 当前的播放列表。演示音乐库的虚构曲目不会被发送到 HQPlayer——请先在 设置 → 音乐库 添加你的音乐文件夹。',
+  'engine.control.confirm': '开启',
+  'engine.control.on': '已允许 Studio 控制 HQPlayer',
+  'engine.control.off': 'Studio 已恢复为只读',
+  'cap.controlDisabled': '在 设置 → 播放与引擎能力 中开启“允许 Studio 控制 HQPlayer”后可用',
 
   'realtime.open': '已连接',
   'realtime.connecting': '连接中',

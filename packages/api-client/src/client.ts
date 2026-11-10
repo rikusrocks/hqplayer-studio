@@ -156,6 +156,9 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       engine: () => get(EngineSettingsSchema, '/settings/engine'),
       setEngine: (adapter: 'mock' | 'live') =>
         post(EngineSettingsSchema, '/settings/engine', { adapter }),
+      /** “允许 Studio 控制 HQPlayer” — applies immediately, no restart. */
+      setControl: (allowControl: boolean) =>
+        post(EngineSettingsSchema, '/settings/engine', { allowControl }),
     },
 
     library: {

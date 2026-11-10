@@ -32,14 +32,14 @@ Still to add (tracked in PROGRESS): 1000+ track scan performance fixture, browse
 
 ## Manual — Windows (needs the user; see PROGRESS "Windows action needed")
 
-| #   | Check                                                       | Expected evidence                                                                               |
-| --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| W1  | Run `hqp-probe.exe` with HQPlayer Desktop 6 open            | ✅ 2026-11-10: engine 6.1.0, 19/19 read-only OK (stopped state)                                 |
-| W2  | Run `HQPlayerStudio-*-portable-x64.exe`                     | App opens, MOCK badge, demo library, no HQPlayer interaction                                    |
-| W1b | Re-run probe v0.1.1 **while a track is playing**            | ✅ 2026-11-10: seconds, output_delay µs, 1 Hz pushes, plain uri                                 |
-| W3  | Phase 1 (after W1): Live adapter read-only                  | ✅ 2026-11-10: user's screenshot of v0.1.1 showing the real playing track, format and DSP chain |
-| W4  | Phase 1 Gate C (explicit consent, test album)               | load/play/pause/seek/next; CJK paths; PCM + DSF; gapless pair                                   |
-| W5  | Phase 2: scan the real music folder                         | counts, unavailable handling, restart persistence                                               |
-| W6  | Phase 3: iPhone/iPad on home LAN                            | pairing, sync, offline messaging                                                                |
-| W7  | Phase 4: Mini player on multi-monitor + scaling, media keys | position restore, always-on-top                                                                 |
-| W8  | Phase 5: long DSD512 sessions while scanning                | no attributable dropouts                                                                        |
+| #   | Check                                                       | Expected evidence                                                                                                    |
+| --- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| W1  | Run `hqp-probe.exe` with HQPlayer Desktop 6 open            | ✅ 2026-11-10: engine 6.1.0, 19/19 read-only OK (stopped state)                                                      |
+| W2  | Run `HQPlayerStudio-*-portable-x64.exe`                     | App opens, MOCK badge, demo library, no HQPlayer interaction                                                         |
+| W1b | Re-run probe v0.1.1 **while a track is playing**            | ✅ 2026-11-10: seconds, output_delay µs, 1 Hz pushes, plain uri                                                      |
+| W3  | Phase 1 (after W1): Live adapter read-only                  | ✅ 2026-11-10: user's screenshot of v0.1.1 showing the real playing track, format and DSP chain                      |
+| W4  | Phase 1 Gate C (explicit consent, test album)               | ✅ 2026-11-10: all approved steps pass except Volume (disabled in HQPlayer); DSF not tested (no file); restore 52/52 |
+| W5  | Phase 2: scan the real music folder                         | counts, unavailable handling, restart persistence                                                                    |
+| W6  | Phase 3: iPhone/iPad on home LAN                            | pairing, sync, offline messaging                                                                                     |
+| W7  | Phase 4: Mini player on multi-monitor + scaling, media keys | position restore, always-on-top                                                                                      |
+| W8  | Phase 5: long DSD512 sessions while scanning                | no attributable dropouts                                                                                             |

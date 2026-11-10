@@ -2,7 +2,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { QueueState, StudioEvent } from '@hqps/contracts';
-import { MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
+import { LiveHQPlayerAdapter, MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
+import { startFakeHqpServer } from '../../hqplayer-adapter/src/testing/fake-hqp-server';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
@@ -316,6 +317,7 @@ describe('engine settings and read-only engine queue', () => {
       source: 'default',
       restartRequired: false,
       hqplayer: { host: '127.0.0.1', port: 4321 },
+      allowControl: false,
     });
     const saved = await api<Record<string, unknown>>('POST', '/settings/engine', {
       adapter: 'live',
@@ -340,6 +342,86 @@ describe('engine settings and read-only engine queue', () => {
     expect(q.body.entries[0]).toMatchObject({ index: 0 });
     expect(q.body.entries.every((e) => e.studioTrackId)).toBe(true);
     expect(JSON.stringify(q.body)).not.toMatch(/uri|D:\\\\|Music/);
+  });
+});
+
+describe('control switch with the live adapter', () => {
+  it('enables confirmed writes immediately and never sends demo tracks to a real engine', async () => {
+    const xml = (b: string) => `<?xml version="1.0" encoding="UTF-8"?>${b}\n`;
+    const fake = await startFakeHqpServer({
+      GetInfo: () =>
+        xml('<GetInfo product="Signalyst HQPlayer Desktop" version="6" engine="6.1.0"/>'),
+      VolumeRange: () => xml('<VolumeRange enabled="0" min="-12" max="0"/>'),
+      PlaylistGet: () => xml('<PlaylistGet album="0"/>'),
+      Status: () => xml('<Status state="0" track="0" position="0" length="0"/>'),
+      State: () => xml('<State state="0" repeat="0" random="0"/>'),
+    });
+    const liveDir = mkdtempSync(join(tmpdir(), 'hqps-live-'));
+    const liveCtx = openLibrary(liveDir);
+    seedDemoLibrary(liveCtx.library, liveCtx.playlists, liveCtx.artwork);
+    const live = await createStudioServer({
+      adapter: new LiveHQPlayerAdapter({ port: fake.port }),
+      ctx: liveCtx,
+      appVersion: 't',
+      port: 0,
+    });
+    await live.engine.start();
+    const call = async <T>(method: 'GET' | 'POST', url: string, payload?: unknown) => {
+      const res = await live.app.inject({
+        method,
+        url: `/api/v1${url}`,
+        headers:
+          method === 'GET'
+            ? { host: '127.0.0.1' }
+            : { host: '127.0.0.1', 'content-type': 'application/json' },
+        payload: method === 'GET' ? undefined : JSON.stringify(payload ?? {}),
+        remoteAddress: '127.0.0.1',
+      });
+      return { status: res.statusCode, body: res.json() as T };
+    };
+    try {
+      type Caps = { items: Record<string, { usable: boolean; status: string }> };
+      expect(
+        (await call<{ allowControl: boolean }>('GET', '/settings/engine')).body.allowControl,
+      ).toBe(false);
+      expect(
+        (await call<Caps>('GET', '/engine/capabilities')).body.items['transport.play'],
+      ).toMatchObject({ status: 'confirmed', usable: false });
+      expect((await call('POST', '/engine/transport', { action: 'play' })).status).toBe(409);
+
+      const on = await call<{ allowControl: boolean }>('POST', '/settings/engine', {
+        allowControl: true,
+      });
+      expect(on.body.allowControl).toBe(true);
+      const caps = (await call<Caps>('GET', '/engine/capabilities')).body.items;
+      expect(caps['transport.play']?.usable).toBe(true);
+      expect(caps['queue.replace']?.usable).toBe(true);
+      expect(caps['volume.set']?.usable).toBe(false); // HQPlayer volume control disabled
+      expect(caps['dsp.write']?.usable).toBe(false);
+
+      const album = (
+        await call<{ items: { id: string }[] }>('GET', '/library/albums?q=blue%20hour')
+      ).body.items[0]!;
+      const refused = await call<{ error: { code: string; message: string } }>(
+        'POST',
+        `/playback/album/${album.id}`,
+        {},
+      );
+      expect(refused.status).toBe(409);
+      expect(refused.body.error.message).toMatch(/Demo tracks/);
+      expect(fake.received.map((r) => r.name)).not.toContain('PlaylistClear');
+      expect(fake.received.map((r) => r.name)).not.toContain('PlaylistAdd');
+
+      await call('POST', '/settings/engine', { allowControl: false });
+      expect(
+        (await call<Caps>('GET', '/engine/capabilities')).body.items['transport.play']?.usable,
+      ).toBe(false);
+    } finally {
+      await live.close();
+      liveCtx.close();
+      await fake.close();
+      rmSync(liveDir, { recursive: true, force: true });
+    }
   });
 });
 

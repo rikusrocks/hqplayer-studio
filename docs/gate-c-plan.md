@@ -1,6 +1,6 @@
 # Gate C 测试计划 —— 在真实 HQPlayer 上验证写命令
 
-> 状态：**已批准**（2026-11-10），**工具已实现**：`hqp-gatec.exe`（与 `hqp-probe.exe` 同在 Windows build 的 `hqp-probe-windows-x64` 下载中）。尚未在真实 HQPlayer 上运行；每一步仍需你按回车。
+> 状态：**已完成**（2026-11-10，用户在 HQPlayer Desktop 6 / engine 6.1.0 上运行 `hqp-gatec` v0.1.0）。结果见第 10 节。
 > 目标引擎：用户的 HQPlayer Desktop 6，engine 6.1.0，Windows（Gate A/B 只读探测已完成，见 `protocol-capabilities.md`）。
 
 ## 1. 目的
@@ -105,3 +105,28 @@ DSP / 输出 / 设备 / 卷积 / Matrix / 配置切换；`PlaylistSave` / `Playl
 - 验证：自动化测试 11 项（含中止恢复、原生路径被拒时的回退、无测试文件夹时不改播放列表、命令白名单与音量守卫、报告无隐私数据）；
   另用真实编译出的 `hqp-gatec` 可执行文件对有状态的模拟引擎完整跑了一遍（29 个交互回答，6/6 恢复）。
   模拟引擎的行为是虚构的，**不能**当作 HQPlayer 的证据——真实结果只来自你运行后发回的报告。
+
+## 10. 结果（2026-11-10）
+
+| 步骤                      | 结果   | 关键观察                                                                |
+| ------------------------- | ------ | ----------------------------------------------------------------------- |
+| C1.1 Play                 | ✅     | 从停止开始播放；ACK 后约 3 s 才出声/位置开始增长（缓冲）                |
+| C1.2 Pause ×2             | ✅     | **切换语义**：第二次 `Pause` 在原位置恢复                               |
+| C1.3 Seek 60              | ✅     | 引擎位置精确到 60.000 s；可听位置约 2.9 s 后到达                        |
+| C1.4 Next / Previous      | ✅ / ⚠ | `Next` 正常（ACK 1.5 s）；`Previous` 在刚跳转到 20 s 后无可见效果       |
+| C1.5 Stop                 | ✅     | ACK **约 3.8 s**                                                        |
+| O1 Repeat / Random        | ✅     | 设置与恢复均生效                                                        |
+| O2 Volume（同值）         | ℹ️     | 被 HQPlayer 拒绝（远程音量已禁用，`VolumeRange enabled="0"`）；音量未变 |
+| C2.1 PlaylistClear        | ✅     |                                                                         |
+| C2.2 原生路径 ×3          | ✅     | 中文/日文/空格路径均可，引擎存为 `file://` + 路径                       |
+| C2.3 `file://` 形式       | ✅     | 原样存储                                                                |
+| C2.4 SelectTrack 2 + Play | ✅     | **1 基**；启动瞬间 Status `track` 可能短暂为 0                          |
+| C2.5 PlaylistRemove 4     | ✅     | **1 基**                                                                |
+| C2.6 `clear=1 queued=0`   | ℹ️     | 清空并加入，但**不**自动播放                                            |
+| C3.1 DSF                  | ⏭      | 测试文件夹没有 DSF                                                      |
+| C3.2 连播 T1→T2           | ✅     | 自动换曲，无停止状态；听感**无缝**（播放列表模式）                      |
+| C4 恢复                   | ✅     | 52/52 逐条核对一致，未自动播放                                          |
+
+由此在 Studio 中的实现（v0.1.4）：新增“允许 Studio 控制 HQPlayer”开关（默认关闭，立即生效）；只开放上表通过的命令；
+暂停仅在播放中发送；恢复用 `Pause`；“上一首”由 `Seek 0` / `SelectTrack`+`Play` 组合；Stop 等慢命令的超时放宽；
+音量设置按 `VolumeRange enabled` 禁用；演示库的虚构曲目绝不发送给真实 HQPlayer。DSF 播放仍待有 DSD 文件时验证。

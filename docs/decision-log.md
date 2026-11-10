@@ -97,3 +97,10 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Evidence:** while playing, HQPlayer reported `position` 12.544 s with `output_delay` 4,413,312 µs; its own `min:sec` was 0:08 (= position − delay). DSD512 + CUDA buffering puts ~4.4 s between processing and the DAC.
 - **Choice:** `EngineStatus.positionMs` is the audible position (position − output_delay); `outputDelayMs` is exposed separately for lyrics timing. The progress bar therefore matches what is heard and what HQPlayer itself displays.
 - **Risk:** Seek targets are engine positions; Gate C must check whether a seek to X lands audibly at X (expected, after the buffer refills).
+
+## D-019 Control is opt-in, and only Gate C-confirmed commands are exposed — 2026-11-10
+
+- **Evidence:** Gate C on the user's engine (engine 6.1.0): see docs/gate-c-plan.md §10.
+- **Choice:** a persisted switch “允许 Studio 控制 HQPlayer” (default off, applied immediately without restart) enables write capabilities whose evidence is confirmed/observed; untested ones stay off; DSP/output writes are never exposed. The connection-level interlock follows the switch.
+- **Behaviour derived from evidence:** Pause toggles → Studio sends Pause only while playing and resumes with Pause; HQPlayer's Previous was inconclusive → “previous” = Seek 0 (> 3 s) or SelectTrack(n−1)+Play; Stop ACKs in ~3.8 s → adapter timeout 10 s, engine command timeout 20 s; Volume rejected while `VolumeRange enabled="0"` → volume.set unusable at runtime.
+- **Safety:** the fictional demo library can never be sent to a real engine (it would replace the user's playlist with non-existent files). After Studio edits HQPlayer's playlist, the adapter re-reads it before returning so queue sync never sees a stale length.

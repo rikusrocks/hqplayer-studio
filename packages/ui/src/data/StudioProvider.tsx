@@ -353,8 +353,10 @@ export function useCapabilityGate(): (key: EngineCapabilityKey) => string | null
       if (!serverReachable) return t('engine.serverReason');
       if (!engineConnected) return t('engine.disconnectedReason');
       if (canUse(capabilities, key)) return null;
-      const status = capabilities?.items[key]?.status;
+      const entry = capabilities?.items[key];
+      const status = entry?.status;
       if (status === 'unsupported') return t('cap.unsupported');
+      if (entry?.note === 'control-disabled') return t('cap.controlDisabled');
       return t('cap.notVerified');
     },
     [capabilities, serverReachable, engineConnected, t],

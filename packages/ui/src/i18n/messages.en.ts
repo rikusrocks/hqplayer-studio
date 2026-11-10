@@ -288,9 +288,9 @@ export const en: Record<MessageKey, string> = {
 
   'engine.mode.title': 'Engine connection',
   'engine.mode.mock': 'Mock engine (demo, never touches HQPlayer)',
-  'engine.mode.live': 'Real HQPlayer (read-only, experimental)',
+  'engine.mode.live': 'Real HQPlayer (experimental)',
   'engine.mode.liveHint':
-    'Connects to {host}:{port} on this PC and only reads playback state, the HQPlayer playlist and DSP info. Playback, queue, volume and DSP changes stay disabled until verified on the real engine.',
+    'Connects to {host}:{port} on this PC. Read-only by default; enable “Allow Studio to control HQPlayer” below to use the playback and queue commands verified on your HQPlayer. DSP/output settings are never changed.',
   'engine.mode.active': 'Running now: {adapter}',
   'engine.mode.restartRequired': 'Saved. Restart Studio to switch engines.',
   'engine.mode.restart': 'Restart now',
@@ -314,6 +314,18 @@ export const en: Record<MessageKey, string> = {
   'engine.queue.check.index':
     "Current track located by HQPlayer's track number (numbering base not yet verified).",
   'engine.queue.check.none': 'No track is currently playing.',
+  'engine.control.title': 'Allow Studio to control HQPlayer',
+  'engine.control.hint':
+    'Enables the commands verified on your HQPlayer: play, pause, stop, previous/next, seek, repeat/random, and replacing HQPlayer’s current playlist with Studio’s queue. Excludes volume (remote volume is disabled in your HQPlayer) and all DSP/output settings. You can turn it off at any time.',
+  'engine.control.mockOnly': 'Only available in “Real HQPlayer” mode.',
+  'engine.control.confirmTitle': 'Allow Studio to control HQPlayer?',
+  'engine.control.confirmMessage':
+    'Studio will be able to control playback in HQPlayer. Note: “Play album / playlist” clears and replaces HQPlayer’s current playlist. Fictional demo tracks are never sent to HQPlayer — add your music folder in Settings → Library first.',
+  'engine.control.confirm': 'Enable',
+  'engine.control.on': 'Studio may now control HQPlayer',
+  'engine.control.off': 'Studio is read-only again',
+  'cap.controlDisabled':
+    'Enable “Allow Studio to control HQPlayer” in Settings → Playback to use this',
 
   'remote.title': 'Studio Remote',
   'remote.offline':

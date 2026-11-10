@@ -308,6 +308,13 @@ export class QueueService {
 
   private playables(tracks: Track[]): PlayableTrack[] {
     const sources = this.ctx.library.getTrackSources(tracks.map((t) => t.id));
+    // The demo library is fictional: never hand its non-existent paths to a real HQPlayer
+    // (loading it would replace the user's playlist with broken entries).
+    if (this.engine.adapter.kind !== 'mock' && sources.some((s) => s.isFixture)) {
+      throw new ConflictError(
+        'Demo tracks are fictional and cannot be sent to the real HQPlayer. Add your music folder in Settings → Library and scan it first.',
+      );
+    }
     return sources.map((s) => ({
       studioTrackId: s.id,
       uri: s.sourcePath,

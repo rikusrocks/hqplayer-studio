@@ -27,11 +27,15 @@ import {
   type EngineSettings,
   type ServerInfo,
 } from '@hqps/contracts';
-import { CapabilityUnavailableError, MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
+import {
+  CapabilityUnavailableError,
+  LiveHQPlayerAdapter,
+  MockHQPlayerAdapter,
+} from '@hqps/hqplayer-adapter';
 import { ArtworkStore } from '@hqps/library';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { ENGINE_ADAPTER_SETTING } from '../settings-keys';
+import { ENGINE_ADAPTER_SETTING, ENGINE_CONTROL_SETTING } from '../settings-keys';
 import type { StudioServices } from '../server';
 import { HttpError } from './errors';
 import { isTrustedRequest } from './security';
@@ -67,6 +71,7 @@ export function engineSettings(s: StudioServices): EngineSettings {
     source: s.engineInfo.source,
     restartRequired: s.engineInfo.source !== 'override' && preferred !== active,
     hqplayer: s.engineInfo.hqplayer,
+    allowControl: s.ctx.settings.get<boolean>(ENGINE_CONTROL_SETTING, false),
   };
 }
 
@@ -144,8 +149,26 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
       // --- settings (local machine only: requests are loopback-gated)
       api.get('/settings/engine', async () => engineSettings(s));
       api.post('/settings/engine', async (req) => {
-        const { adapter } = body(UpdateEngineSettingsRequestSchema, req);
-        ctx.settings.set(ENGINE_ADAPTER_SETTING, adapter);
+        const { adapter, allowControl } = body(UpdateEngineSettingsRequestSchema, req);
+        if (adapter !== undefined) ctx.settings.set(ENGINE_ADAPTER_SETTING, adapter);
+        if (allowControl !== undefined) {
+          ctx.settings.set(ENGINE_CONTROL_SETTING, allowControl);
+          // Applies immediately (no restart): only the policy of the running live adapter changes.
+          if (engine.adapter instanceof LiveHQPlayerAdapter) {
+            engine.adapter.setPolicy({
+              ...engine.adapter.getPolicy(),
+              controlEnabled: allowControl,
+            });
+          }
+          await engine.refreshCapabilities();
+          s.hub.notice(
+            'info',
+            allowControl ? 'control_enabled' : 'control_disabled',
+            allowControl
+              ? 'Studio may now control HQPlayer (confirmed commands only).'
+              : 'Studio is read-only again.',
+          );
+        }
         return engineSettings(s);
       });
 

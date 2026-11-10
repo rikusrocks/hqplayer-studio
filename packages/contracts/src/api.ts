@@ -203,10 +203,19 @@ export const EngineSettingsSchema = z.object({
   source: z.enum(['default', 'setting', 'override']),
   restartRequired: z.boolean(),
   hqplayer: z.object({ host: z.string(), port: z.number().int() }),
+  /**
+   * “允许 Studio 控制 HQPlayer” — off by default. When on, write commands that were confirmed on
+   * this engine (Gate C) become usable; DSP/output changes are never included.
+   */
+  allowControl: z.boolean(),
 });
 export type EngineSettings = z.infer<typeof EngineSettingsSchema>;
 
-export const UpdateEngineSettingsRequestSchema = z.object({ adapter: AdapterKindSchema });
+export const UpdateEngineSettingsRequestSchema = z
+  .object({ adapter: AdapterKindSchema.optional(), allowControl: z.boolean().optional() })
+  .refine((v) => v.adapter !== undefined || v.allowControl !== undefined, {
+    message: 'Nothing to update',
+  });
 export type UpdateEngineSettingsRequest = z.infer<typeof UpdateEngineSettingsRequestSchema>;
 
 /** HQPlayer's own current playlist, read-only. Local paths are deliberately not exposed. */

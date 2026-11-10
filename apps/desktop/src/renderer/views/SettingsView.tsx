@@ -22,6 +22,7 @@ import {
   formatDuration,
   formatNumber,
   useAsync,
+  useDialogs,
   useI18n,
   useNowPlaying,
   useStudio,
@@ -575,7 +576,52 @@ function EngineModeCard() {
           )}
         </div>
       )}
+      <ControlSwitch settings={current} onChange={setSettings} />
     </div>
+  );
+}
+
+function ControlSwitch({
+  settings,
+  onChange,
+}: {
+  settings: EngineSettings;
+  onChange: (s: EngineSettings) => void;
+}) {
+  const { t } = useI18n();
+  const { client, run } = useStudio();
+  const { confirm } = useDialogs();
+  const live = settings.activeAdapter === 'live';
+  const toggle = async (next: boolean) => {
+    if (next) {
+      const ok = await confirm({
+        title: t('engine.control.confirmTitle'),
+        message: t('engine.control.confirmMessage'),
+        confirmLabel: t('engine.control.confirm'),
+      });
+      if (!ok) return;
+    }
+    const res = await run(() => client.settings.setControl(next), {
+      success: next ? t('engine.control.on') : t('engine.control.off'),
+    });
+    if (res) onChange(res);
+  };
+  return (
+    <label className={`engine-option engine-control${live ? '' : ' is-disabled'}`}>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={live && settings.allowControl}
+        disabled={!live}
+        onChange={(e) => void toggle(e.target.checked)}
+      />
+      <span>
+        <strong>{t('engine.control.title')}</strong>
+        <span className="hint">
+          {live ? t('engine.control.hint') : t('engine.control.mockOnly')}
+        </span>
+      </span>
+    </label>
   );
 }
 
