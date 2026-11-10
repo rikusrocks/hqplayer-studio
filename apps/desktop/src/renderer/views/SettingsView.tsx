@@ -13,7 +13,6 @@ import {
   ConnectionBadge,
   EmptyState,
   ErrorBlock,
-  FormatBadge,
   Icon,
   LOCALES,
   LoadingBlock,
@@ -24,7 +23,6 @@ import {
   useAsync,
   useDialogs,
   useI18n,
-  useNowPlaying,
   useStudio,
   useTheme,
   useToasts,
@@ -37,12 +35,23 @@ import { useEffect, useState } from 'react';
 import { getShell, type HqpAppState } from '../shell';
 import { ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
+import {
+  BlockHead,
+  DesktopIntegration,
+  DspSettings,
+  LayerTag,
+  LyricsSettings,
+  OutputSettings,
+  SettingsLegend,
+} from './SettingsSections';
 
 const SECTIONS: Array<{ id: string; label: MessageKey; icon: IconName }> = [
   { id: 'general', label: 'settings.general', icon: 'settings' },
   { id: 'library', label: 'settings.library', icon: 'library' },
   { id: 'playback', label: 'settings.playback', icon: 'play' },
   { id: 'dsp', label: 'settings.dsp', icon: 'wave' },
+  { id: 'output', label: 'settings.output', icon: 'volume' },
+  { id: 'lyrics', label: 'settings.lyrics', icon: 'lyrics' },
   { id: 'remote', label: 'settings.remote', icon: 'remote' },
   { id: 'diagnostics', label: 'settings.diagnostics', icon: 'activity' },
 ];
@@ -73,8 +82,11 @@ export function SettingsView({ section }: { section: string }) {
           {current.id === 'library' && <LibrarySettings />}
           {current.id === 'playback' && <PlaybackSettings />}
           {current.id === 'dsp' && <DspSettings />}
+          {current.id === 'output' && <OutputSettings />}
+          {current.id === 'lyrics' && <LyricsSettings />}
           {current.id === 'remote' && <RemoteSettings />}
           {current.id === 'diagnostics' && <Diagnostics />}
+          <SettingsLegend />
         </div>
       </div>
     </div>
@@ -85,32 +97,38 @@ function GeneralSettings() {
   const { t, locale, setLocale } = useI18n();
   const [theme, setTheme] = useTheme();
   return (
-    <div className="form-grid">
-      <label className="hq-field">
-        <span className="hq-field__label">{t('settings.language')}</span>
-        <select
-          className="hq-select"
-          value={locale}
-          onChange={(e) => setLocale(e.target.value as Locale)}
-        >
-          {LOCALES.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="hq-field">
-        <span className="hq-field__label">{t('settings.theme')}</span>
-        <select
-          className="hq-select"
-          value={theme}
-          onChange={(e) => setTheme(e.target.value as Theme)}
-        >
-          <option value="dark">{t('settings.theme.dark')}</option>
-          <option value="light">{t('settings.theme.light')}</option>
-        </select>
-      </label>
+    <div className="settings-stack">
+      <div className="settings-block">
+        <BlockHead title={t('settings.appearance')} layer="studio" />
+        <div className="form-grid">
+          <label className="hq-field">
+            <span className="hq-field__label">{t('settings.language')}</span>
+            <select
+              className="hq-select"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+            >
+              {LOCALES.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="hq-field">
+            <span className="hq-field__label">{t('settings.theme')}</span>
+            <select
+              className="hq-select"
+              value={theme}
+              onChange={(e) => setTheme(e.target.value as Theme)}
+            >
+              <option value="dark">{t('settings.theme.dark')}</option>
+              <option value="light">{t('settings.theme.light')}</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <DesktopIntegration />
       <p className="hint">{t('app.disclaimer')}</p>
     </div>
   );
@@ -188,7 +206,10 @@ function LibrarySettings() {
 
       <div className="settings-block">
         <div className="settings-block__head">
-          <h3>{t('settings.roots')}</h3>
+          <h3 className="settings-block__title">
+            {t('settings.roots')}
+            <LayerTag layer="studio" />
+          </h3>
           <button
             type="button"
             className="hq-btn hq-btn--sm"
@@ -230,7 +251,7 @@ function LibrarySettings() {
             void addRoot();
           }}
         >
-          <h3>{t('settings.addRoot')}</h3>
+          <BlockHead title={t('settings.addRoot')} layer="studio" />
           <div className="add-root__row">
             <input
               className="hq-input hq-mono"
@@ -287,7 +308,7 @@ function LibraryCleanupCard() {
     [p.root, p.folder].filter(Boolean).join(' / ');
   return (
     <div className="settings-block">
-      <h3>{t('library.duplicates.title')}</h3>
+      <BlockHead title={t('library.duplicates.title')} layer="studio" />
       <p className="hint">
         {data.duplicates.length === 0
           ? t('library.duplicates.none')
@@ -425,6 +446,10 @@ function PlaybackSettings() {
     <div className="settings-stack">
       <EngineModeCard />
       <HqplayerAppCard />
+      <h3 className="settings-block__title">
+        {t('settings.capabilities')}
+        <LayerTag layer="readonly" />
+      </h3>
       <p className="hint">{t('settings.capabilitiesHint')}</p>
       <div className="kv">
         <span>{t('diag.adapter')}</span>
@@ -477,43 +502,6 @@ function PlaybackSettings() {
           })}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function DspSettings() {
-  const { t } = useI18n();
-  const { status } = useStudio();
-  const now = useNowPlaying();
-  const dsp = status.dsp;
-  return (
-    <div className="settings-stack">
-      <div className="hq-banner hq-banner--info">
-        <Icon name="info" size={16} />
-        <span>{t('settings.dspHint')}</span>
-      </div>
-      {dsp || status.output ? (
-        <div className="kv">
-          <span>{t('settings.signalPath')}</span>
-          <span>
-            <FormatBadge inputLabel={now.inputLabel} output={status.output} />
-          </span>
-          <span>{t('settings.dspMode')}</span>
-          <strong>{dsp?.mode ?? '—'}</strong>
-          <span>{t('settings.dspFilter')}</span>
-          <strong>{dsp?.filter ?? '—'}</strong>
-          <span>{t('settings.dspShaper')}</span>
-          <strong>{dsp?.shaper ?? '—'}</strong>
-          <span>{t('settings.dspRate')}</span>
-          <strong>
-            {dsp?.outputRate
-              ? `${formatNumber(dsp.outputRate, 'en')} Hz`
-              : (status.output?.label ?? '—')}
-          </strong>
-        </div>
-      ) : (
-        <EmptyState icon="wave" title={t('settings.dspUnavailable')} hint={t('cap.native')} />
-      )}
     </div>
   );
 }
@@ -629,7 +617,7 @@ function EngineModeCard() {
   );
   return (
     <div className="settings-block">
-      <h3>{t('engine.mode.title')}</h3>
+      <BlockHead title={t('engine.mode.title')} layer="studio" />
       <div className="engine-options" role="radiogroup" aria-label={t('engine.mode.title')}>
         {option('mock', t('engine.mode.mock'))}
         {option(
@@ -742,7 +730,7 @@ function HqplayerAppCard() {
   const hidden = state.running && state.windows.length > 0 && !state.windows.some((w) => w.visible);
   return (
     <div className="settings-block">
-      <h3>{t('hqpApp.title')}</h3>
+      <BlockHead title={t('hqpApp.title')} layer="studio" />
       <p className="hint">{t('hqpApp.hint')}</p>
       <div className="kv">
         <span>{t('hqpApp.program')}</span>

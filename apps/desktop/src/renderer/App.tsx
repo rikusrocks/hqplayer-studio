@@ -1,5 +1,6 @@
-import { matchRoute, useHashRoute, type HashRoute } from '@hqps/ui';
-import { useState, type ReactNode } from 'react';
+import { matchRoute, useHashRoute, useI18n, type HashRoute } from '@hqps/ui';
+import { useEffect, useState, type ReactNode } from 'react';
+import { getShell } from './shell';
 import { PlayerBar } from './layout/PlayerBar';
 import { SidePanel } from './layout/SidePanel';
 import { Sidebar } from './layout/Sidebar';
@@ -58,7 +59,10 @@ function renderRoute(route: HashRoute): ReactNode {
 export function App() {
   const route = useHashRoute('/');
   const [panelOpen, setPanelOpen] = useState(readPanelOpen);
+  const { locale } = useI18n();
   useKeyboardShortcuts();
+  // The tray menu (main process) speaks the UI's language.
+  useEffect(() => getShell()?.setLocale(locale), [locale]);
 
   if (route.segments[0] === 'mini') return <MiniPlayer />;
 

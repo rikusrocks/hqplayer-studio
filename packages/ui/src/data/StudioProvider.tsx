@@ -58,6 +58,8 @@ export interface StudioContextValue {
   playlistsVersion: number;
   /** Bumps when the Web Remote listener, pairing code or paired devices change. */
   remoteVersion: number;
+  /** Bumps when stored lyrics change (offset, manual match, settings) — lyrics views refetch. */
+  lyricsVersion: number;
   pending: ReadonlySet<PendingKey>;
   isMock: boolean;
   serverReachable: boolean;
@@ -148,6 +150,7 @@ export function StudioProvider({
   const [libraryVersion, setLibraryVersion] = useState(0);
   const [playlistsVersion, setPlaylistsVersion] = useState(0);
   const [remoteVersion, setRemoteVersion] = useState(0);
+  const [lyricsVersion, setLyricsVersion] = useState(0);
   const [pending, setPending] = useState<ReadonlySet<PendingKey>>(() => new Set());
 
   // Keep monotonic serial/version checks against the latest value, not a stale closure.
@@ -252,6 +255,9 @@ export function StudioProvider({
         case 'remote.changed':
           setRemoteVersion((v) => v + 1);
           break;
+        case 'lyrics.changed':
+          setLyricsVersion((v) => v + 1);
+          break;
         case 'notice': {
           const key = `notice.${event.code}`;
           toasts.push(
@@ -324,6 +330,7 @@ export function StudioProvider({
       libraryVersion,
       playlistsVersion,
       remoteVersion,
+      lyricsVersion,
       pending,
       isMock: server?.adapter === 'mock' || capabilities?.adapter === 'mock',
       serverReachable: realtime === 'open',
@@ -392,6 +399,7 @@ export function StudioProvider({
     libraryVersion,
     playlistsVersion,
     remoteVersion,
+    lyricsVersion,
     pending,
     run,
     applyStatus,

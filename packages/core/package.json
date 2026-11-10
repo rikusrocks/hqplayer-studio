@@ -19,6 +19,7 @@
     "@hqps/contracts": "workspace:*",
     "@hqps/hqplayer-adapter": "workspace:*",
     "@hqps/library": "workspace:*",
+    "@hqps/lyrics": "workspace:*",
     "fastify": "^5.12.8",
     "zod": "^4.6.7"
   },

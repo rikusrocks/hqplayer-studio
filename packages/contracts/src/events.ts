@@ -22,6 +22,8 @@ export const StudioEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('library.scan'), job: ScanJobSchema }),
   /** Web Remote listener, pairing code or paired devices changed (desktop Settings refetches). */
   z.object({ type: z.literal('remote.changed') }),
+  /** Lyrics of a track changed (offset, manual choice); null = possibly all (cache cleared). */
+  z.object({ type: z.literal('lyrics.changed'), trackId: z.string().nullable() }),
   z.object({
     type: z.literal('notice'),
     level: z.enum(['info', 'warning', 'error']),

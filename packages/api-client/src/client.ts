@@ -15,6 +15,9 @@ import {
   HealthResponseSchema,
   LibraryRootSchema,
   LibrarySettingsSchema,
+  LyricsCandidateSchema,
+  LyricsSettingsSchema,
+  TrackLyricsSchema,
   RemovedRootSchema,
   LibraryStatsSchema,
   PairResponseSchema,
@@ -261,6 +264,24 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       clear: () => post(QueueStateSchema, '/queue/clear'),
       takeover: () => post(QueueStateSchema, '/queue/takeover'),
       follow: () => post(QueueStateSchema, '/queue/follow'),
+    },
+
+    lyrics: {
+      /** Lyrics of a library track (local file / tags / cache / LRCLIB when enabled). */
+      get: (trackId: string) => get(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics`),
+      setOffset: (trackId: string, offsetMs: number) =>
+        post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/offset`, {
+          offsetMs: Math.round(offsetMs),
+        }),
+      // --- this computer only
+      search: (trackId: string, q?: string) =>
+        get(z.array(LyricsCandidateSchema), `/tracks/${enc(trackId)}/lyrics/search`, { q }),
+      select: (trackId: string, lrclibId: number) =>
+        post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/select`, { lrclibId }),
+      reset: (trackId: string) => post(TrackLyricsSchema, `/tracks/${enc(trackId)}/lyrics/reset`),
+      settings: () => get(LyricsSettingsSchema, '/settings/lyrics'),
+      setOnline: (online: boolean) => post(LyricsSettingsSchema, '/settings/lyrics', { online }),
+      clearCache: () => post(LyricsSettingsSchema, '/settings/lyrics/clear-cache'),
     },
 
     playback: {

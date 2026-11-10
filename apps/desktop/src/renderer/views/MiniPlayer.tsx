@@ -10,7 +10,11 @@ import {
 import { useEffect, useState } from 'react';
 import { getShell } from '../shell';
 
-/** Compact always-on-top player (route #/mini, also usable in a browser tab). */
+/**
+ * Compact always-on-top player (route #/mini, also usable in a browser tab): cover, title,
+ * previous/play/next, progress, pin (always on top), expand. The window itself is draggable.
+ * Only a view on Studio — HQPlayer's audio chain is not touched by opening or closing it.
+ */
 export function MiniPlayer() {
   const t = useT();
   const now = useNowPlaying();
@@ -22,8 +26,20 @@ export function MiniPlayer() {
     return () => document.body.classList.remove('is-mini');
   }, []);
 
+  useEffect(() => {
+    if (!shell) return;
+    let alive = true;
+    void shell.getAlwaysOnTop().then((v) => {
+      if (alive) setOnTop(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [shell]);
+
   return (
     <div className="mini">
+      {/* part of the window's drag area (Electron drag regions receive no clicks) */}
       <div className="mini__art">
         <Artwork artworkId={now.artworkId} />
       </div>
@@ -33,7 +49,9 @@ export function MiniPlayer() {
             <div className="mini__title" title={now.title ?? ''}>
               {now.hasTrack ? now.title : t('player.nothingPlaying')}
             </div>
-            <div className="mini__artist">{now.hasTrack ? now.artist : ''}</div>
+            <div className="mini__artist" title={now.artist ?? ''}>
+              {now.hasTrack ? now.artist : ''}
+            </div>
           </div>
           <ConnectionBadge compact />
           {shell && (
@@ -56,6 +74,15 @@ export function MiniPlayer() {
                 aria-label={t('player.expand')}
               >
                 <Icon name="expand" size={14} />
+              </button>
+              <button
+                type="button"
+                className="hq-icon-btn hq-icon-btn--sm"
+                onClick={() => shell.closeMiniPlayer()}
+                title={t('player.closeMini')}
+                aria-label={t('player.closeMini')}
+              >
+                <Icon name="close" size={14} />
               </button>
             </>
           )}
