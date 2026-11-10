@@ -125,6 +125,20 @@ export interface ListQuery {
 }
 
 /** Playable source info for the engine — internal only, never returned to remote clients. */
+export interface AlbumCoverTarget {
+  albumId: string;
+  title: string;
+  albumArtist: string;
+  artworkId: string | null;
+  /** `artwork_cache.source` of the current artwork: embedded | folder | generated | online. */
+  artworkSource: string | null;
+  trackCount: number;
+  /** One available audio file of the album (null while its folder is offline). */
+  sourcePath: string | null;
+  folderPath: string | null;
+  isFixture: boolean;
+}
+
 export interface TrackSource {
   id: string;
   sourcePath: string;
@@ -516,6 +530,15 @@ export class LibraryRepository {
     return row ? { result: JSON.parse(row.result) as T, checkedAt: row.checked_at } : null;
   }
 
+  /** Forget every cached answer recorded under `source`. */
+  deleteOnlineLookups(source: string): void {
+    this.db.prepare('DELETE FROM online_lookups WHERE source = ?').run(source);
+  }
+
+  deleteOnlineLookup(key: string): void {
+    this.db.prepare('DELETE FROM online_lookups WHERE key = ?').run(key);
+  }
+
   setOnlineLookup(key: string, source: string, result: unknown, now = Date.now()): void {
     this.db
       .prepare(
@@ -621,6 +644,79 @@ export class LibraryRepository {
 
   setAlbumArtwork(albumId: string, artworkId: string): void {
     this.db.prepare('UPDATE albums SET artwork_id = ? WHERE id = ?').run(artworkId, albumId);
+  }
+
+  clearAlbumArtwork(albumId: string): void {
+    this.db.prepare('UPDATE albums SET artwork_id = NULL WHERE id = ?').run(albumId);
+  }
+
+  /**
+   * What cover lookups need to know about an album: its names, whether it has artwork, one
+   * representative (available) audio file and whether it belongs to the fictional demo library.
+   */
+  getAlbumCoverTarget(albumId: string): AlbumCoverTarget {
+    const row = this.db
+      .prepare(
+        `SELECT al.id, al.title, al.album_artist, al.artwork_id, aw.source AS artwork_source,
+                COUNT(t.id) AS track_count,
+                MIN(CASE WHEN t.available = 1 THEN t.source_path END) AS source_path,
+                MAX(r.kind = 'fixture' OR t.metadata_source = 'fixture') AS is_fixture
+         FROM albums al
+         LEFT JOIN tracks t ON t.album_id = al.id
+         LEFT JOIN library_roots r ON r.id = t.root_id
+         LEFT JOIN artwork_cache aw ON aw.id = al.artwork_id
+         WHERE al.id = ? GROUP BY al.id`,
+      )
+      .get(albumId) as
+      | {
+          id: string;
+          title: string;
+          album_artist: string;
+          artwork_id: string | null;
+          artwork_source: string | null;
+          track_count: number;
+          source_path: string | null;
+          is_fixture: number | null;
+        }
+      | undefined;
+    if (!row) throw new NotFoundError('Album', albumId);
+    return {
+      albumId: row.id,
+      title: row.title,
+      albumArtist: row.album_artist,
+      artworkId: row.artwork_id,
+      artworkSource: row.artwork_source,
+      trackCount: row.track_count,
+      sourcePath: row.source_path,
+      folderPath: row.source_path ? row.source_path.replace(/[\\/][^\\/]*$/, '') : null,
+      isFixture: row.is_fixture === 1,
+    };
+  }
+
+  /** The album a track belongs to, or null (unknown track / no album). */
+  albumIdOfTrack(trackId: string): string | null {
+    const row = this.db.prepare('SELECT album_id FROM tracks WHERE id = ?').get(trackId) as
+      { album_id: string | null } | undefined;
+    return row?.album_id ?? null;
+  }
+
+  /**
+   * Albums shown in the library that have no artwork (demo albums and hidden backup copies
+   * excluded), oldest first.
+   */
+  albumIdsWithoutArtwork(): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT al.id FROM albums al
+         WHERE al.artwork_id IS NULL AND al.duplicate_of IS NULL
+           AND EXISTS (
+             SELECT 1 FROM tracks t LEFT JOIN library_roots r ON r.id = t.root_id
+             WHERE t.album_id = al.id AND t.available = 1
+               AND NOT (r.kind = 'fixture' OR t.metadata_source = 'fixture'))
+         ORDER BY al.created_at, al.id`,
+      )
+      .all() as { id: string }[];
+    return rows.map((r) => r.id);
   }
 
   /** Albums under a root without artwork, with one representative track path. */
@@ -1141,7 +1237,7 @@ export class LibraryRepository {
     id: string;
     mime: string;
     byteSize: number;
-    source: 'embedded' | 'folder' | 'generated';
+    source: 'embedded' | 'folder' | 'generated' | 'online';
     fileName: string;
   }): void {
     this.db

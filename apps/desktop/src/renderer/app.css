@@ -446,6 +446,10 @@
   gap: 8px;
   margin-top: 12px;
 }
+.detail-hero__actions--minor {
+  margin-top: 4px;
+  gap: 4px;
+}
 
 /* lists */
 .artist-list,
@@ -781,6 +785,18 @@
 .engine-control.is-disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.settings-block__subtitle {
+  margin: 4px 0 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.settings-block__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 .engine-queue {
   max-height: 360px;

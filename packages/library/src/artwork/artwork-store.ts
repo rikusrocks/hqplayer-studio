@@ -6,6 +6,12 @@ import type { LibraryRepository } from '../repositories/library-repo';
 const MAX_ARTWORK_BYTES = 12 * 1024 * 1024;
 const ID_RE = /^art_[a-f0-9]{32}$/;
 
+/**
+ * Where artwork bytes came from: a picture in an audio file's tags, an image file in the album
+ * folder, generated demo art, or an online cover source (opt-in).
+ */
+export type ArtworkSource = 'embedded' | 'folder' | 'generated' | 'online';
+
 const EXT_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
@@ -32,7 +38,7 @@ export class ArtworkStore {
     return ID_RE.test(id);
   }
 
-  put(bytes: Uint8Array, mime: string, source: 'embedded' | 'folder' | 'generated'): string | null {
+  put(bytes: Uint8Array, mime: string, source: ArtworkSource): string | null {
     const normalizedMime = mime.toLowerCase() === 'image/jpg' ? 'image/jpeg' : mime.toLowerCase();
     const ext = EXT_BY_MIME[normalizedMime];
     if (!ext || bytes.byteLength === 0 || bytes.byteLength > MAX_ARTWORK_BYTES) return null;

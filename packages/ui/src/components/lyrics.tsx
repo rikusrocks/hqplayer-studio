@@ -18,7 +18,7 @@ export function formatOffset(ms: number): string {
 }
 
 export interface LyricsPanelProps {
-  /** Desktop: offer LRCLIB search / re-match (this computer only). */
+  /** Desktop: offer online search / re-match (this computer only). */
   manage?: boolean;
   /** Desktop: open Settings → 歌词 (hint links). */
   settingsHref?: string;
@@ -312,7 +312,7 @@ function LyricsSearchDialog({
   };
   const choose = async (c: LyricsCandidate) => {
     setBusy(true);
-    const res = await run(() => client.lyrics.select(trackId, c.lrclibId), {
+    const res = await run(() => client.lyrics.select(trackId, c), {
       success: t('lyrics.selected'),
     });
     setBusy(false);
@@ -380,7 +380,7 @@ function LyricsSearchDialog({
             {results && results.length > 0 && (
               <ul className="hq-lyrics-search__list">
                 {results.map((c) => (
-                  <li key={c.lrclibId} className="hq-lyrics-search__item">
+                  <li key={`${c.provider}:${c.ref}`} className="hq-lyrics-search__item">
                     <div className="hq-lyrics-search__meta">
                       <strong>{c.trackName}</strong>
                       <span className="hq-muted">
@@ -396,8 +396,13 @@ function LyricsSearchDialog({
                         {c.instrumental ? t('lyrics.instrumental') : c.preview.join(' / ')}
                       </span>
                     </div>
-                    <span className="hq-badge">
-                      {c.synced ? t('lyrics.synced') : t('lyrics.plain')}
+                    <span className="hq-lyrics-search__badges">
+                      <span className="hq-badge">{t(`lyrics.provider.${c.provider}`)}</span>
+                      {c.synced !== null && (
+                        <span className="hq-badge">
+                          {c.synced ? t('lyrics.synced') : t('lyrics.plain')}
+                        </span>
+                      )}
                     </span>
                     <button
                       type="button"

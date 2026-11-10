@@ -15,7 +15,7 @@ const IdParams = z.object({ id: z.string().min(1).max(128) });
 
 /**
  * Lyrics API (inside `/api/v1`). Reading lyrics and calibrating the per-track offset are open to
- * paired phones as well; manual LRCLIB matching and the lyrics settings exist only on the
+ * paired phones as well; manual matching against online sources and the lyrics settings exist only on the
  * loopback app (this computer).
  */
 export function registerLyricsRoutes(api: FastifyInstance, s: StudioServices): void {
@@ -37,18 +37,16 @@ export function registerLyricsRoutes(api: FastifyInstance, s: StudioServices): v
   api.get('/tracks/:id/lyrics/search', async (req): Promise<LyricsCandidate[]> =>
     lyrics.search(IdParams.parse(req.params).id, LyricsSearchQuerySchema.parse(req.query).q),
   );
-  api.post('/tracks/:id/lyrics/select', async (req): Promise<TrackLyrics> =>
-    lyrics.select(
-      IdParams.parse(req.params).id,
-      LyricsSelectRequestSchema.parse(req.body ?? {}).lrclibId,
-    ),
-  );
+  api.post('/tracks/:id/lyrics/select', async (req): Promise<TrackLyrics> => {
+    const { provider, ref } = LyricsSelectRequestSchema.parse(req.body ?? {});
+    return lyrics.select(IdParams.parse(req.params).id, provider, ref);
+  });
   api.post('/tracks/:id/lyrics/reset', async (req): Promise<TrackLyrics> =>
     lyrics.reset(IdParams.parse(req.params).id),
   );
   api.get('/settings/lyrics', async (): Promise<LyricsSettings> => lyrics.settings());
   api.post('/settings/lyrics', async (req): Promise<LyricsSettings> =>
-    lyrics.setOnline(UpdateLyricsSettingsRequestSchema.parse(req.body ?? {}).online),
+    lyrics.update(UpdateLyricsSettingsRequestSchema.parse(req.body ?? {})),
   );
   api.post('/settings/lyrics/clear-cache', async (): Promise<LyricsSettings> =>
     lyrics.clearOnlineCache(),

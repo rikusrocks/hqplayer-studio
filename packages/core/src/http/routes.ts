@@ -40,6 +40,7 @@ import { z } from 'zod';
 import { ENGINE_ADAPTER_SETTING, ENGINE_CONTROL_SETTING } from '../settings-keys';
 import type { StudioServices } from '../server';
 import { HttpError } from './errors';
+import { registerCoverRoutes } from './cover-routes';
 import { registerLyricsRoutes } from './lyrics-routes';
 import { registerRemoteRoutes } from './remote-routes';
 import { isTrustedRequest } from './security';
@@ -196,6 +197,7 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
             },
             // counts only — lyric text never appears in diagnostics
             lyrics: s.lyrics.settings(),
+            covers: s.covers.settings(),
             protocol: adapter.getProtocolLog?.() ?? null,
           };
         });
@@ -390,6 +392,9 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
 
       // --- lyrics
       registerLyricsRoutes(api, s);
+
+      // --- online covers (this computer only)
+      registerCoverRoutes(api, s);
 
       // --- artwork (served from the content-addressed cache only; ids are validated)
       api.get('/artwork/:id', async (req, reply) => {

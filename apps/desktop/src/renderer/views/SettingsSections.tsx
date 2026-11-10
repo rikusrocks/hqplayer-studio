@@ -1,4 +1,10 @@
-import { canUse, type LyricsSettings as LyricsSettingsDto } from '@hqps/contracts';
+import {
+  canUse,
+  type CoverProviderId,
+  type CoverSettings as CoverSettingsDto,
+  type LyricsSettings as LyricsSettingsDto,
+  type OnlineLyricsProviderId,
+} from '@hqps/contracts';
 import {
   EmptyState,
   ErrorBlock,
@@ -398,7 +404,25 @@ export function LyricsSettings() {
     });
     if (res) setSettings(res);
   };
+  const setProvider = async (id: OnlineLyricsProviderId, next: boolean) => {
+    const name = t(`lyrics.provider.${id}`);
+    if (next) {
+      // Every source is another third party: ask before the first track name goes there.
+      const ok = await confirm({
+        title: t('settings.lyrics.providerConfirmTitle', { name }),
+        message: `${t('settings.lyrics.providerConfirm', { name })} ${t(`settings.lyrics.provider.${id}`)}`,
+        confirmLabel: t('settings.lyrics.confirm'),
+      });
+      if (!ok) return;
+    }
+    const ids = current.providers.filter((p) => (p.id === id ? next : p.enabled)).map((p) => p.id);
+    const res = await run(() => client.lyrics.setProviders(ids), {
+      success: t(next ? 'settings.lyrics.providerOn' : 'settings.lyrics.providerOff', { name }),
+    });
+    if (res) setSettings(res);
+  };
   const c = current.cached;
+  const onlineCached = c.lrclib + c.netease + c.kugou + c.lyricsovh;
   return (
     <div className="settings-stack">
       <div className="settings-block">
@@ -413,7 +437,7 @@ export function LyricsSettings() {
           title={t('settings.lyrics.online')}
           hint={t('settings.lyrics.onlinePrivacy')}
         />
-        {current.onlinePausedForMs > 0 && (
+        {current.online && current.onlinePausedForMs > 0 && (
           <div className="hq-banner hq-banner--muted">
             <Icon name="info" size={16} />
             <span>
@@ -425,6 +449,36 @@ export function LyricsSettings() {
         )}
       </div>
       <div className="settings-block">
+        <BlockHead title={t('settings.lyrics.sources')} layer="studio" />
+        <p className="hint">
+          {t(current.online ? 'settings.lyrics.sourcesHint' : 'settings.lyrics.sourcesOffHint')}
+        </p>
+        {current.providers.map((p) => (
+          <Switch
+            key={p.id}
+            checked={p.enabled}
+            disabled={!current.online}
+            onChange={(v) => void setProvider(p.id, v)}
+            title={t(`lyrics.provider.${p.id}`)}
+            hint={
+              <>
+                {t(`settings.lyrics.provider.${p.id}`)}
+                {current.online && p.enabled && p.pausedForMs > 0 && (
+                  <>
+                    {' '}
+                    <em>
+                      {t('settings.lyrics.providerPaused', {
+                        seconds: Math.ceil(p.pausedForMs / 1000),
+                      })}
+                    </em>
+                  </>
+                )}
+              </>
+            }
+          />
+        ))}
+      </div>
+      <div className="settings-block">
         <BlockHead
           title={t('settings.lyrics.cache')}
           layer="studio"
@@ -433,7 +487,7 @@ export function LyricsSettings() {
               type="button"
               className="hq-btn hq-btn--sm"
               onClick={() => void clear()}
-              disabled={c.lrclib + c.notFound === 0}
+              disabled={onlineCached + c.notFound === 0}
               title={t('settings.lyrics.clearHint')}
             >
               <Icon name="trash" size={14} />
@@ -445,7 +499,7 @@ export function LyricsSettings() {
           {t('settings.lyrics.cached', {
             local: c.local,
             embedded: c.embedded,
-            lrclib: c.lrclib,
+            online: onlineCached,
             demo: c.demo,
             notFound: c.notFound,
           })}
@@ -456,6 +510,137 @@ export function LyricsSettings() {
         <BlockHead title={t('settings.lyrics.calibration')} layer="studio" />
         <p className="hint">{t('settings.lyrics.calibrationHint')}</p>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------- Covers
+
+/** Settings → 音乐库 → 封面: where covers come from; online sources are opt-in. */
+export function CoverSettings() {
+  const { t } = useI18n();
+  const { client, run, libraryVersion } = useStudio();
+  const { confirm } = useDialogs();
+  const [tick, setTick] = useState(0);
+  const loaded = useAsync(() => client.covers.settings(), [client, libraryVersion, tick]);
+  const [settings, setSettings] = useState<CoverSettingsDto | null>(null);
+  const current = settings ?? loaded.data ?? null;
+  useEffect(() => setSettings(null), [loaded.data]);
+  // The "find all" job runs in Core; poll while it does.
+  const running = current?.fill.running ?? false;
+  useEffect(() => {
+    if (!running) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), 2000);
+    return () => clearTimeout(timer);
+  }, [running, loaded.data]);
+  if (!current) return loaded.error ? <ErrorBlock error={loaded.error} /> : null;
+
+  const setOnline = async (next: boolean) => {
+    if (next) {
+      const ok = await confirm({
+        title: t('settings.covers.confirmTitle'),
+        message: t('settings.covers.onlinePrivacy'),
+        confirmLabel: t('settings.covers.confirm'),
+      });
+      if (!ok) return;
+    }
+    const res = await run(() => client.covers.setOnline(next), {
+      success: next ? t('settings.covers.onlineOn') : t('settings.covers.onlineOff'),
+    });
+    if (res) setSettings(res);
+  };
+  const setProvider = async (id: CoverProviderId, next: boolean) => {
+    const ids = current.providers.filter((p) => (p.id === id ? next : p.enabled)).map((p) => p.id);
+    const res = await run(() => client.covers.setProviders(ids));
+    if (res) setSettings(res);
+  };
+  const fill = async () => {
+    const ok = await confirm({
+      title: t('settings.covers.fillConfirmTitle', { count: current.missing }),
+      message: t('settings.covers.fillConfirm', { count: current.missing }),
+      confirmLabel: t('settings.covers.fillStart'),
+    });
+    if (!ok) return;
+    const res = await run(() => client.covers.fill());
+    if (res) setSettings(res);
+  };
+  const stop = async () => {
+    const res = await run(() => client.covers.cancelFill());
+    if (res) setSettings(res);
+  };
+  const usable = current.online && current.providers.some((p) => p.enabled);
+  const job = current.fill;
+  return (
+    <div className="settings-block">
+      <BlockHead title={t('settings.covers.title')} layer="studio" />
+      <p className="hint">{t('settings.covers.localHint')}</p>
+      <Switch
+        checked={current.online}
+        onChange={(v) => void setOnline(v)}
+        title={t('settings.covers.online')}
+        hint={t('settings.covers.onlinePrivacy')}
+      />
+      {current.online && (
+        <>
+          <h4 className="settings-block__subtitle">{t('settings.covers.sources')}</h4>
+          {current.providers.map((p) => (
+            <Switch
+              key={p.id}
+              checked={p.enabled}
+              onChange={(v) => void setProvider(p.id, v)}
+              title={t(`covers.provider.${p.id}`)}
+              hint={
+                <>
+                  {t(`settings.covers.provider.${p.id}`)}
+                  {p.enabled && p.pausedForMs > 0 && (
+                    <>
+                      {' '}
+                      <em>
+                        {t('settings.lyrics.providerPaused', {
+                          seconds: Math.ceil(p.pausedForMs / 1000),
+                        })}
+                      </em>
+                    </>
+                  )}
+                </>
+              }
+            />
+          ))}
+        </>
+      )}
+      <p className="hint">
+        {current.missing === 0
+          ? t('settings.covers.missingNone')
+          : t('settings.covers.missing', { count: current.missing })}
+      </p>
+      {usable && (job.running || current.missing > 0) && (
+        <div className="settings-block__row">
+          {job.running ? (
+            <>
+              <span className="hint">
+                {t('settings.covers.fillRunning', {
+                  done: job.done,
+                  total: job.total,
+                  found: job.found,
+                })}
+              </span>
+              <button type="button" className="hq-btn hq-btn--sm" onClick={() => void stop()}>
+                {t('settings.covers.fillStop')}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="hq-btn hq-btn--sm" onClick={() => void fill()}>
+              <Icon name="search" size={14} />
+              {t('settings.covers.fill')}
+            </button>
+          )}
+        </div>
+      )}
+      {!job.running && job.finishedAt !== null && (
+        <p className="hint hq-muted">
+          {t('settings.covers.fillDone', { done: job.done, found: job.found })}
+        </p>
+      )}
     </div>
   );
 }

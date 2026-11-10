@@ -4,7 +4,14 @@ import { join } from 'node:path';
 import type { StudioEvent, TrackLyrics } from '@hqps/contracts';
 import { MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
-import { LrclibClient } from '@hqps/lyrics';
+import {
+  LrclibClient,
+  LrclibProvider,
+  OnlineUnavailableError,
+  type OnlineLyrics,
+  type OnlineLyricsProvider,
+  type OnlineLyricsQuery,
+} from '@hqps/lyrics';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeWav } from '../../../library/src/testing/synthetic-audio';
 import { createStudioServer, type StudioServer } from '../server';
@@ -22,6 +29,45 @@ let server: StudioServer;
 let lrclibCalls: URL[];
 let lrclibResponses: Array<() => Response>;
 const events: StudioEvent[] = [];
+
+/** A scripted online source: answers `find` from `next`, records what it was asked. */
+interface FakeProvider extends OnlineLyricsProvider {
+  finds: OnlineLyricsQuery[];
+  next: Array<() => OnlineLyrics | null>;
+}
+function fakeProvider(id: 'netease' | 'kugou'): FakeProvider {
+  const p: FakeProvider = {
+    id,
+    finds: [],
+    next: [],
+    blockedForMs: () => 0,
+    async find(q) {
+      p.finds.push(q);
+      return p.next.shift()?.() ?? null;
+    },
+    async search() {
+      return [
+        {
+          provider: id,
+          ref: `${id}-1`,
+          trackName: 'Hit',
+          artistName: 'Invented Artist',
+          albumName: '',
+          durationSec: 2,
+          synced: null,
+          instrumental: false,
+          lyrics: null,
+        },
+      ];
+    },
+    async fetch(ref) {
+      return ref === `${id}-1` ? { synced: ONLINE_SYNCED, plain: null, instrumental: false } : null;
+    },
+  };
+  return p;
+}
+let netease: FakeProvider;
+let kugou: FakeProvider;
 
 const HOOK_TIMEOUT_MS = 30_000;
 
@@ -84,6 +130,8 @@ beforeEach(async () => {
   adapter = new MockHQPlayerAdapter({ latencyMs: 2, tickMs: 50 });
   lrclibCalls = [];
   lrclibResponses = [];
+  netease = fakeProvider('netease');
+  kugou = fakeProvider('kugou');
   events.length = 0;
   const lrclib = new LrclibClient({
     userAgent: lrclibUserAgent('test'),
@@ -102,7 +150,7 @@ beforeEach(async () => {
     port: 0,
     engine: { commandTimeoutMs: 2000, reconnectMinMs: 20, reconnectMaxMs: 50 },
     queue: { settleMs: 0 },
-    lyrics: { lrclib },
+    lyrics: { providers: [new LrclibProvider(lrclib), netease, kugou] },
   });
   server.hub.subscribe((e) => events.push(e));
   await server.engine.start();
@@ -219,13 +267,14 @@ describe('lyrics', () => {
     expect((await api('GET', `/tracks/${local}/lyrics/search`)).status).toBe(409);
     await api('POST', '/settings/lyrics', { online: true });
     lrclibResponses.push(() => json([record({ id: 99, trackName: 'Local Song' })]));
-    const found = await api<{ lrclibId: number; preview: string[] }[]>(
+    const found = await api<{ provider: string; ref: string; preview: string[] }[]>(
       'GET',
       `/tracks/${local}/lyrics/search?q=local%20song`,
     );
     expect(found.body).toEqual([
       expect.objectContaining({
-        lrclibId: 99,
+        provider: 'lrclib',
+        ref: '99',
         synced: true,
         preview: ['invented online line', 'another invented line'],
       }),
@@ -234,7 +283,8 @@ describe('lyrics', () => {
 
     lrclibResponses.push(() => json(record({ id: 99 })));
     const picked = await api<TrackLyrics>('POST', `/tracks/${local}/lyrics/select`, {
-      lrclibId: 99,
+      provider: 'lrclib',
+      ref: '99',
     });
     expect(picked.body).toMatchObject({ source: 'lrclib', selectedByUser: true });
     expect((await api<TrackLyrics>('GET', `/tracks/${local}/lyrics`)).body.source).toBe('lrclib');
@@ -261,6 +311,118 @@ describe('lyrics', () => {
     await api('GET', `/tracks/${local}/lyrics`);
     const diag = await api('GET', '/engine/diagnostics');
     expect(JSON.stringify(diag.body)).not.toContain('invented local line');
+  });
+});
+
+describe('more online sources', () => {
+  const synced = (): OnlineLyrics => ({ synced: ONLINE_SYNCED, plain: null, instrumental: false });
+  const plain = (): OnlineLyrics => ({
+    synced: null,
+    plain: 'an invented plain line',
+    instrumental: false,
+  });
+  type Settings = { online: boolean; providers: { id: string; enabled: boolean }[] };
+
+  it('asks only LRCLIB until the user switches other sources on', async () => {
+    const initial = await api<Settings>('GET', '/settings/lyrics');
+    expect(initial.body.providers).toEqual([
+      expect.objectContaining({ id: 'lrclib', enabled: true }),
+      expect.objectContaining({ id: 'netease', enabled: false }),
+      expect.objectContaining({ id: 'kugou', enabled: false }),
+    ]);
+    await api('POST', '/settings/lyrics', { online: true });
+    const quiet = await play('Quiet Song');
+    lrclibResponses.push(notFound, () => json([]));
+    expect((await api<TrackLyrics>('GET', `/tracks/${quiet}/lyrics`)).body.state).toBe('not_found');
+    expect(netease.finds).toHaveLength(0);
+    expect(kugou.finds).toHaveLength(0);
+    expect((await api('POST', '/settings/lyrics', {})).status).toBe(400);
+    expect((await api('POST', '/settings/lyrics', { providers: ['bogus'] })).status).toBe(400);
+  });
+
+  it('tries the enabled sources in order and prefers synced over plain lyrics', async () => {
+    // the order is Studio's, whatever order the request lists them in
+    const set = await api<Settings>('POST', '/settings/lyrics', {
+      online: true,
+      providers: ['kugou', 'lrclib', 'netease'],
+    });
+    expect(set.body.providers.map((p) => [p.id, p.enabled])).toEqual([
+      ['lrclib', true],
+      ['netease', true],
+      ['kugou', true],
+    ]);
+    const quiet = await play('Quiet Song');
+    lrclibResponses.push(notFound, () => json([]));
+    netease.next.push(plain);
+    kugou.next.push(synced);
+    const res = await api<TrackLyrics>('GET', `/tracks/${quiet}/lyrics`);
+    expect(res.body).toMatchObject({ state: 'found', source: 'kugou', kind: 'synced' });
+    expect(netease.finds).toEqual([
+      {
+        trackName: 'Quiet Song',
+        artistName: 'Invented Artist',
+        albumName: 'Invented Album',
+        durationSec: 1,
+      },
+    ]);
+
+    // nobody has synced lyrics: the plain ones found first are used
+    const online = await play('Online Song');
+    lrclibResponses.push(notFound, () => json([]));
+    netease.next.push(plain);
+    const fallback = await api<TrackLyrics>('GET', `/tracks/${online}/lyrics`);
+    expect(fallback.body).toMatchObject({
+      state: 'found',
+      source: 'netease',
+      kind: 'plain',
+      plain: ['an invented plain line'],
+    });
+    expect(kugou.finds).toHaveLength(2);
+    expect(
+      (await api<{ cached: Record<string, number> }>('GET', '/settings/lyrics')).body.cached,
+    ).toMatchObject({ netease: 1, kugou: 1, lrclib: 0 });
+  });
+
+  it('when one source is down, asks only that one again after the pause', async () => {
+    await api('POST', '/settings/lyrics', { online: true, providers: ['lrclib', 'netease'] });
+    const quiet = await play('Quiet Song');
+    lrclibResponses.push(notFound, () => json([]));
+    netease.next.push(() => {
+      throw new OnlineUnavailableError('unavailable', 45_000, 'down');
+    });
+    const down = await api<TrackLyrics>('GET', `/tracks/${quiet}/lyrics`);
+    expect(down.body).toMatchObject({ state: 'unavailable', online: { retryAfterMs: 45_000 } });
+    expect(lrclibCalls).toHaveLength(2);
+
+    netease.next.push(synced);
+    const back = await api<TrackLyrics>('GET', `/tracks/${quiet}/lyrics`);
+    expect(back.body).toMatchObject({ state: 'found', source: 'netease' });
+    expect(lrclibCalls).toHaveLength(2); // LRCLIB had answered already
+    expect(netease.finds).toHaveLength(2);
+  });
+
+  it('offers candidates from every enabled source and stores the one picked', async () => {
+    await api('POST', '/settings/lyrics', { online: true, providers: ['lrclib', 'netease'] });
+    const local = await play('Local Song');
+    lrclibResponses.push(() => json([record({ id: 99 })]));
+    const found = await api<{ provider: string; ref: string; synced: boolean | null }[]>(
+      'GET',
+      `/tracks/${local}/lyrics/search`,
+    );
+    expect(found.body.map((c) => [c.provider, c.ref, c.synced])).toEqual([
+      ['lrclib', '99', true],
+      ['netease', 'netease-1', null],
+    ]);
+    const picked = await api<TrackLyrics>('POST', `/tracks/${local}/lyrics/select`, {
+      provider: 'netease',
+      ref: 'netease-1',
+    });
+    expect(picked.body).toMatchObject({ source: 'netease', selectedByUser: true, kind: 'synced' });
+    const select = (payload: unknown) => api('POST', `/tracks/${local}/lyrics/select`, payload);
+    expect((await select({ provider: 'netease', ref: 'gone' })).status).toBe(404);
+    expect((await select({ provider: 'kugou', ref: 'kugou-1' })).status).toBe(409); // switched off
+    expect((await select({ provider: 'bogus', ref: 'x' })).status).toBe(400);
+    expect((await select({ lrclibId: 99 })).status).toBe(400);
   });
 });
 

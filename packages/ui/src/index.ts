@@ -21,3 +21,4 @@ export * from './components/albums';
 export * from './components/queue';
 export * from './hooks/useLyrics';
 export * from './components/lyrics';
+export * from './components/covers';

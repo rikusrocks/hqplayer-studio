@@ -494,18 +494,26 @@ export const en: Record<MessageKey, string> = {
   'lyrics.notInLibrary': 'This track is not in the Studio library, so no lyrics can be matched',
   'lyrics.notFound': 'No lyrics found',
   'lyrics.notFoundLocalHint':
-    'Put a .lrc file with the same name next to the music file, or turn on online lyrics (LRCLIB) in Settings → Lyrics.',
-  'lyrics.notFoundOnlineHint': 'No lyrics next to the file, in its tags or on LRCLIB.',
+    'Put an .lrc file with the same name next to the music file, or turn on online lyrics in Settings → Lyrics.',
+  'lyrics.notFoundOnlineHint':
+    'No lyrics next to the file, in its tags or at the online sources you enabled.',
   'lyrics.notFoundRemoteHint':
     'Put a .lrc file with the same name next to the music file, or turn on online lyrics in Studio on the computer (Settings → Lyrics).',
   'lyrics.unavailable': 'Online lyrics are not available right now',
   'lyrics.unavailableHint': 'Studio will try again later. Playback is not affected.',
   'lyrics.instrumental': 'Instrumental — no lyrics',
   'lyrics.plainNote': 'These lyrics have no timing, so they do not scroll with playback.',
-  'lyrics.source.local': 'Local LRC file',
+  'lyrics.source.local': 'Local lyrics file',
   'lyrics.source.embedded': 'Embedded in the file',
   'lyrics.source.lrclib': 'LRCLIB (online)',
   'lyrics.source.demo': 'Demo lyrics (fictional)',
+  'lyrics.source.netease': 'NetEase Cloud Music (online)',
+  'lyrics.source.kugou': 'Kugou Music (online)',
+  'lyrics.source.lyricsovh': 'lyrics.ovh (online)',
+  'lyrics.provider.lrclib': 'LRCLIB',
+  'lyrics.provider.netease': 'NetEase Cloud Music',
+  'lyrics.provider.kugou': 'Kugou Music',
+  'lyrics.provider.lyricsovh': 'lyrics.ovh',
   'lyrics.manual': 'chosen by you',
   'lyrics.offsetLabel': 'Lyrics timing offset (this track only)',
   'lyrics.earlier': 'Show lyrics 0.5 s earlier',
@@ -513,18 +521,19 @@ export const en: Record<MessageKey, string> = {
   'lyrics.offsetReset': 'Click to reset to 0',
   'lyrics.delayNote':
     'HQPlayer’s output buffer ({seconds} s) is already taken into account, so lyrics follow what you hear; fine-tune with − / + if needed.',
-  'lyrics.search': 'Search LRCLIB…',
+  'lyrics.search': 'Search online…',
   'lyrics.rematch': 'Match again',
   'lyrics.rematchHint':
     'Forget the current match (including your choice and “not found”) and look again',
   'lyrics.searchTitle': 'Choose lyrics for “{title}”',
   'lyrics.searchPlaceholder': 'Title, artist…',
-  'lyrics.searchPrivacy': 'Your search is sent to the third-party service LRCLIB (lrclib.net).',
+  'lyrics.searchPrivacy':
+    'Your search is sent to the third-party lyric sources you enabled in Settings → Lyrics.',
   'lyrics.searchEmpty': 'No matching lyrics found',
   'lyrics.use': 'Use',
   'lyrics.synced': 'Synced',
   'lyrics.plain': 'Plain',
-  'lyrics.onlineOff': 'Online lyrics are off. Turn them on in Settings → Lyrics to search LRCLIB.',
+  'lyrics.onlineOff': 'Online lyrics are off. Turn them on in Settings → Lyrics to search online.',
   'lyrics.openSettings': 'Lyrics settings',
   'lyrics.selected': 'Using the chosen lyrics',
   'lyrics.showLyrics': 'Show lyrics',
@@ -596,26 +605,92 @@ export const en: Record<MessageKey, string> = {
     'Output device, ASIO / WASAPI / NAA, buffer size and rate limits can only be changed in HQPlayer’s settings. Studio neither reads nor ever changes them, so the audio chain stays exactly as you set it.',
   'settings.lyrics.local': 'Local lyrics (default)',
   'settings.lyrics.localHint':
-    'A .lrc file with the same name next to the music file (e.g. “01 Title.lrc” beside “01 Title.flac”) and lyrics embedded in the file’s tags show automatically, offline. UTF-8, UTF-16 and older GBK / Shift-JIS files are supported.',
-  'settings.lyrics.onlineTitle': 'Online lyrics (LRCLIB)',
-  'settings.lyrics.online': 'Look up LRCLIB when there are no local lyrics',
+    "Studio shows lyric files that sit next to the music file and lyrics embedded in its tags — no network needed. The file may carry the music file's name (“01 Song.lrc” next to “01 Song.flac”), or be called “Song.lrc”, “Artist - Song.lrc” or “Song - Artist.lrc”, and it may live in a Lyrics / LRC sub-folder; a .txt with the same name is shown as plain lyrics. UTF-8, UTF-16 and legacy GBK / Shift-JIS files are supported.",
+  'settings.lyrics.onlineTitle': 'Online lyrics',
+  'settings.lyrics.online': 'Look online when there are no local lyrics',
   'settings.lyrics.onlinePrivacy':
-    'When on, Studio sends the title, artist, album and duration of the track that is playing to the third-party service LRCLIB (lrclib.net). Only the playing track is looked up — never in bulk while scanning; no file paths or account details are sent. Lyrics found are stored on this computer, so the track is not looked up again.',
+    'When on, Studio sends the title, artist, album and duration of the track that is playing to the lyric sources enabled below (all third-party services). Only the playing track is looked up — never the whole library during a scan — and no file paths or account details are sent. Lyrics that are found are stored on this computer, so the track is not looked up again.',
   'settings.lyrics.confirmTitle': 'Turn on online lyrics?',
   'settings.lyrics.confirm': 'Turn on',
   'settings.lyrics.onlineOn': 'Online lyrics turned on',
   'settings.lyrics.onlineOff': 'Online lyrics turned off — no more online lookups',
-  'settings.lyrics.paused': 'LRCLIB asked Studio to pause; lookups resume in about {seconds} s.',
+  'settings.lyrics.paused':
+    'The enabled lyric sources cannot be asked right now; lookups resume in about {seconds} s.',
   'settings.lyrics.cache': 'Stored lyrics',
   'settings.lyrics.cached':
-    'Local files {local} · embedded {embedded} · LRCLIB {lrclib} · demo {demo} · not found {notFound}',
+    'Local files {local} · embedded {embedded} · online {online} · demo {demo} · not found {notFound}',
   'settings.lyrics.clear': 'Clear online lyrics cache',
   'settings.lyrics.clearHint':
-    'Deletes lyrics fetched automatically from LRCLIB and the “not found” records (lyrics you picked by hand stay). Lyrics are stored on this computer only.',
+    'Removes lyrics that were fetched from online sources automatically and the “not found” records (lyrics you picked by hand stay). Lyrics are stored on this computer only.',
   'settings.lyrics.cleared': 'Online lyrics cache cleared',
   'settings.lyrics.calibration': 'Timing',
   'settings.lyrics.calibrationHint':
     'Studio aligns lyrics with HQPlayer’s reported output buffer. If a track is still off, use − / + in Now Playing → Lyrics; the offset is saved per track and shared with your phone.',
+  'settings.lyrics.sources': 'Lyric sources',
+  'settings.lyrics.sourcesHint':
+    'Asked in this order until one has synced lyrics; when a source only has plain lyrics, the following ones are still asked. Every source is a separate third-party service and only enabled ones are contacted.',
+  'settings.lyrics.sourcesOffHint': 'Turn on “Look online” above to use these sources.',
+  'settings.lyrics.provider.lrclib':
+    'Open lyrics database (lrclib.net) with a documented API. Strong for English and Japanese songs.',
+  'settings.lyrics.provider.netease':
+    'Largest catalogue of Chinese songs (music.163.com). Uses the interface of the NetEase web player, which is not a documented public API and may stop working at any time.',
+  'settings.lyrics.provider.kugou':
+    'Good coverage of Chinese songs (lyrics.kugou.com). Also not a documented public API; may stop working at any time.',
+  'settings.lyrics.provider.lyricsovh':
+    'Open API (lyrics.ovh) with plain lyrics only (no time codes), mostly English songs.',
+  'settings.lyrics.providerPaused': 'paused, resumes in about {seconds} s',
+  'settings.lyrics.providerOn': '{name} turned on',
+  'settings.lyrics.providerOff': '{name} turned off',
+  'settings.lyrics.providerConfirmTitle': 'Turn on {name}?',
+  'settings.lyrics.providerConfirm':
+    'The title, artist, album and duration of the track that is playing will also be sent to {name}.',
+
+  'covers.search': 'Find cover…',
+  'covers.searchTitle': 'Choose a cover for “{title}”',
+  'covers.searchPlaceholder': 'Album, artist…',
+  'covers.searchPrivacy':
+    'Your search is sent to the third-party cover sources you enabled in Settings → Library.',
+  'covers.searchEmpty': 'No covers found',
+  'covers.onlineOff':
+    'Online covers are off. Turn them on in Settings → Library → Covers to search online.',
+  'covers.openSettings': 'Cover settings',
+  'covers.use': 'Use this cover',
+  'covers.selected': 'Cover changed',
+  'covers.reset': 'Use local cover',
+  'covers.resetHint':
+    'Drops an online cover and reads the image in the album folder or embedded in the files again. Nothing is looked up online.',
+  'covers.resetDone': 'Local cover read again',
+  'covers.resetNone': 'No cover in the album folder or the file tags',
+  'covers.provider.itunes': 'iTunes',
+  'covers.provider.deezer': 'Deezer',
+  'covers.provider.musicbrainz': 'Cover Art Archive',
+  'covers.tracks': '{count} tracks',
+  'settings.covers.title': 'Covers',
+  'settings.covers.localHint':
+    'Studio first looks for a cover image in the album folder: well-known names such as cover / folder / front / albumart (JPG, PNG, WebP, any letter case), an image with “cover” or “front” in its name, the only image in the folder, and Artwork / Covers / Scans sub-folders. Failing that it reads the picture embedded in the music files.',
+  'settings.covers.online': 'Look online when there is no local cover',
+  'settings.covers.onlinePrivacy':
+    "When on, Studio sends an album's title and album artist to the cover sources enabled below (all third-party services) and downloads the cover from their image servers. By itself it only looks up the album that is playing and has no cover; for other albums use “Find cover…” or “Find covers for all albums without one”. No file paths or account details are sent, and albums that have a local cover are never changed.",
+  'settings.covers.confirmTitle': 'Turn on online covers?',
+  'settings.covers.confirm': 'Turn on',
+  'settings.covers.onlineOn': 'Online covers turned on',
+  'settings.covers.onlineOff': 'Online covers turned off — no more online lookups',
+  'settings.covers.sources': 'Cover sources',
+  'settings.covers.provider.itunes':
+    "Apple's iTunes Search API (itunes.apple.com). Strong for popular music, sharp images.",
+  'settings.covers.provider.deezer': 'The public Deezer API (api.deezer.com).',
+  'settings.covers.provider.musicbrainz':
+    'MusicBrainz release search plus the Cover Art Archive (coverartarchive.org). Open data, strong for classical and less common releases.',
+  'settings.covers.missing': '{count} albums in the library have no cover.',
+  'settings.covers.missingNone': 'Every album has a cover.',
+  'settings.covers.fill': 'Find covers for all albums without one',
+  'settings.covers.fillConfirmTitle': 'Look up covers for {count} albums online?',
+  'settings.covers.fillConfirm':
+    'The title and album artist of these {count} albums are sent, one by one, to the enabled cover sources. Lookups are paced (at most one per second per source) and you can stop at any time.',
+  'settings.covers.fillStart': 'Start',
+  'settings.covers.fillRunning': 'Looking up: {done} / {total}, {found} found',
+  'settings.covers.fillDone': 'Last run: {done} albums looked up, {found} covers found.',
+  'settings.covers.fillStop': 'Stop',
   'errors.generic': 'Action failed: {message}',
   'errors.network': 'Cannot reach the Studio server',
   'errors.loadFailed': 'Failed to load: {message}',

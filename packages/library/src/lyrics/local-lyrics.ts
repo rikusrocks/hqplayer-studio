@@ -3,26 +3,100 @@ import { basename, dirname, extname, join } from 'node:path';
 import { decodeLegacy, detectLegacyEncoding, languageHint } from '../scanner/legacy-encoding';
 
 /**
- * Lyrics that live with the music: a `.lrc` file next to the audio file (same base name,
- * any letter case) or lyrics stored in the file's tags. Read-only — files are never changed.
+ * Lyrics that live with the music: a lyrics file next to the audio file or lyrics stored in the
+ * file's tags. Read-only — files are never changed.
+ *
+ * Where a lyrics file is looked for, in this order (letter case never matters):
+ *  1. `<audio file name>.lrc` in the audio file's folder;
+ *  2. the same name without a leading track number (`01 Song.flac` → `Song.lrc`), the track's
+ *     title (`Song.lrc`), `Artist - Song.lrc` and `Song - Artist.lrc` — the names lyric
+ *     downloaders write;
+ *  3. `<audio file name>.txt` (plain lyrics);
+ *  4. all of the above in a `Lyrics` / `Lyric` / `LRC` / `歌词` sub-folder.
  */
 
 /** Larger "lyrics" files are not lyrics. */
 export const MAX_LYRICS_FILE_BYTES = 1024 * 1024;
 
-/** Path of `<same name>.lrc` in the audio file's folder, or null. */
-export async function findSidecarLrc(audioPath: string): Promise<string | null> {
-  const dir = dirname(audioPath);
-  const want = `${basename(audioPath, extname(audioPath))}.lrc`.normalize('NFC').toLowerCase();
-  let names: string[];
+/** What the tags say about the track; used to recognise lyric files named after the song. */
+export interface SidecarHints {
+  title?: string;
+  artist?: string;
+}
+
+const LYRICS_DIRS = new Set(['lyrics', 'lyric', 'lrc', '歌词', '歌詞']);
+
+/** File-name comparison key: case, Unicode form, characters Windows forbids and spacing. */
+const nameKey = (name: string): string =>
+  name
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[\\/:*?"<>|]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** File names (with extension) a track's lyrics may have, best first. */
+export function sidecarNameCandidates(audioPath: string, hints: SidecarHints = {}): string[] {
+  const base = basename(audioPath, extname(audioPath));
+  const unnumbered = base.replace(/^\d{1,3}(?:[-.]\d{1,3})?[\s._-]+/, '');
+  const title = hints.title?.trim() ?? '';
+  const artist = hints.artist?.trim() ?? '';
+  const names = [
+    `${base}.lrc`,
+    unnumbered && `${unnumbered}.lrc`,
+    title && `${title}.lrc`,
+    title && artist && `${artist} - ${title}.lrc`,
+    title && artist && `${title} - ${artist}.lrc`,
+    `${base}.txt`,
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const n of names) {
+    const key = n ? nameKey(n) : '';
+    if (!key || key.startsWith('.') || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
+async function listDir(dir: string): Promise<string[] | null> {
   try {
-    names = await readdir(dir);
+    return await readdir(dir);
   } catch {
     return null; // folder offline (NAS / USB) or unreadable
   }
-  const hit = names.find((n) => n.normalize('NFC').toLowerCase() === want);
-  return hit ? join(dir, hit) : null;
 }
+
+/** Path of the track's lyrics file (see the search order above), or null. */
+export async function findSidecarLyrics(
+  audioPath: string,
+  hints: SidecarHints = {},
+): Promise<string | null> {
+  const dir = dirname(audioPath);
+  const names = await listDir(dir);
+  if (!names) return null;
+  const wanted = sidecarNameCandidates(audioPath, hints);
+  const pick = (entries: string[]): string | null => {
+    const byKey = new Map<string, string>();
+    for (const e of entries) if (!byKey.has(nameKey(e))) byKey.set(nameKey(e), e);
+    for (const w of wanted) {
+      const hit = byKey.get(w);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  const here = pick(names);
+  if (here) return join(dir, here);
+  for (const sub of names.filter((n) => LYRICS_DIRS.has(n.normalize('NFC').toLowerCase()))) {
+    const hit = pick((await listDir(join(dir, sub))) ?? []);
+    if (hit) return join(dir, sub, hit);
+  }
+  return null;
+}
+
+/** Path of `<same name>.lrc` in the audio file's folder (or another known lyrics file), or null. */
+export const findSidecarLrc = findSidecarLyrics;
 
 const utf8Strict = new TextDecoder('utf-8', { fatal: true });
 
@@ -64,9 +138,12 @@ async function readSmallFile(path: string): Promise<Buffer | null> {
   }
 }
 
-/** Text of the sidecar `.lrc` file, or null when there is none (or it cannot be read). */
-export async function readSidecarLyrics(audioPath: string): Promise<string | null> {
-  const file = await findSidecarLrc(audioPath);
+/** Text of the track's lyrics file, or null when there is none (or it cannot be read). */
+export async function readSidecarLyrics(
+  audioPath: string,
+  hints: SidecarHints = {},
+): Promise<string | null> {
+  const file = await findSidecarLyrics(audioPath, hints);
   if (!file) return null;
   const bytes = await readSmallFile(file);
   if (!bytes) return null;

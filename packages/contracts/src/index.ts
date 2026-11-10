@@ -8,3 +8,4 @@ export * from './events';
 export * from './remote';
 export * from './paths';
 export * from './lyrics';
+export * from './covers';

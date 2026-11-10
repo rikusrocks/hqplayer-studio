@@ -1,6 +1,7 @@
 import {
   AddToPlaylistButton,
   Artwork,
+  CoverSearchDialog,
   EmptyState,
   ErrorBlock,
   Icon,
@@ -12,12 +13,16 @@ import {
   useCapabilityGate,
   useI18n,
   useStudio,
+  useToasts,
 } from '@hqps/ui';
 import { StudioApiError } from '@hqps/api-client';
+import { useState } from 'react';
 
 export function AlbumDetailView({ albumId }: { albumId: string }) {
   const { t, locale } = useI18n();
-  const { client, libraryVersion, playAlbum, queueAdd, pending } = useStudio();
+  const { client, libraryVersion, playAlbum, queueAdd, pending, run, server } = useStudio();
+  const toasts = useToasts();
+  const [findingCover, setFindingCover] = useState(false);
   const gate = useCapabilityGate();
   const album = useAsync(() => client.library.album(albumId), [client, albumId, libraryVersion]);
 
@@ -34,6 +39,12 @@ export function AlbumDetailView({ albumId }: { albumId: string }) {
   const playReason = gate('queue.replace');
   const appendReason = gate('queue.append');
   const source = { kind: 'album' as const, id: a.id, label: a.title };
+  // Covers are managed on this computer only; the demo library's covers are generated.
+  const canManageCover = (server?.trustedClient ?? false) && a.tracks.length > 0;
+  const resetCover = async () => {
+    const res = await run(() => client.covers.reset(a.id));
+    if (res) toasts.push('success', res.artworkId ? t('covers.resetDone') : t('covers.resetNone'));
+  };
   const meta = [
     a.year,
     a.genre,
@@ -103,6 +114,27 @@ export function AlbumDetailView({ albumId }: { albumId: string }) {
             </button>
             <AddToPlaylistButton trackIds={trackIds} />
           </div>
+          {canManageCover && (
+            <div className="detail-hero__actions detail-hero__actions--minor">
+              <button
+                type="button"
+                className="hq-btn hq-btn--sm hq-btn--ghost"
+                onClick={() => setFindingCover(true)}
+              >
+                <Icon name="search" size={14} />
+                {t('covers.search')}
+              </button>
+              <button
+                type="button"
+                className="hq-btn hq-btn--sm hq-btn--ghost"
+                onClick={() => void resetCover()}
+                title={t('covers.resetHint')}
+              >
+                <Icon name="refresh" size={14} />
+                {t('covers.reset')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -111,6 +143,16 @@ export function AlbumDetailView({ albumId }: { albumId: string }) {
           <Icon name="warning" size={16} />
           <span>{t('album.unavailable')}</span>
         </div>
+      )}
+
+      {findingCover && (
+        <CoverSearchDialog
+          albumId={a.id}
+          title={a.title}
+          artist={a.albumArtist}
+          settingsHref="#/settings/library"
+          onClose={() => setFindingCover(false)}
+        />
       )}
 
       <TrackList

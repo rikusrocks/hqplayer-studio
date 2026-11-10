@@ -2,13 +2,16 @@ import type { Database } from '../db/database';
 
 /**
  * Stored lyrics association per track (`lyrics_cache`, one row per track):
- * `local` / `embedded` / `lrclib` / `demo` hold the lyric text; `none` records that LRCLIB had
- * nothing (so it is not asked again for a while). The row also carries the user's per-track
+ * `local` / `embedded` / an online source (`lrclib`, `netease`, `kugou`, `lyricsovh`) / `demo`
+ * hold the lyric text; `none` records that the online sources had nothing (so they are not asked
+ * again for a while). The row also carries the user's per-track
  * offset and whether the user picked the lyrics by hand.
  *
  * Lyric text lives only here — never in logs, diagnostics or error messages.
  */
-export type LyricsCacheSource = 'local' | 'embedded' | 'lrclib' | 'demo' | 'none';
+export const ONLINE_LYRICS_SOURCES = ['lrclib', 'netease', 'kugou', 'lyricsovh'] as const;
+export type OnlineLyricsSource = (typeof ONLINE_LYRICS_SOURCES)[number];
+export type LyricsCacheSource = 'local' | 'embedded' | OnlineLyricsSource | 'demo' | 'none';
 export type LyricsCacheType = 'plain' | 'lrc' | 'word';
 
 export interface LyricsCacheRow {
@@ -31,7 +34,14 @@ interface DbRow {
   last_checked_at: number;
 }
 
-const SOURCES = new Set<LyricsCacheSource>(['local', 'embedded', 'lrclib', 'demo', 'none']);
+const SOURCES = new Set<LyricsCacheSource>([
+  'local',
+  'embedded',
+  ...ONLINE_LYRICS_SOURCES,
+  'demo',
+  'none',
+]);
+const ONLINE_OR_NONE = [...ONLINE_LYRICS_SOURCES, 'none'].map((s) => `'${s}'`).join(', ');
 
 const toRow = (r: DbRow): LyricsCacheRow => ({
   trackId: r.track_id,
@@ -105,11 +115,11 @@ export class LyricsRepository {
     this.db.prepare('DELETE FROM lyrics_cache WHERE track_id = ?').run(trackId);
   }
 
-  /** Forget everything that came from LRCLIB automatically (hand-picked lyrics stay). */
+  /** Forget everything that came from online sources automatically (hand-picked lyrics stay). */
   clearOnline(): number {
     const res = this.db
       .prepare(
-        "DELETE FROM lyrics_cache WHERE source IN ('lrclib', 'none') AND selected_by_user = 0",
+        `DELETE FROM lyrics_cache WHERE source IN (${ONLINE_OR_NONE}) AND selected_by_user = 0`,
       )
       .run();
     return Number(res.changes);
@@ -120,6 +130,9 @@ export class LyricsRepository {
       local: 0,
       embedded: 0,
       lrclib: 0,
+      netease: 0,
+      kugou: 0,
+      lyricsovh: 0,
       demo: 0,
       none: 0,
     };

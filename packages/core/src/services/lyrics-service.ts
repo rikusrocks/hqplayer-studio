@@ -2,6 +2,7 @@ import {
   type LyricsCandidate,
   type LyricsSettings,
   type LyricsSource,
+  type OnlineLyricsProviderId,
   type TrackLyrics,
 } from '@hqps/contracts';
 import {
@@ -9,57 +10,73 @@ import {
   readEmbeddedLyrics,
   readSidecarLyrics,
   type EmbeddedLyrics,
+  ONLINE_LYRICS_SOURCES,
   type LibraryContext,
   type LyricsCacheRow,
+  type SidecarHints,
 } from '@hqps/library';
 import {
-  LrclibClient,
-  LrclibUnavailableError,
+  createOnlineLyricsProviders,
+  OnlineUnavailableError,
   parseLrc,
-  pickBestRecord,
   toLrcText,
-  type LrclibQuery,
-  type LrclibRecord,
+  type LrclibClient,
+  type OnlineLyrics,
+  type OnlineLyricsCandidate,
+  type OnlineLyricsProvider,
+  type OnlineLyricsQuery,
 } from '@hqps/lyrics';
 import type { EventHub } from '../event-hub';
 import { HttpError } from '../http/errors';
-import { LYRICS_ONLINE_SETTING } from '../settings-keys';
+import { LYRICS_ONLINE_SETTING, LYRICS_PROVIDERS_SETTING } from '../settings-keys';
 
 export interface LyricsServiceOptions {
   appVersion: string;
   /** Injected LRCLIB client (tests). Default: real client with Studio's User-Agent. */
   lrclib?: LrclibClient;
-  readSidecar?: (audioPath: string) => Promise<string | null>;
+  /** All online sources in the order they are tried (tests). Default: the built-in ones. */
+  providers?: OnlineLyricsProvider[];
+  readSidecar?: (audioPath: string, hints?: SidecarHints) => Promise<string | null>;
   readEmbedded?: (audioPath: string) => Promise<EmbeddedLyrics | null>;
-  /** How long LRCLIB's "no lyrics" answer is trusted before asking again. Default 7 days. */
+  /** How long the sources' "no lyrics" answer is trusted before asking again. Default 7 days. */
   notFoundTtlMs?: number;
   now?: () => number;
 }
 
 const UNKNOWN_ARTIST = 'unknown artist';
+/** Sources used when the user has not chosen any: LRCLIB only, as before more were added. */
+const DEFAULT_PROVIDERS: OnlineLyricsProviderId[] = ['lrclib'];
 
 /** "HQPlayerStudio/0.3.0 (unofficial HQPlayer Desktop client)" — no homepage, no account name. */
-export function lrclibUserAgent(appVersion: string): string {
+export function studioUserAgent(appVersion: string): string {
   const v = /^[\w.+-]{1,32}$/.test(appVersion) ? appVersion : 'dev';
   return `HQPlayerStudio/${v} (unofficial HQPlayer Desktop client)`;
 }
+export const lrclibUserAgent = studioUserAgent;
 
 /**
- * Lyrics for library tracks (handoff §8.4). Order: hand-picked lyrics > `.lrc` next to the file >
- * lyrics in the file's tags > stored LRCLIB result > LRCLIB online.
+ * Lyrics for library tracks (handoff §8.4). Order: hand-picked lyrics > a lyrics file next to the
+ * audio file > lyrics in the file's tags > stored online result > the enabled online sources,
+ * one after the other (LRCLIB, NetEase, Kugou, lyrics.ovh).
  *
- * Online lookups are opt-in (Settings → 歌词, default off), only ever for the track that is
- * playing right now (`isCurrent`), one at a time with back-off — never for a whole album, a scan
- * or any other bulk job. Lyric text is never logged or put into errors/diagnostics.
+ * Online lookups are opt-in (Settings → 歌词, default off; every source has its own switch), only
+ * ever for the track that is playing right now (`isCurrent`), one at a time per source with
+ * back-off — never for a whole album, a scan or any other bulk job. Lyric text is never logged or
+ * put into errors/diagnostics.
  */
 export class LyricsService {
-  private readonly lrclib: LrclibClient;
-  private readonly readSidecar: (p: string) => Promise<string | null>;
+  private readonly providers: OnlineLyricsProvider[];
+  private readonly readSidecar: (p: string, hints?: SidecarHints) => Promise<string | null>;
   private readonly readEmbedded: (p: string) => Promise<EmbeddedLyrics | null>;
   private readonly now: () => number;
   private readonly inflight = new Map<string, Promise<TrackLyrics>>();
   /** Tracks whose tags were already read and had no lyrics (this session). */
   private readonly noEmbedded = new Set<string>();
+  /**
+   * Sources that already answered "nothing" for a track while another one was unreachable (this
+   * session): the retry after the pause asks only the source that could not answer.
+   */
+  private readonly answered = new Map<string, Set<OnlineLyricsProviderId>>();
 
   constructor(
     private readonly ctx: LibraryContext,
@@ -67,7 +84,12 @@ export class LyricsService {
     private readonly isCurrent: (trackId: string) => boolean,
     private readonly opts: LyricsServiceOptions,
   ) {
-    this.lrclib = opts.lrclib ?? new LrclibClient({ userAgent: lrclibUserAgent(opts.appVersion) });
+    this.providers =
+      opts.providers ??
+      createOnlineLyricsProviders({
+        userAgent: studioUserAgent(opts.appVersion),
+        lrclib: opts.lrclib,
+      });
     this.readSidecar = opts.readSidecar ?? readSidecarLyrics;
     this.readEmbedded = opts.readEmbedded ?? readEmbeddedLyrics;
     this.now = opts.now ?? Date.now;
@@ -77,30 +99,62 @@ export class LyricsService {
     return this.ctx.settings.get<boolean>(LYRICS_ONLINE_SETTING, false) === true;
   }
 
+  /** The sources the user switched on, in the order they are tried. */
+  private enabledProviders(): OnlineLyricsProvider[] {
+    const saved = this.ctx.settings.get<unknown>(LYRICS_PROVIDERS_SETTING, null);
+    const ids = new Set<unknown>(Array.isArray(saved) ? saved : DEFAULT_PROVIDERS);
+    return this.providers.filter((p) => ids.has(p.id));
+  }
+
   settings(): LyricsSettings {
     const c = this.ctx.lyrics.counts();
+    const enabled = this.enabledProviders();
+    const pauses = enabled.map((p) => Math.round(p.blockedForMs()));
     return {
       online: this.onlineEnabled(),
+      providers: this.providers.map((p) => ({
+        id: p.id,
+        enabled: enabled.includes(p),
+        pausedForMs: Math.round(p.blockedForMs()),
+      })),
       cached: {
         local: c.local,
         embedded: c.embedded,
         lrclib: c.lrclib,
+        netease: c.netease,
+        kugou: c.kugou,
+        lyricsovh: c.lyricsovh,
         demo: c.demo,
         notFound: c.none,
       },
-      onlinePausedForMs: Math.round(this.lrclib.blockedForMs()),
+      onlinePausedForMs: pauses.length > 0 ? Math.min(...pauses) : 0,
     };
   }
 
-  setOnline(online: boolean): LyricsSettings {
-    this.ctx.settings.set(LYRICS_ONLINE_SETTING, online);
+  /** Switch online lyrics on/off and/or choose the sources. */
+  update(change: { online?: boolean; providers?: OnlineLyricsProviderId[] }): LyricsSettings {
+    if (change.online !== undefined) this.ctx.settings.set(LYRICS_ONLINE_SETTING, change.online);
+    if (change.providers !== undefined) {
+      const wanted = new Set(change.providers);
+      this.ctx.settings.set(
+        LYRICS_PROVIDERS_SETTING,
+        this.providers.map((p) => p.id).filter((id) => wanted.has(id)),
+      );
+      // A newly enabled source may know what the others did not: forget session-only misses.
+      this.answered.clear();
+    }
     this.hub.publish({ type: 'lyrics.changed', trackId: null });
     return this.settings();
   }
 
-  /** Forget LRCLIB results that were matched automatically (hand-picked lyrics stay). */
+  setOnline(online: boolean): LyricsSettings {
+    return this.update({ online });
+  }
+
+  /** Forget online results that were matched automatically (hand-picked lyrics stay). */
   clearOnlineCache(): LyricsSettings {
     this.ctx.lyrics.clearOnline();
+    this.answered.clear();
     this.hub.publish({ type: 'lyrics.changed', trackId: null });
     return this.settings();
   }
@@ -127,29 +181,62 @@ export class LyricsService {
     return this.fromRow(trackId, this.ctx.lyrics.get(trackId));
   }
 
-  /** LRCLIB candidates for manual matching (desktop; needs online lyrics turned on). */
+  /**
+   * Candidates from every enabled source for manual matching (desktop; needs online lyrics
+   * turned on). A source that cannot answer right now is skipped; only when none can answer is
+   * the search reported as unavailable.
+   */
   async search(trackId: string, q?: string): Promise<LyricsCandidate[]> {
     const src = this.source(trackId);
-    this.requireOnline();
-    const query = q?.trim();
-    const records = await this.callLrclib(() =>
-      this.lrclib.search(
-        query ? { q: query } : { trackName: src.title, artistName: this.artistFor(src) ?? '' },
-      ),
-    );
-    return records.slice(0, 20).map(toCandidate);
+    const providers = this.requireOnline();
+    const text = q?.trim();
+    const query = text
+      ? { text }
+      : { trackName: src.title.trim(), artistName: this.artistFor(src) ?? '' };
+    const answers = await Promise.allSettled(providers.map((p) => p.search(query)));
+    const out: LyricsCandidate[] = [];
+    let unavailable: OnlineUnavailableError | null = null;
+    let answered = 0;
+    for (const a of answers) {
+      if (a.status === 'fulfilled') {
+        answered += 1;
+        out.push(...a.value.slice(0, MAX_CANDIDATES_PER_SOURCE).map(toCandidate));
+      } else if (a.reason instanceof OnlineUnavailableError) {
+        if (!unavailable || a.reason.retryAfterMs < unavailable.retryAfterMs) {
+          unavailable = a.reason;
+        }
+      } else {
+        throw a.reason;
+      }
+    }
+    if (answered === 0 && unavailable) throw upstreamUnavailable(unavailable);
+    return out;
   }
 
-  /** Use one LRCLIB record for this track from now on (manual choice wins over everything). */
-  async select(trackId: string, lrclibId: number): Promise<TrackLyrics> {
+  /** Use one search result for this track from now on (manual choice wins over everything). */
+  async select(
+    trackId: string,
+    provider: OnlineLyricsProviderId,
+    ref: string,
+  ): Promise<TrackLyrics> {
     this.source(trackId);
-    this.requireOnline();
-    const rec = await this.callLrclib(() => this.lrclib.getById(lrclibId));
-    if (!rec) throw new HttpError(404, 'not_found', 'LRCLIB has no such lyrics');
+    const source = this.requireOnline().find((p) => p.id === provider);
+    if (!source) {
+      throw new HttpError(409, 'conflict', 'This lyrics source is turned off', {
+        reason: 'provider_disabled',
+      });
+    }
+    let lyrics: OnlineLyrics | null;
+    try {
+      lyrics = await source.fetch(ref);
+    } catch (err) {
+      throw err instanceof OnlineUnavailableError ? upstreamUnavailable(err) : err;
+    }
+    if (!lyrics) throw new HttpError(404, 'not_found', 'The source has no such lyrics');
     const row = this.ctx.lyrics.save({
       trackId,
-      source: 'lrclib',
-      ...recordContent(rec),
+      source: provider,
+      ...lyricsContent(lyrics),
       selectedByUser: true,
       lastCheckedAt: this.now(),
     });
@@ -163,6 +250,7 @@ export class LyricsService {
     const prev = this.ctx.lyrics.get(trackId);
     this.ctx.lyrics.delete(trackId);
     this.noEmbedded.delete(trackId);
+    this.answered.delete(trackId);
     const res = await this.get(trackId, { force: true });
     if (prev && prev.offsetMs !== 0 && res.state === 'found') {
       this.ctx.lyrics.setOffset(trackId, prev.offsetMs);
@@ -178,26 +266,15 @@ export class LyricsService {
     return src!;
   }
 
-  private requireOnline(): void {
-    if (!this.onlineEnabled()) {
+  /** The enabled sources; 409 when online lyrics (or every source) are switched off. */
+  private requireOnline(): OnlineLyricsProvider[] {
+    const providers = this.onlineEnabled() ? this.enabledProviders() : [];
+    if (providers.length === 0) {
       throw new HttpError(409, 'conflict', 'Online lyrics are turned off', {
         reason: 'online_disabled',
       });
     }
-  }
-
-  private async callLrclib<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err instanceof LrclibUnavailableError) {
-        throw new HttpError(503, 'upstream_unavailable', 'LRCLIB is not available right now', {
-          reason: err.reason,
-          retryAfterMs: err.retryAfterMs,
-        });
-      }
-      throw err;
-    }
+    return providers;
   }
 
   private artistFor(src: { artist: string }): string | null {
@@ -223,9 +300,11 @@ export class LyricsService {
       return this.fromRow(trackId, row);
     }
 
-    // 1) `<same name>.lrc` next to the audio file (always re-read: the user may edit it). Skipped
+    // 1) a lyrics file next to the audio file (always re-read: the user may edit it). Skipped
     //    while the folder is offline — an unreachable NAS path can stall for a long time.
-    const sidecar = src.available ? await this.readSidecar(src.sourcePath) : null;
+    const sidecar = src.available
+      ? await this.readSidecar(src.sourcePath, { title: src.title, artist: src.artist })
+      : null;
     if (sidecar !== null) {
       if (row?.source !== 'local' || row.content !== sidecar) {
         row = this.ctx.lyrics.save({
@@ -259,53 +338,77 @@ export class LyricsService {
       this.noEmbedded.add(trackId);
     }
 
-    // 3) earlier LRCLIB result.
-    if (row?.source === 'lrclib') return this.fromRow(trackId, row);
+    // 3) earlier online result.
+    if (row && isOnlineSource(row.source)) return this.fromRow(trackId, row);
 
-    // 4) LRCLIB — opt-in, playing track only.
+    // 4) the enabled online sources — opt-in, playing track only.
     const enabled = this.onlineEnabled();
+    const providers = enabled ? this.enabledProviders() : [];
     const artist = this.artistFor(src);
-    const eligible = enabled && this.isCurrent(trackId) && Boolean(src.title.trim() && artist);
+    const eligible =
+      providers.length > 0 && this.isCurrent(trackId) && Boolean(src.title.trim() && artist);
     const ttl = this.opts.notFoundTtlMs ?? 7 * 24 * 3_600_000;
     if (row?.source === 'none' && !force && this.now() - row.lastCheckedAt < ttl) {
       return this.notFound(trackId, row, enabled, eligible);
     }
     if (!eligible) return this.notFound(trackId, row, enabled, eligible);
 
-    const q: LrclibQuery = {
+    const q: OnlineLyricsQuery = {
       trackName: src.title.trim(),
       artistName: artist!,
       albumName: src.album.trim() || null,
       durationSec: src.durationMs ? src.durationMs / 1000 : null,
     };
-    let rec: LrclibRecord | null;
-    try {
-      rec = q.albumName && q.durationSec ? await this.lrclib.get(q) : null;
-      if (!rec) {
-        // Album names differ between releases ("Remastered", translations…): one search, then
-        // pick by name + duration (±2 s). Still a single track, not a bulk lookup.
-        rec = pickBestRecord(
-          await this.lrclib.search({ trackName: q.trackName, artistName: q.artistName }),
-          q,
+    if (force) this.answered.delete(trackId);
+    const answered = this.answered.get(trackId) ?? new Set<OnlineLyricsProviderId>();
+    // Plain lyrics are kept in hand while the remaining sources are asked for synced ones.
+    let plain: { provider: OnlineLyricsProviderId; lyrics: OnlineLyrics } | null = null;
+    let retryAfterMs: number | null = null;
+    for (const provider of providers) {
+      if (answered.has(provider.id)) continue;
+      let found: OnlineLyrics | null;
+      try {
+        found = await provider.find(q);
+      } catch (err) {
+        if (!(err instanceof OnlineUnavailableError)) throw err;
+        const wait = Math.max(
+          err.retryAfterMs || provider.blockedForMs(),
+          err.reason === 'bad_response' ? 60_000 : 1000,
         );
+        retryAfterMs = retryAfterMs === null ? wait : Math.min(retryAfterMs, wait);
+        continue;
       }
-    } catch (err) {
-      if (!(err instanceof LrclibUnavailableError)) throw err;
+      answered.add(provider.id);
+      if (!found) continue;
+      if (found.synced || found.instrumental) {
+        this.answered.delete(trackId);
+        row = this.ctx.lyrics.save({ trackId, source: provider.id, ...lyricsContent(found) });
+        return this.fromRow(trackId, row);
+      }
+      if (found.plain && !plain) plain = { provider: provider.id, lyrics: found };
+    }
+    if (plain) {
+      this.answered.delete(trackId);
+      row = this.ctx.lyrics.save({
+        trackId,
+        source: plain.provider,
+        ...lyricsContent(plain.lyrics),
+      });
+      return this.fromRow(trackId, row);
+    }
+    if (retryAfterMs !== null) {
+      // Some source could not answer: remember who already did and try the rest after the pause.
+      if (this.answered.size > 500) this.answered.clear();
+      this.answered.set(trackId, answered);
       return {
         ...this.empty(trackId, row, enabled, eligible),
         state: 'unavailable',
-        online: {
-          enabled,
-          eligible,
-          checkedAt: row?.lastCheckedAt ?? null,
-          retryAfterMs: Math.max(1000, err.retryAfterMs || this.lrclib.blockedForMs()),
-        },
+        online: { enabled, eligible, checkedAt: row?.lastCheckedAt ?? null, retryAfterMs },
       };
     }
-    row = rec
-      ? this.ctx.lyrics.save({ trackId, source: 'lrclib', ...recordContent(rec) })
-      : this.ctx.lyrics.save({ trackId, source: 'none', type: 'plain', content: '' });
-    return rec ? this.fromRow(trackId, row) : this.notFound(trackId, row, enabled, eligible);
+    this.answered.delete(trackId);
+    row = this.ctx.lyrics.save({ trackId, source: 'none', type: 'plain', content: '' });
+    return this.notFound(trackId, row, enabled, eligible);
   }
 
   private empty(
@@ -327,7 +430,8 @@ export class LyricsService {
       online: {
         enabled,
         eligible,
-        checkedAt: row?.source === 'none' || row?.source === 'lrclib' ? row.lastCheckedAt : null,
+        checkedAt:
+          row && (row.source === 'none' || isOnlineSource(row.source)) ? row.lastCheckedAt : null,
         retryAfterMs: null,
       },
     };
@@ -344,12 +448,12 @@ export class LyricsService {
 
   private fromRow(trackId: string, row: LyricsCacheRow | null): TrackLyrics {
     const enabled = this.onlineEnabled();
-    const eligible = enabled && this.isCurrent(trackId);
+    const eligible = enabled && this.enabledProviders().length > 0 && this.isCurrent(trackId);
     if (!row || row.source === 'none') return this.notFound(trackId, row, enabled, eligible);
     const base = this.empty(trackId, row, enabled, eligible);
     const source = row.source as LyricsSource;
     if (row.content.trim() === '') {
-      // LRCLIB marks instrumentals with no lyrics at all.
+      // Online sources mark instrumentals with no lyrics at all.
       return { ...base, state: 'found', source, instrumental: true, offsetMs: row.offsetMs };
     }
     const parsed = parseLrc(row.content);
@@ -380,22 +484,36 @@ function plainLines(content: string): string[] {
     .filter((l) => !/^\[(ti|ar|al|offset|by|length|re|ve):[^\]]*\]$/i.test(l));
 }
 
-function recordContent(rec: LrclibRecord): { type: 'lrc' | 'plain'; content: string } {
-  if (rec.syncedLyrics) return { type: 'lrc', content: rec.syncedLyrics };
-  if (rec.plainLyrics) return { type: 'plain', content: rec.plainLyrics };
+const MAX_CANDIDATES_PER_SOURCE = 12;
+
+const ONLINE_SOURCES: ReadonlySet<string> = new Set(ONLINE_LYRICS_SOURCES);
+const isOnlineSource = (source: string): source is OnlineLyricsProviderId =>
+  ONLINE_SOURCES.has(source);
+
+function upstreamUnavailable(err: OnlineUnavailableError): HttpError {
+  return new HttpError(503, 'upstream_unavailable', 'Online lyrics are not available right now', {
+    reason: err.reason,
+    retryAfterMs: err.retryAfterMs,
+  });
+}
+
+function lyricsContent(l: OnlineLyrics): { type: 'lrc' | 'plain'; content: string } {
+  if (l.synced) return { type: 'lrc', content: l.synced };
+  if (l.plain) return { type: 'plain', content: l.plain };
   return { type: 'plain', content: '' }; // instrumental
 }
 
-function toCandidate(rec: LrclibRecord): LyricsCandidate {
-  const text = rec.syncedLyrics ?? rec.plainLyrics ?? '';
+function toCandidate(c: OnlineLyricsCandidate): LyricsCandidate {
+  const text = c.lyrics?.synced ?? c.lyrics?.plain ?? '';
   return {
-    lrclibId: rec.id,
-    trackName: rec.trackName,
-    artistName: rec.artistName,
-    albumName: rec.albumName,
-    durationMs: rec.duration !== null ? Math.round(rec.duration * 1000) : null,
-    synced: rec.syncedLyrics !== null,
-    instrumental: rec.instrumental,
+    provider: c.provider,
+    ref: c.ref,
+    trackName: c.trackName,
+    artistName: c.artistName,
+    albumName: c.albumName,
+    durationMs: c.durationSec !== null ? Math.round(c.durationSec * 1000) : null,
+    synced: c.synced,
+    instrumental: c.instrumental,
     preview: plainLines(text)
       .filter((l) => l.trim())
       .slice(0, 3),

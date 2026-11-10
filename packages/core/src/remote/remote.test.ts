@@ -392,6 +392,14 @@ describe('Web Remote LAN listener', () => {
       ['GET', '/tracks/x/lyrics/search'],
       ['POST', '/tracks/x/lyrics/select'],
       ['POST', '/tracks/x/lyrics/reset'],
+      ['GET', '/settings/covers'],
+      ['POST', '/settings/covers'],
+      ['POST', '/settings/covers/fill'],
+      ['POST', '/settings/covers/fill/cancel'],
+      ['GET', '/library/albums/x/cover/search'],
+      ['POST', '/library/albums/x/cover/select'],
+      ['POST', '/library/albums/x/cover/reset'],
+      ['GET', '/covers/preview?provider=deezer&ref=0123456789abcdef0123456789abcdef'],
     ] as const) {
       const r = await lan(method, url, {
         token,
@@ -399,7 +407,8 @@ describe('Web Remote LAN listener', () => {
           enabled: true,
           allowControl: true,
           online: true,
-          lrclibId: 1,
+          provider: 'lrclib',
+          ref: '1',
           path: 'C:\\',
           action: 'disconnect',
         },
@@ -408,6 +417,7 @@ describe('Web Remote LAN listener', () => {
     }
     expect(ctx.settings.get('engine.allowControl', false)).toBe(false);
     expect(ctx.settings.get('lyrics.online', false)).toBe(false);
+    expect(ctx.settings.get('covers.online', false)).toBe(false);
     // ... and no desktop UI either
     expect((await lan('GET', '/index.html', { raw: true, token })).status).toBe(404);
     const info = (await lan<{ trustedClient: boolean }>('GET', '/server-info', { token })).body;

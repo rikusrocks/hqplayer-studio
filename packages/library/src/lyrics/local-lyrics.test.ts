@@ -10,8 +10,10 @@ import {
   MAX_LYRICS_FILE_BYTES,
   decodeLyricsBytes,
   findSidecarLrc,
+  findSidecarLyrics,
   readEmbeddedLyrics,
   readSidecarLyrics,
+  sidecarNameCandidates,
 } from './local-lyrics';
 
 // All lyric text below is invented for the tests (no real lyrics in the repository).
@@ -39,6 +41,48 @@ describe('sidecar .lrc files', () => {
     expect(await readSidecarLyrics(join(dir, 'empty.flac'))).toBeNull();
     writeFileSync(join(dir, 'big.lrc'), Buffer.alloc(MAX_LYRICS_FILE_BYTES + 1, 0x41));
     expect(await readSidecarLyrics(join(dir, 'big.flac'))).toBeNull();
+  });
+});
+
+describe('other lyric file names', () => {
+  it('finds lyrics named after the song, with or without the track number or the artist', async () => {
+    const audio = join(dir, '03 - Invented Song.flac');
+    writeFileSync(audio, 'x');
+    const hints = { title: 'Invented Song?', artist: 'Lin Xia' };
+
+    writeFileSync(join(dir, 'Lin Xia - Invented Song.lrc'), LRC);
+    expect(await findSidecarLyrics(audio, hints)).toBe(join(dir, 'Lin Xia - Invented Song.lrc'));
+    // without the tags only the file name can be matched
+    expect(await findSidecarLyrics(audio)).toBeNull();
+
+    writeFileSync(join(dir, 'invented song.LRC'), LRC); // title, "?" cannot be in a file name
+    expect(await findSidecarLyrics(audio, hints)).toBe(join(dir, 'invented song.LRC'));
+    expect(await findSidecarLyrics(audio)).toBe(join(dir, 'invented song.LRC')); // number dropped
+
+    writeFileSync(join(dir, '03 - Invented Song.lrc'), LRC); // the exact name always wins
+    expect(await findSidecarLyrics(audio, hints)).toBe(join(dir, '03 - Invented Song.lrc'));
+  });
+
+  it('looks into a Lyrics sub-folder and accepts a same-named .txt as plain lyrics', async () => {
+    const audio = join(dir, '01 Quiet Song.flac');
+    writeFileSync(audio, 'x');
+    writeFileSync(join(dir, 'notes.txt'), 'not lyrics');
+    writeFileSync(join(dir, 'Quiet Song.txt'), 'not lyrics either'); // .txt needs the exact name
+    expect(await findSidecarLyrics(audio, { title: 'Quiet Song' })).toBeNull();
+
+    mkdirSync(join(dir, 'LYRICS'));
+    writeFileSync(join(dir, 'LYRICS', 'Quiet Song.lrc'), LRC);
+    expect(await readSidecarLyrics(audio, { title: 'Quiet Song' })).toBe(LRC);
+
+    writeFileSync(join(dir, '01 Quiet Song.txt'), 'plain invented line');
+    expect(await readSidecarLyrics(audio)).toBe('plain invented line'); // same folder first
+    expect(sidecarNameCandidates(audio, { title: 'Quiet Song', artist: 'A' })).toEqual([
+      '01 quiet song.lrc',
+      'quiet song.lrc',
+      'a - quiet song.lrc',
+      'quiet song - a.lrc',
+      '01 quiet song.txt',
+    ]);
   });
 });
 
