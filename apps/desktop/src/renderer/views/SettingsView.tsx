@@ -155,6 +155,28 @@ function LibrarySettings() {
 
   const scan = (rootId?: string) =>
     run(() => client.library.scan(rootId), { success: t('settings.scanStarted') });
+  const { confirm } = useDialogs();
+  const remove = async (root: LibraryRoot) => {
+    const ok = await confirm({
+      title: t('settings.removeRoot'),
+      message: t('settings.removeRootConfirm', {
+        name: root.name,
+        count: formatNumber(root.trackCount, locale),
+      }),
+      danger: true,
+      confirmLabel: t('settings.removeRoot'),
+    });
+    if (!ok) return;
+    const res = await run(() => client.library.removeRoot(root.id));
+    if (res) {
+      toasts.push(
+        'success',
+        t('settings.rootRemoved', { count: formatNumber(res.tracks, locale) }),
+      );
+      roots.reload();
+    }
+  };
+  const toasts = useToasts();
 
   const jobsByRoot = new Map<string, ScanJob>();
   for (const j of scanJobs) if (!jobsByRoot.has(j.rootId)) jobsByRoot.set(j.rootId, j);
@@ -191,6 +213,7 @@ function LibrarySettings() {
                 job={jobsByRoot.get(root.id)}
                 locale={locale}
                 onScan={() => void scan(root.id)}
+                onRemove={trusted ? () => void remove(root) : undefined}
                 jobLine={(j) => scanJobLine(j, t)}
               />
             ))}
@@ -242,12 +265,14 @@ function RootRow({
   job,
   locale,
   onScan,
+  onRemove,
   jobLine,
 }: {
   root: LibraryRoot;
   job: ScanJob | undefined;
   locale: Locale;
   onScan: () => void;
+  onRemove?: () => void;
   jobLine: (j: ScanJob) => string;
 }) {
   const { t } = useI18n();
@@ -299,6 +324,17 @@ function RootRow({
         <Icon name="refresh" size={14} />
         {t('settings.scan')}
       </button>
+      {onRemove && (
+        <button
+          type="button"
+          className="hq-btn hq-btn--ghost hq-btn--sm"
+          onClick={onRemove}
+          title={t('settings.removeRootHint')}
+        >
+          <Icon name="trash" size={14} />
+          {t('settings.removeRoot')}
+        </button>
+      )}
     </li>
   );
 }

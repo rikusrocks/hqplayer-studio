@@ -6,7 +6,11 @@ import {
   type HQPlayerAdapter,
 } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
-import { ENGINE_ADAPTER_SETTING, ENGINE_CONTROL_SETTING } from './settings-keys';
+import {
+  DEMO_REMOVED_SETTING,
+  ENGINE_ADAPTER_SETTING,
+  ENGINE_CONTROL_SETTING,
+} from './settings-keys';
 import { createStudioServer, DEFAULT_PORT, type StudioServer } from './server';
 
 export { ENGINE_ADAPTER_SETTING };
@@ -40,7 +44,11 @@ export async function bootstrapStudio(opts: BootstrapOptions): Promise<Bootstrap
   if (opts.resetData) rmSync(opts.dataDir, { recursive: true, force: true });
   const ctx = openLibrary(opts.dataDir, join(opts.dataDir, 'artwork'));
   const demo = opts.demo ?? true;
-  if (demo && ctx.library.listRoots().length === 0) {
+  if (
+    demo &&
+    ctx.library.listRoots().length === 0 &&
+    !ctx.settings.get<boolean>(DEMO_REMOVED_SETTING, false)
+  ) {
     seedDemoLibrary(ctx.library, ctx.playlists, ctx.artwork);
   }
   // Precedence: explicit override (CLI flag / env) > saved preference > mock.

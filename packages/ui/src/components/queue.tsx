@@ -128,9 +128,22 @@ export function QueueList({ large = false }: { large?: boolean }) {
               <button
                 type="button"
                 className="hq-queue__main"
-                onClick={() => void queueJump(index)}
+                // Desktop: double-click (or Enter) plays, like other music players; a stray
+                // single click never interrupts the music. Touch remote: tap plays.
+                onClick={large ? () => void queueJump(index) : undefined}
+                onDoubleClick={large ? undefined : () => void queueJump(index)}
+                onKeyDown={
+                  large
+                    ? undefined
+                    : (e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void queueJump(index);
+                        }
+                      }
+                }
                 disabled={!!jumpReason || isCurrent}
-                title={jumpReason ?? t('queue.jump')}
+                title={jumpReason ?? t(large ? 'queue.jump' : 'queue.jumpDouble')}
                 aria-current={isCurrent ? 'true' : undefined}
               >
                 <Artwork artworkId={item.track.artworkId} className="hq-queue__art" />

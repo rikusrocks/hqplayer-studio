@@ -258,6 +258,81 @@ describe('scanRoot', () => {
     });
   });
 
+  it('groups a folder whose tracks carry album titles in two languages into one album', async () => {
+    const dir2 = join(musicDir, 'Lin Xia - City');
+    mkdirSync(dir2);
+    const tags = (title: string, album: string, track: string) =>
+      makeWav({ title, artist: '林夏', album, track });
+    writeFileSync(join(dir2, '01.wav'), tags('一', '城市漫游者', '1'));
+    writeFileSync(join(dir2, '02.wav'), tags('二', '城市漫游者', '2'));
+    writeFileSync(join(dir2, '03.wav'), tags('Three', 'City Wanderer', '3'));
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const inFolder = ctx.library
+      .listTracks({ limit: 50 })
+      .items.filter((x) => x.folder === 'Lin Xia - City');
+    expect(new Set(inFolder.map((x) => x.albumId)).size).toBe(1);
+    const album = ctx.library.getAlbum(inFolder[0]!.albumId!);
+    expect(album.title).toBe('城市漫游者');
+    expect(album.tracks.map((x) => x.title)).toEqual(['一', '二', 'Three']);
+  });
+
+  it('automatic rescans still find artwork for albums that are new', async () => {
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const fresh = join(musicDir, 'New Artist - New Album');
+    mkdirSync(fresh);
+    writeFileSync(
+      join(fresh, '01.wav'),
+      makeWav({ title: 'n', artist: 'New Artist', album: 'New Album', track: '1' }),
+    );
+    writeFileSync(join(fresh, 'cover.png'), PNG);
+    await scanRoot({
+      library: ctx.library,
+      artwork: ctx.artwork,
+      rootId: root.id,
+      subtrees: ['New Artist - New Album'],
+      artworkScope: 'changed',
+    });
+    const t = ctx.library.listTracks({ q: 'New Album' }).items[0]!;
+    expect(t.artworkId).toMatch(/^art_/);
+  });
+
+  it('removes a folder with its tracks, playlist entries and empty albums (files untouched)', async () => {
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const id = ctx.library.listTracks({ q: '南方的风' }).items[0]!.id;
+    const pl = ctx.playlists.create({ name: 'mine', trackIds: [id] });
+    const removed = ctx.library.removeRoot(root.id);
+    expect(removed).toMatchObject({ tracks: 5, playlistItems: 1, playlistsRemoved: 0 });
+    expect(ctx.library.stats()).toMatchObject({ trackCount: 0, albumCount: 0, rootCount: 0 });
+    expect(ctx.playlists.get(pl.id).items).toEqual([]); // the user's playlist stays, emptied
+    expect(ctx.library.listArtists({ limit: 10 }).total).toBe(0);
+    // files are still on disk: adding the folder again finds them
+    const again = ctx.library.addRoot(musicDir);
+    const res = await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: again.id });
+    expect(res.added).toBe(5);
+  });
+
+  it('refuses a folder inside a library folder, and absorbs folders inside a new parent', async () => {
+    const inner = join(musicDir, '林夏 - 城市漫游者 (2020)');
+    const child = ctx.library.addRoot(inner);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: child.id });
+    const id = ctx.library.listTracks({ q: '南方的风' }).items[0]!.id;
+    const pl = ctx.playlists.create({ name: 'keep', trackIds: [id] });
+
+    const parent = ctx.library.addRoot(musicDir); // contains the child: absorbs it
+    expect(ctx.library.listRoots().map((r) => r.id)).toEqual([parent.id]);
+    expect(() => ctx.library.addRoot(inner)).toThrow(/already part of/);
+
+    const res = await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: parent.id });
+    expect(res).toMatchObject({ added: 3, updated: 2 }); // the 2 absorbed files are re-read
+    const track = ctx.library.getTrack(id);
+    expect(track.folder).toBe('林夏 - 城市漫游者 (2020)');
+    expect(ctx.playlists.get(pl.id).items[0]!.track.id).toBe(id);
+    expect(ctx.library.stats().trackCount).toBe(5);
+  });
+
   it('rejects relative or duplicate roots', () => {
     expect(() => ctx.library.addRoot('relative/music')).toThrow(/absolute/);
     ctx.library.addRoot(musicDir);

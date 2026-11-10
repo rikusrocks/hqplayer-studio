@@ -117,6 +117,16 @@ export const LibraryRootSchema = z.object({
 });
 export type LibraryRoot = z.infer<typeof LibraryRootSchema>;
 
+export const RemovedRootSchema = z.object({
+  rootId: z.string(),
+  kind: z.string(),
+  tracks: z.number().int(),
+  playlistItems: z.number().int(),
+  playlistsRemoved: z.number().int(),
+  queueItems: z.number().int(),
+});
+export type RemovedRoot = z.infer<typeof RemovedRootSchema>;
+
 export const ScanJobStateSchema = z.enum(['queued', 'running', 'completed', 'failed', 'cancelled']);
 export const ScanJobSchema = z.object({
   id: z.string(),

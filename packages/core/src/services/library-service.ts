@@ -1,6 +1,7 @@
 import type { LibraryRoot, ScanJob } from '@hqps/contracts';
 import { newId, scanRoot, type LibraryContext } from '@hqps/library';
 import type { EventHub } from '../event-hub';
+import { DEMO_REMOVED_SETTING } from '../settings-keys';
 import { LibraryWatcher, type LibraryWatcherOptions } from './library-watcher';
 
 export type ScanTrigger = ScanJob['trigger'];
@@ -17,6 +18,8 @@ export interface LibraryServiceOptions {
   tickMs?: number;
   /** Awaited before each file of a scan (CoreServer slows scans while HQPlayer plays). */
   pace?: () => Promise<void>;
+  /** Called (synchronously) after tracks were removed from the library, e.g. to fix the queue. */
+  onTracksRemoved?: (trackIds: ReadonlySet<string>) => void;
 }
 
 interface JobPlan {
@@ -147,6 +150,40 @@ export class LibraryService {
     this.trimJobs();
     void this.pump();
     return created;
+  }
+
+  /**
+   * Remove a library folder and everything indexed from it (files on disk stay). Waits for a
+   * scan of that folder to stop first, so it cannot write tracks back afterwards.
+   */
+  async removeRoot(rootId: string) {
+    const root = this.ctx.library.getRootRow(rootId);
+    for (const [i, id] of [...this.pending.entries()].reverse()) {
+      const job = this.jobs.get(id);
+      if (job?.rootId === rootId) {
+        this.pending.splice(i, 1);
+        Object.assign(job, {
+          state: 'cancelled',
+          finishedAt: Date.now(),
+          message: 'Folder removed',
+        });
+        this.hub.publish({ type: 'library.scan', job: { ...job } });
+      }
+    }
+    const isRunning = () =>
+      [...this.jobs.values()].some((j) => j.rootId === rootId && j.state === 'running');
+    if (isRunning()) this.abort?.abort();
+    while (isRunning()) await new Promise((r) => setTimeout(r, 20));
+    const removed = this.ctx.library.removeRoot(rootId);
+    if (root.kind === 'fixture') this.ctx.settings.set(DEMO_REMOVED_SETTING, true);
+    this.options.onTracksRemoved?.(new Set(removed.trackIds));
+    this.watcher?.sync();
+    this.hub.publish({ type: 'library.changed', stats: this.ctx.library.stats() });
+    if (removed.playlistItems || removed.playlistsRemoved) {
+      this.hub.publish({ type: 'playlists.changed', playlistId: null });
+    }
+    const { trackIds: _ids, ...summary } = removed;
+    return summary;
   }
 
   getJob(id: string): ScanJob | undefined {

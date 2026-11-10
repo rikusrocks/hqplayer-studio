@@ -144,6 +144,7 @@ export const zh = {
   'queue.nowPlaying': '正在播放',
   'queue.upNext': '接下来',
   'queue.jump': '跳到这首',
+  'queue.jumpDouble': '双击播放这首',
 
   'notice.queue_followed_engine': 'Studio 已改为跟随 HQPlayer 的播放列表（{count} 首）',
   'notice.queue_released': 'Studio 已放弃旧队列，队列面板显示 HQPlayer 自己的播放列表',
@@ -249,6 +250,11 @@ export const zh = {
   'settings.noRoots': '尚未添加音乐目录',
   'settings.rootAdded': '已添加目录',
   'settings.scanStarted': '已开始扫描',
+  'settings.removeRoot': '移除',
+  'settings.removeRootHint': '从音乐库移除这个文件夹及其中的歌曲（磁盘上的文件不会被删除）',
+  'settings.removeRootConfirm':
+    '从音乐库移除「{name}」及其中的 {count} 首歌曲？播放列表里来自这个文件夹的歌曲也会被移除。磁盘上的文件不会被删除，以后可以重新添加。',
+  'settings.rootRemoved': '已移除，共 {count} 首歌曲',
   'settings.scanJob':
     '已发现 {seen} · 已解析 {parsed} · 新增 {added} · 更新 {updated} · 移动 {moved} · 标记不可用 {unavailable} · 错误 {errors}',
   'settings.watch.active': '自动更新：已开启',

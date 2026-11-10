@@ -260,6 +260,18 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
         void reply.status(201);
         return lib.addRoot(path);
       });
+      // Removing a folder only forgets what was indexed — files on disk are never touched.
+      // Library folders are managed from this computer only.
+      api.delete('/library/roots/:id', async (req) => {
+        if (!isTrustedRequest(req)) {
+          throw new HttpError(
+            403,
+            'forbidden',
+            'Library folders can only be changed on this computer',
+          );
+        }
+        return lib.removeRoot(IdParams.parse(req.params).id);
+      });
       api.post('/library/scan', async (req) => lib.scan(body(ScanRequestSchema, req).rootId));
       api.get('/library/scan', async () => lib.listJobs());
       api.get('/library/scan/:id', async (req) => {

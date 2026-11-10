@@ -429,7 +429,12 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
           `<Status state="${transport}" track="${track}" position="${position}" length="230" output_delay="0" track_serial="1" transport_serial="1"><metadata uri="file:D:\\Music\\A\\0${track === 2 ? '2 南方的风' : track}.flac" song="x"/></Status>`,
         ),
     });
-    const adapter = new LiveHQPlayerAdapter({ port: server.port });
+    // this synthetic engine never reports a track change: keep the fallback waits short
+    const adapter = new LiveHQPlayerAdapter({
+      port: server.port,
+      switchSettleMs: 50,
+      stopSettleMs: 50,
+    });
     await adapter.connect();
     const before = server.received.length;
     await expect(adapter.pause()).rejects.toBeInstanceOf(CapabilityUnavailableError); // switch off
@@ -471,6 +476,10 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     await adapter.previous();
     expect(sent().slice(2)).toEqual([
       ['Seek', { position: '0' }],
+      // try the quick switch; the engine kept playing the old track → verified path
+      ['SelectTrack', { index: '1' }],
+      ['Play', { last: '0' }],
+      ['Stop', {}],
       ['SelectTrack', { index: '1' }],
       ['Play', { last: '0' }],
     ]);

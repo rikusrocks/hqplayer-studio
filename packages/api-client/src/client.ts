@@ -14,6 +14,7 @@ import {
   FolderListingSchema,
   HealthResponseSchema,
   LibraryRootSchema,
+  RemovedRootSchema,
   LibraryStatsSchema,
   PlaylistDetailSchema,
   PlaylistSummarySchema,
@@ -173,6 +174,8 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       folders: (q: FolderQuery = {}) => get(FolderListingSchema, '/library/folders', q),
       roots: () => get(z.array(LibraryRootSchema), '/library/roots'),
       addRoot: (path: string) => post(LibraryRootSchema, '/library/roots', { path }),
+      /** Forget a folder and its songs (files on disk are not touched). */
+      removeRoot: (id: string) => del(RemovedRootSchema, `/library/roots/${enc(id)}`),
       scan: (rootId?: string) => post(z.array(ScanJobSchema), '/library/scan', { rootId }),
       scanJobs: () => get(z.array(ScanJobSchema), '/library/scan'),
       scanJob: (jobId: string) => get(ScanJobSchema, `/library/scan/${enc(jobId)}`),

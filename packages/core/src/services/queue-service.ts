@@ -327,6 +327,23 @@ export class QueueService {
   }
 
   /**
+   * Tracks were removed from the library (a folder was removed). A plan that refers to them
+   * cannot be kept or saved: drop it — HQPlayer keeps playing what it has, untouched.
+   */
+  forgetTracks(ids: ReadonlySet<string>): void {
+    if (!this.items.some((i) => ids.has(i.track.id))) return;
+    this.items = [];
+    this.currentIndex = null;
+    this.source = null;
+    this.mode = 'playlist';
+    this.sessionId = newId('qs');
+    this.restored = false;
+    this.setSync('in_sync');
+    this.commit();
+    if (this.busy === 0) this.onEngineStatus(this.engine.getStatus());
+  }
+
+  /**
    * Explicit user decision: make Studio follow HQPlayer. Sends no write command — HQPlayer keeps
    * playing exactly what it plays. If every entry of HQPlayer's playlist is in the library, that
    * playlist becomes Studio's queue; otherwise Studio drops its plan and the queue panel shows

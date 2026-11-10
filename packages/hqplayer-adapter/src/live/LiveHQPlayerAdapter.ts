@@ -53,6 +53,8 @@ export interface LiveAdapterOptions {
   stopSettleMs?: number;
   /** Pause between clear attempts when HQPlayer kept an entry (default 1 s). */
   clearRetryMs?: number;
+  /** How long to wait for SelectTrack during playback to switch before stopping (2.5 s). */
+  switchSettleMs?: number;
 }
 
 /**
@@ -238,9 +240,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       await conn.request('Seek', { position: 0 });
       return;
     }
-    const wasPlaying = st.transport === 'playing';
-    await conn.request('SelectTrack', { index: toEngineIndex(st.trackIndex - 1) });
-    if (wasPlaying) await conn.request('Play', { last: 0 });
+    await this.select(conn, st.trackIndex - 1, st.transport === 'playing');
   }
   seek(positionMs: number): Promise<void> {
     return this.write('transport.seek', 'Seek', { position: Math.round(positionMs / 1000) });
@@ -309,22 +309,9 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
    * (`PlaylistRemove`, confirmed) and anything still left is reported as an error.
    */
   private async clearPlaylistVerified(conn: HqpConnection): Promise<void> {
-    const wasStopped = this.last.transport === 'stopped';
-    const stopSentAt = Date.now();
-    await conn.request('Stop');
-    if (!wasStopped) {
-      // v0.1.5 report: one song survived the clear. HQPlayer ACKs Stop before it has fully
-      // stopped (Gate C waited for the pushed "stopped" Status before clearing — and passed).
-      const stopped = await this.waitForStatus(
-        (s) => s.transport === 'stopped' && s.observedAt >= stopSentAt,
-        this.options.stopSettleMs ?? 6000,
-      );
-      this.log.note(
-        stopped
-          ? `stopped confirmed after ${Date.now() - stopSentAt} ms`
-          : `no "stopped" Status within ${Date.now() - stopSentAt} ms — clearing anyway`,
-      );
-    }
+    // v0.1.5 report: one song survived the clear. HQPlayer ACKs Stop before it has fully
+    // stopped (Gate C waited for the pushed "stopped" Status before clearing — and passed).
+    await this.stopAndWait(conn);
     let playlist: EngineQueueSnapshot | null = null;
     const attempts = 3;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -400,8 +387,55 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
 
   async selectIndex(index: number, autoplay: boolean): Promise<void> {
     const conn = this.requireWrite('queue.select');
+    await this.select(conn, index, autoplay);
+  }
+
+  /**
+   * Select (and play) a playlist entry. Gate C verified SelectTrack + Play from *stopped* only.
+   * During playback HQPlayer may ignore it (as it ignored PlaylistClear), so: try it, and if the
+   * playing file has not changed within a short time, Stop → wait until stopped → select → play.
+   * The protocol log records which path was taken (evidence for the next real-engine report).
+   */
+  private async select(conn: HqpConnection, index: number, play: boolean): Promise<void> {
+    const active = this.last.transport === 'playing' || this.last.transport === 'paused';
+    if (play && active) {
+      const target = this.playlist?.entries[index]?.uri ?? null;
+      const sentAt = Date.now();
+      await conn.request('SelectTrack', { index: toEngineIndex(index) });
+      await conn.request('Play', { last: 0 });
+      const switched =
+        target !== null &&
+        (await this.waitForStatus(
+          (s) => s.observedAt >= sentAt && s.transport === 'playing' && s.track?.uri === target,
+          this.options.switchSettleMs ?? 2500,
+        ));
+      this.log.note(
+        switched
+          ? `SelectTrack during playback switched after ${Date.now() - sentAt} ms`
+          : 'SelectTrack during playback did not switch — stopping first',
+      );
+      if (switched) return;
+      await this.stopAndWait(conn);
+    }
     await conn.request('SelectTrack', { index: toEngineIndex(index) });
-    if (autoplay) await conn.request('Play', { last: 0 });
+    if (play) await conn.request('Play', { last: 0 });
+  }
+
+  /** Stop, and wait until HQPlayer reports it really stopped (its ACK comes earlier). */
+  private async stopAndWait(conn: HqpConnection): Promise<void> {
+    const wasStopped = this.last.transport === 'stopped';
+    const stopSentAt = Date.now();
+    await conn.request('Stop');
+    if (wasStopped) return;
+    const stopped = await this.waitForStatus(
+      (s) => s.transport === 'stopped' && s.observedAt >= stopSentAt,
+      this.options.stopSettleMs ?? 6000,
+    );
+    this.log.note(
+      stopped
+        ? `stopped confirmed after ${Date.now() - stopSentAt} ms`
+        : `no "stopped" Status within ${Date.now() - stopSentAt} ms — continuing anyway`,
+    );
   }
 
   async getEngineQueue(): Promise<EngineQueueSnapshot> {

@@ -71,6 +71,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   const library = new LibraryService(opts.ctx, hub, {
     // Scans yield to playback: while HQPlayer plays, every file read waits a little, so a big
     // rescan never competes with DSD512 for disk/NAS bandwidth or CPU.
+    onTracksRemoved: (ids) => queue.forgetTracks(ids),
     pace: async () => {
       if (paceMs > 0 && engine.getStatus().transport === 'playing') {
         await new Promise((r) => setTimeout(r, paceMs));

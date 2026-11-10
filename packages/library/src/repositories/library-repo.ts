@@ -15,6 +15,7 @@ import type {
 import { likePattern, sql, transaction, type Database, type SqlValue } from '../db/database';
 import { ConflictError, NotFoundError, ValidationError } from '../errors';
 import {
+  albumFolderOf,
   albumGroupKey,
   buildSearchText,
   engineUriToPath,
@@ -35,6 +36,24 @@ import {
   type RootRow,
   type TrackRow,
 } from './rows';
+
+export interface RemovedRoot {
+  rootId: string;
+  kind: string;
+  trackIds: string[];
+  tracks: number;
+  playlistItems: number;
+  playlistsRemoved: number;
+  queueItems: number;
+}
+
+export interface FolderTrack {
+  id: string;
+  albumId: string | null;
+  album: string;
+  disc: number | null;
+  track: number | null;
+}
 
 export interface TrackUpsert {
   rootId: string | null;
@@ -191,21 +210,146 @@ export class LibraryRepository {
       throw new ConflictError('This folder is already in the library', { rootId: existing.id });
     const id = stableId('root', key);
     const kind = options.kind ?? (isUnc ? 'unc' : 'local');
-    this.db
-      .prepare(
-        `INSERT INTO library_roots (id, path, path_key, name, kind, enabled, status, created_at)
-         VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-      )
-      .run(
-        id,
-        trimmed,
-        key,
-        options.name ?? rootNameFor(trimmed),
-        kind,
-        kind === 'fixture' ? 'online' : 'unknown',
-        options.now ?? Date.now(),
-      );
+    // Nested folders would index the same files twice. The demo library is fictional, so it
+    // never takes part.
+    const others =
+      kind === 'fixture'
+        ? []
+        : (
+            this.db
+              .prepare("SELECT id, path, path_key, name FROM library_roots WHERE kind != 'fixture'")
+              .all() as { id: string; path: string; path_key: string; name: string }[]
+          ).map((r) => ({ ...r, path_key: rootKeyOf(r.path, this.platform) }));
+    const parent = others.find((r) => key.startsWith(`${r.path_key}/`));
+    if (parent) {
+      throw new ConflictError(`This folder is already part of “${parent.name}” in the library`, {
+        rootId: parent.id,
+      });
+    }
+    const children = others.filter((r) => r.path_key.startsWith(`${key}/`));
+    transaction(this.db, () => {
+      this.db
+        .prepare(
+          `INSERT INTO library_roots (id, path, path_key, name, kind, enabled, status, created_at)
+           VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
+        )
+        .run(
+          id,
+          trimmed,
+          key,
+          options.name ?? rootNameFor(trimmed),
+          kind,
+          kind === 'fixture' ? 'online' : 'unknown',
+          options.now ?? Date.now(),
+        );
+      // Adding a parent of existing folders absorbs them: their tracks keep their ids (and so
+      // their playlist entries) and are re-read on the next scan relative to the new folder.
+      for (const child of children) {
+        const prefix = child.path
+          .slice(trimmed.replace(/[\\/]+$/, '').length)
+          .replace(/\\/g, '/')
+          .replace(/^\/+|\/+$/g, '')
+          .normalize('NFC');
+        this.db
+          .prepare(
+            `UPDATE tracks SET root_id = ?, mtime_ms = NULL,
+               relative_dir = CASE WHEN relative_dir = '' THEN ? ELSE ? || '/' || relative_dir END
+             WHERE root_id = ?`,
+          )
+          .run(id, prefix, prefix, child.id);
+        this.db.prepare('UPDATE albums SET root_id = ? WHERE root_id = ?').run(id, child.id);
+        this.db.prepare('DELETE FROM library_roots WHERE id = ?').run(child.id);
+      }
+    });
     return this.listRoots().find((r) => r.id === id) as LibraryRoot;
+  }
+
+  /**
+   * Remove a root and everything indexed from it: tracks, now-empty albums/artists, and their
+   * entries in playlists and the saved queue. Files on disk are never touched.
+   */
+  removeRoot(id: string): RemovedRoot {
+    const root = this.getRootRow(id);
+    return transaction(this.db, () => {
+      const inRoot = 'SELECT id FROM tracks WHERE root_id = ?';
+      const trackIds = (this.db.prepare(inRoot).all(id) as { id: string }[]).map((r) => r.id);
+      let playlistsRemoved = 0;
+      if (root.kind === 'fixture') {
+        // the demo playlists contain only demo tracks: they go with the demo library
+        playlistsRemoved = Number(
+          this.db
+            .prepare(
+              `DELETE FROM playlists WHERE id IN (
+                 SELECT playlist_id FROM playlist_items GROUP BY playlist_id
+                 HAVING SUM(CASE WHEN track_id IN (${inRoot}) THEN 0 ELSE 1 END) = 0)`,
+            )
+            .run(id).changes,
+        );
+      }
+      const playlistItems = Number(
+        this.db.prepare(`DELETE FROM playlist_items WHERE track_id IN (${inRoot})`).run(id).changes,
+      );
+      const queueItems = Number(
+        this.db.prepare(`DELETE FROM queue_items WHERE track_id IN (${inRoot})`).run(id).changes,
+      );
+      const tracks = Number(
+        this.db.prepare('DELETE FROM tracks WHERE root_id = ?').run(id).changes,
+      );
+      this.db
+        .prepare(
+          `DELETE FROM albums WHERE (root_id = ? OR root_id IS NULL)
+             AND NOT EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = albums.id)`,
+        )
+        .run(id);
+      this.db
+        .prepare(
+          `DELETE FROM artists WHERE NOT EXISTS (SELECT 1 FROM albums a WHERE a.album_artist_id = artists.id)
+             AND NOT EXISTS (SELECT 1 FROM track_artists ta WHERE ta.artist_id = artists.id)`,
+        )
+        .run();
+      this.db.prepare('DELETE FROM library_roots WHERE id = ?').run(id);
+      return {
+        rootId: id,
+        kind: root.kind,
+        trackIds,
+        tracks,
+        playlistItems,
+        playlistsRemoved,
+        queueItems,
+      };
+    });
+  }
+
+  /** Available tracks in one album folder (disc sub-folders included) — for folder grouping. */
+  folderTracks(rootId: string, folder: string): FolderTrack[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, album_id, album, relative_dir, disc_number, track_number FROM tracks
+         WHERE root_id = ? AND available = 1 AND (relative_dir = ? OR relative_dir LIKE ? ESCAPE '\\')`,
+      )
+      .all(rootId, folder, `${escapeLike(folder)}/%`) as {
+      id: string;
+      album_id: string | null;
+      album: string;
+      relative_dir: string;
+      disc_number: number | null;
+      track_number: number | null;
+    }[];
+    return rows
+      .filter((r) => albumFolderOf(r.relative_dir) === folder)
+      .map((r) => ({
+        id: r.id,
+        albumId: r.album_id,
+        album: r.album,
+        disc: r.disc_number,
+        track: r.track_number,
+      }));
+  }
+
+  /** Put tracks into one album (folder grouping); the album row keeps its own title. */
+  moveTracksToAlbum(trackIds: string[], albumId: string, albumTitle: string): void {
+    const stmt = this.db.prepare('UPDATE tracks SET album_id = ?, album = ? WHERE id = ?');
+    for (const id of trackIds) stmt.run(albumId, albumTitle, id);
   }
 
   setRootStatus(
@@ -801,4 +945,9 @@ export class LibraryRepository {
 
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/** Same normalisation as addRoot uses for a stored root path. */
+function rootKeyOf(path: string, platform: PathPlatform): string {
+  return pathKey(path, path.startsWith('\\\\') ? 'win32' : platform);
 }

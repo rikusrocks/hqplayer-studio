@@ -128,3 +128,10 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Problem:** old Chinese/Japanese taggers wrote the Windows code page into Latin-1 tag fields; parsers return mojibake.
 - **Choice:** for Latin-1-only strings with ≥ 2 high bytes that are not valid UTF-8 and not European-looking (isolated accented letters), score GBK vs Shift-JIS by _byte ranges_ (GB2312 core hanzi vs kana/level-1 kanji; extension areas and half-width katakana penalised), all fields of a file together, folder/file name as hint; require a clear margin, else leave the text untouched. Big5 is not auto-detected (indistinguishable from GBK without frequency data).
 - **Evidence:** synthetic sample: 44/44 Chinese, 28/30 Japanese recovered, 0 wrong. Electron's runtime is checked for the decoders in the Windows smoke test.
+
+## D-024 Library hygiene: removal, nesting, folder albums — 2026-11-10
+
+- **Remove folder:** deletes the folder's tracks, now-empty albums/artists, playlist entries and saved-queue entries in one transaction; the in-memory queue plan that used them is dropped; files are never touched; removing the demo library sets `library.demoRemoved` so it is not re-seeded.
+- **Nesting:** a folder inside a library folder is refused; a parent of library folders absorbs them (track ids kept → playlists intact; `mtime_ms` cleared so files are re-read relative to the new folder). The fictional demo root never takes part.
+- **Folder = album:** merge albums inside one album folder only with strong numbering evidence (see `planFolderAlbum`); otherwise leave them separate. Online confirmation (MusicBrainz) is deferred and must be opt-in because it sends album/artist names to a third party.
+- **Jump while playing:** try SelectTrack+Play; if the playing file does not change within 2.5 s, fall back to Stop → stopped → SelectTrack → Play (the Gate C-verified sequence).

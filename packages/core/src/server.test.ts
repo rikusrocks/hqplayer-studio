@@ -832,6 +832,29 @@ describe('queue control against a busy HQPlayer (stateful stand-in engine)', () 
     expect(studio.queue.get().items).toHaveLength(3);
   });
 
+  it('jumping to a queue track while playing really plays it, whether or not HQPlayer switches by itself', async () => {
+    for (const ignores of [false, true]) {
+      engine = await startFakeEngine({
+        playlist: [],
+        selectIgnoredWhilePlaying: ignores,
+        stopDelayMs: ignores ? 200 : 0,
+      });
+      const a = addShareAlbum(liveCtx.library, `Album ${ignores ? 'B' : 'A'}`, 3);
+      const { studio, call } = await startStudio();
+      await call('POST', `/playback/album/${a.albumId}`, {});
+      await vi.waitFor(() => expect(studio.engine.getStatus().transport).toBe('playing'));
+      const before = engine.received.length;
+      const res = await call<QueueState>('POST', '/queue/jump', { index: 2 });
+      expect(res.status).toBe(200);
+      expect(engine.state()).toMatchObject({ transport: 2, current: 3 });
+      const names = engine.received.slice(before).map((r) => r.name);
+      expect(names.includes('Stop')).toBe(ignores); // the slow path only when needed
+      for (const st of studios.splice(0)) await st.close();
+      await engine.close();
+    }
+    engine = null;
+  });
+
   it('shows library artwork for a track HQPlayer plays on its own', async () => {
     const a = addShareAlbum(liveCtx.library, 'Album A', 2);
     const png = Buffer.from(

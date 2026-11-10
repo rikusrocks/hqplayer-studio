@@ -36,6 +36,8 @@ export interface FakeEngineOptions {
    * really stopped (models the v0.1.5 report: a clear right after Stop kept one song).
    */
   stopDelayMs?: number;
+  /** SelectTrack during playback is accepted but the engine keeps playing the old track. */
+  selectIgnoredWhilePlaying?: boolean;
 }
 
 export interface FakeEngine {
@@ -166,6 +168,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         const i = Number(a.index);
         if (i < 1 || i > playlist.length)
           return `${D}<SelectTrack result="Error">index</SelectTrack>\n`;
+        if (opts.selectIgnoredWhilePlaying && transport !== 0) return ok;
         current = i;
         setPos(0);
         return ok;

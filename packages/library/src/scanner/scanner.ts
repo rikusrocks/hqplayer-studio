@@ -4,6 +4,7 @@ import type { ArtworkStore } from '../artwork/artwork-store';
 import { AUDIO_EXTENSIONS } from '../format';
 import { albumFolderOf, discNumberFromFolder, pathKey } from '../normalize';
 import type { LibraryRepository } from '../repositories/library-repo';
+import { planFolderAlbum } from './album-grouping';
 import {
   emptyMetadata,
   metadataFromPath,
@@ -260,6 +261,7 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
   })();
 
   const touchedAlbums = new Set<string>();
+  const touchedFolders = new Set<string>();
   const processFile = async (file: string) => {
     const relDir = toRelativeDir(root.path, file);
     const fileName = basename(file).normalize('NFC');
@@ -318,6 +320,8 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
         genre: m.genre,
         now: seenAt,
       });
+      touchedAlbums.add(albumId);
+      touchedFolders.add(albumFolderOf(relDir));
       const { created } = library.upsertTrack({
         rootId: root.id,
         sourcePath: file,
@@ -381,6 +385,20 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     library.setRootStatus(root.id, 'online', null);
     return finish('cancelled', 'Scan cancelled; nothing was marked unavailable.');
   }
+
+  // One folder = one album when the tags disagree (other language, edition suffix…) but the
+  // track numbering says it is a single album.
+  library.batch(() => {
+    for (const folder of touchedFolders) {
+      const tracks = library.folderTracks(root.id, folder);
+      const plan = planFolderAlbum(tracks);
+      if (!plan) continue;
+      const move = tracks.filter((t) => t.albumId !== plan.albumId).map((t) => t.id);
+      if (move.length === 0) continue;
+      library.moveTracksToAlbum(move, plan.albumId, plan.title);
+      touchedAlbums.add(plan.albumId);
+    }
+  });
 
   p.markedUnavailable += subtrees
     ? library.markUnseenUnavailableUnder(root.id, startedAt, subtrees)

@@ -147,6 +147,7 @@ export const en: Record<MessageKey, string> = {
   'queue.nowPlaying': 'Now playing',
   'queue.upNext': 'Up next',
   'queue.jump': 'Jump to this track',
+  'queue.jumpDouble': 'Double-click to play this track',
 
   'notice.queue_followed_engine': "Studio now follows HQPlayer's playlist ({count} tracks)",
   'notice.queue_released':
@@ -255,6 +256,12 @@ export const en: Record<MessageKey, string> = {
   'settings.noRoots': 'No music folders added yet',
   'settings.rootAdded': 'Folder added',
   'settings.scanStarted': 'Scan started',
+  'settings.removeRoot': 'Remove',
+  'settings.removeRootHint':
+    'Remove this folder and its songs from the library (files on disk are not deleted)',
+  'settings.removeRootConfirm':
+    'Remove “{name}” and its {count} songs from the library? Songs from this folder are also removed from playlists. Files on disk are not deleted; you can add the folder again later.',
+  'settings.rootRemoved': 'Removed ({count} songs)',
   'settings.scanJob':
     'Seen {seen} · parsed {parsed} · added {added} · updated {updated} · moved {moved} · marked unavailable {unavailable} · errors {errors}',
   'settings.watch.active': 'Auto-update: on',

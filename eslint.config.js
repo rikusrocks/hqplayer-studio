@@ -5,7 +5,15 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/release/**', '**/node_modules/**', '**/.data/**', 'coverage/**'],
+    ignores: [
+      '**/dist/**',
+      '**/release/**',
+      '**/node_modules/**',
+      '**/.data/**',
+      'coverage/**',
+      // other sessions' git worktrees live here; they are linted in their own checkout
+      '.claude/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
