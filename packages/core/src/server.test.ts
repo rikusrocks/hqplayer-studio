@@ -781,7 +781,13 @@ describe('queue control against a busy HQPlayer (stateful stand-in engine)', () 
     const sentBefore = engine.received.length;
     const res = await call<QueueState>('POST', '/queue/follow', {});
     expect(res.body.items.map((i) => i.track.id)).toEqual(b.ids);
-    expect(engine.received.slice(sentBefore).map((r) => r.name)).toEqual(['PlaylistGet']);
+    // The read-only VolumeRange poll (every 50 ms here) may land in this window on slow runners.
+    expect(
+      engine.received
+        .slice(sentBefore)
+        .map((r) => r.name)
+        .filter((n) => n !== 'VolumeRange'),
+    ).toEqual(['PlaylistGet']);
     expect(engine.state()).toMatchObject({ transport: 2, current: 1 }); // still playing
     await vi.waitFor(() => expect(studio.queue.get().sync.state).toBe('in_sync'));
   });
