@@ -5,7 +5,8 @@
  * header from Core). The renderer has no Node access; the only bridge is the preload's
  * `window.studioShell`. Audio never passes through this app: HQPlayer keeps the whole chain.
  */
-import { writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   app,
@@ -40,15 +41,28 @@ import {
   type TrayItemId,
 } from './desktop-shell';
 import {
-  applyWindowMode,
+  defaultDetectDeps,
   detectHqplayerExe,
+  ensureHqplayer,
+  findHqplayerProcess,
   launchHqplayer,
+  listProcesses,
   normalizePrefs,
+  probeControlPort,
   processNameOf,
+  processPath,
+  rememberReport,
+  reportsForDiagnostics,
+  resolveHqplayerExe,
+  shortError,
   windowControl,
   type HqpAppPrefs,
   type HqpAppState,
+  type HqpExeResolution,
+  type HqpRunReport,
+  type HqpRunTrigger,
   type HqpWindowAction,
+  type HqpWindowInfo,
 } from './hqplayer-app';
 import {
   fitToDisplays,
@@ -394,6 +408,7 @@ function startShellIntegration(): void {
       scheduleTrayUpdate();
     } else if (event.type === 'engine.status') {
       scheduleTrayUpdate();
+      hqpOnEngineConnection(event.status.connection === 'connected');
     }
   });
   applyMediaKeys();
@@ -455,66 +470,238 @@ function registerIpc(): void {
 // ------------------------------------------------------------------ HQPlayer program (Windows)
 
 const HQP_APP_SETTING = 'hqplayer.app';
-let detectedExe: string | null | undefined;
+/** Where HQPlayer was last seen running: Studio's own note, used when detection finds nothing. */
+const HQP_SEEN_SETTING = 'hqplayer.app.seen';
+let hqpDetection: { at: number; result: HqpExeResolution } | null = null;
+/** What the latest runs did, newest first (kept in memory; shown in Settings and diagnostics). */
+let hqpReports: HqpRunReport[] = [];
+/** The window watcher that is running now, and the window list it saw last. */
+let hqpWatch: { cancelled: boolean } | null = null;
+let hqpWatchWindows: HqpWindowInfo[] | null = null;
+let hqpEngineConnected = false;
 
 function hqpPrefs(): HqpAppPrefs {
   return normalizePrefs(studio?.ctx.settings.get(HQP_APP_SETTING, null));
 }
 
-async function hqpExe(prefs = hqpPrefs()): Promise<string | null> {
-  if (prefs.exePath) return prefs.exePath;
-  if (detectedExe === undefined) detectedExe = await detectHqplayerExe().catch(() => null);
-  return detectedExe;
+/** Detection is cached; a miss is retried after half a minute (HQPlayer may get installed). */
+async function hqpDetect(): Promise<HqpExeResolution> {
+  const stale = !hqpDetection?.result.exePath && Date.now() - (hqpDetection?.at ?? 0) > 30_000;
+  const gone = hqpDetection?.result.exePath && !existsSync(hqpDetection.result.exePath);
+  if (!hqpDetection || stale || gone) {
+    const readShortcut = (lnk: string) => shell.readShortcutLink(lnk).target || null;
+    hqpDetection = {
+      at: Date.now(),
+      result: await detectHqplayerExe(defaultDetectDeps(readShortcut)),
+    };
+  }
+  return hqpDetection.result;
+}
+
+function hqpResolveExe(prefs = hqpPrefs()): Promise<HqpExeResolution> {
+  return resolveHqplayerExe({
+    preferred: prefs.exePath,
+    exists: existsSync,
+    detect: hqpDetect,
+    remembered: () => {
+      const seen = studio?.ctx.settings.get(HQP_SEEN_SETTING, null);
+      return typeof seen === 'string' && seen ? seen : null;
+    },
+    remember: (path) => studio?.ctx.settings.set(HQP_SEEN_SETTING, path),
+    listProcesses,
+    processPath,
+  });
 }
 
 async function hqpState(): Promise<HqpAppState> {
   const prefs = hqpPrefs();
-  const exePath = await hqpExe(prefs);
-  const supported = process.platform === 'win32';
-  if (!supported || !exePath) return { supported, prefs, exePath, running: false, windows: [] };
-  const { pids, windows } = await windowControl(processNameOf(exePath), 'list').catch(() => ({
-    pids: [] as number[],
+  const state: HqpAppState = {
+    supported: process.platform === 'win32',
+    prefs,
+    exePath: null,
+    exeSource: null,
+    searched: [],
+    running: false,
+    runningError: null,
     windows: [],
-  }));
-  return { supported, prefs, exePath, running: pids.length > 0, windows };
+    windowsError: null,
+    reports: hqpReports,
+  };
+  if (!state.supported) return state;
+  const exe = await hqpResolveExe(prefs);
+  state.exePath = exe.exePath;
+  state.exeSource = exe.source;
+  state.searched = exe.searched;
+  let image: string | null = exe.exePath;
+  try {
+    const proc = findHqplayerProcess(await listProcesses(), exe.exePath);
+    state.running = proc !== null;
+    if (proc) image = proc.image;
+  } catch (err) {
+    // no process list: fall back to "is HQPlayer's control port answering?"
+    state.runningError = shortError(err);
+    state.running = await probeControlPort();
+  }
+  if (!state.running || !image) return state;
+  if (hqpWatch && hqpWatchWindows) {
+    state.windows = hqpWatchWindows; // the watcher is polling already
+    return state;
+  }
+  try {
+    state.windows = (await windowControl(processNameOf(image), 'list')).windows;
+  } catch (err) {
+    state.windowsError = shortError(err);
+  }
+  return state;
 }
 
-/** Start HQPlayer if needed, then put its window where the user wants it. */
-async function hqpEnsure(launchIfStopped: boolean): Promise<void> {
-  if (process.platform !== 'win32') return;
+/**
+ * Start HQPlayer if asked and needed, then put its windows where the user wants them. Resolves
+ * once the program is found / started; the window watcher goes on in the background and updates
+ * the same report. A newer run (or a manual show / hide) replaces a watcher that is still going.
+ */
+async function hqpEnsure(
+  trigger: HqpRunTrigger,
+  launchIfStopped: boolean,
+): Promise<HqpRunReport | null> {
+  if (process.platform !== 'win32') return null;
   const prefs = hqpPrefs();
-  const exePath = await hqpExe(prefs);
-  if (!exePath) return;
-  const { pids } = await windowControl(processNameOf(exePath), 'list');
-  if (pids.length === 0) {
-    if (!launchIfStopped) return;
-    launchHqplayer(exePath);
+  if (hqpWatch) hqpWatch.cancelled = true;
+  const cancel = { cancelled: false };
+  hqpWatch = cancel;
+  hqpWatchWindows = null;
+  const release = () => {
+    if (hqpWatch !== cancel) return;
+    hqpWatch = null;
+    hqpWatchWindows = null;
+  };
+  try {
+    const { report, settled } = await ensureHqplayer(
+      { trigger, launchIfStopped, windowMode: prefs.windowMode, cancel },
+      {
+        resolveExe: () => hqpResolveExe(prefs),
+        listProcesses,
+        probeEngine: () => probeControlPort(),
+        launch: (exe, o) => launchHqplayer(exe, o, { spawn, openPath: shell.openPath }),
+        control: (name, action) => windowControl(name, action),
+        now: Date.now,
+        sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+        onWindows: (r) => {
+          if (hqpWatch === cancel) hqpWatchWindows = r.windows;
+        },
+        onReport: (r) => {
+          // "HQPlayer connected" checks that found nothing to do are not worth a line
+          if (r.trigger === 'connected' && r.process.status !== 'running') return;
+          hqpReports = rememberReport(hqpReports, r);
+        },
+      },
+    );
+    hqpNotify(report, 'process');
+    void settled.then((final) => {
+      release();
+      hqpNotify(final, 'window');
+    });
+    return report;
+  } catch (err) {
+    release();
+    throw err;
   }
-  await applyWindowMode(exePath, prefs.windowMode);
+}
+
+/** Resolves when the main window can show a toast (set at startup). */
+let hqpToastReady: Promise<void> = Promise.resolve();
+
+/** Tell the user when a start they asked for did not happen, or the window could not be hidden. */
+function hqpNotify(report: HqpRunReport, step: 'process' | 'window'): void {
+  const notice = (code: string, message: string, error?: string) =>
+    void hqpToastReady.then(() =>
+      studio?.server.hub.notice('warning', code, message, error ? { error } : undefined),
+    );
+  if (step === 'process' && report.process.status === 'no-exe') {
+    notice(
+      'hqp_app_not_found',
+      'HQPlayer was not started: Studio could not find the program (Settings → Playback).',
+    );
+  } else if (step === 'process' && report.process.status === 'start-failed') {
+    const error = report.process.error ?? 'unknown error';
+    notice('hqp_app_start_failed', `HQPlayer could not be started: ${error}`, error);
+  } else if (step === 'window' && report.window.status === 'failed') {
+    const error = report.window.error ?? 'unknown error';
+    notice(
+      'hqp_app_window_failed',
+      `HQPlayer's window could not be hidden or minimized: ${error}`,
+      error,
+    );
+  }
+}
+
+/** Start HQPlayer with Studio (opt-in), or tidy its window away if it is already running. */
+async function hqpStartup(): Promise<void> {
+  const prefs = hqpPrefs();
+  if (process.platform !== 'win32') return;
+  if (!prefs.autoStart && prefs.windowMode === 'normal') return;
+  await hqpEnsure('startup', prefs.autoStart);
+}
+
+/**
+ * HQPlayer's control connection came up: if it was started after Studio (by the user, or it
+ * simply took long), put its window where the user wants it now.
+ */
+function hqpOnEngineConnection(connected: boolean): void {
+  const cameUp = connected && !hqpEngineConnected;
+  hqpEngineConnected = connected;
+  if (!cameUp || process.platform !== 'win32') return;
+  if (hqpPrefs().windowMode === 'normal' || hqpWatch) return; // nothing to do / already watching
+  void hqpEnsure('connected', false).catch(() => undefined);
 }
 
 function registerHqplayerIpc(): void {
   ipcMain.handle('studio:hqp-app:get', async (event) => (fromStudio(event) ? hqpState() : null));
   ipcMain.handle('studio:hqp-app:set', async (event, patch: unknown) => {
     if (!fromStudio(event) || !studio) return null;
-    const next = normalizePrefs({ ...hqpPrefs(), ...(patch as object) });
+    const before = hqpPrefs();
+    const next = normalizePrefs({ ...before, ...(patch as object) });
     studio.ctx.settings.set(HQP_APP_SETTING, next);
+    // a new window mode applies to a running HQPlayer right away (it never starts it)
+    if (next.windowMode !== before.windowMode) {
+      if (next.windowMode === 'normal') {
+        if (hqpWatch) hqpWatch.cancelled = true;
+      } else {
+        await hqpEnsure('settings', false);
+      }
+    }
     return hqpState();
   });
   ipcMain.handle('studio:hqp-app:launch', async (event) => {
     if (!fromStudio(event)) return null;
-    await hqpEnsure(true);
+    await hqpEnsure('manual', true);
     return hqpState();
   });
   ipcMain.handle('studio:hqp-app:window', async (event, action: unknown) => {
     if (!fromStudio(event)) return null;
-    const exePath = await hqpExe();
     const allowed: HqpWindowAction[] = ['show', 'hide', 'minimize'];
-    if (exePath && allowed.includes(action as HqpWindowAction)) {
-      await windowControl(processNameOf(exePath), action as HqpWindowAction);
-    }
+    if (!allowed.includes(action as HqpWindowAction)) return hqpState();
+    // the user's own show / hide wins over a watcher that is still tidying up after a start
+    if (hqpWatch) hqpWatch.cancelled = true;
+    hqpWatch = null;
+    hqpWatchWindows = null;
+    const exe = await hqpResolveExe();
+    const proc = findHqplayerProcess(await listProcesses().catch(() => []), exe.exePath);
+    const image = proc?.image ?? exe.exePath;
+    if (image) await windowControl(processNameOf(image), action as HqpWindowAction);
     return hqpState();
   });
+  ipcMain.handle('studio:hqp-app:diagnostics', (event) =>
+    fromStudio(event)
+      ? {
+          supported: process.platform === 'win32',
+          autoStart: hqpPrefs().autoStart,
+          windowMode: hqpPrefs().windowMode,
+          customPath: hqpPrefs().exePath !== null,
+          reports: reportsForDiagnostics(hqpReports),
+        }
+      : null,
+  );
   ipcMain.handle('studio:hqp-app:pick-exe', async (event) => {
     if (!fromStudio(event) || !studio) return null;
     const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
@@ -658,11 +845,14 @@ app.whenReady().then(async () => {
     return;
   }
   startShellIntegration();
-  // Start HQPlayer with Studio (opt-in), or tidy its window away if it is already running.
-  const prefs = hqpPrefs();
-  if (prefs.autoStart || prefs.windowMode !== 'normal') {
-    void hqpEnsure(prefs.autoStart).catch(() => undefined);
-  }
+  const win = mainWindow;
+  // Failures are also shown as a toast in the main window: wait until it can show one.
+  hqpToastReady = new Promise<void>((resolve) => {
+    win.webContents.once('did-finish-load', () => setTimeout(resolve, 2500));
+    setTimeout(resolve, 20_000);
+  });
+  // Nothing in here throws: every outcome ends up in the report shown in Settings.
+  void hqpStartup().catch((err: unknown) => console.error('HQPlayer startup step failed:', err));
 });
 
 app.on('window-all-closed', () => {

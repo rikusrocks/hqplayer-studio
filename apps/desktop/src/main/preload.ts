@@ -29,5 +29,6 @@ contextBridge.exposeInMainWorld('studioShell', {
     window: (action: 'show' | 'hide' | 'minimize') =>
       ipcRenderer.invoke('studio:hqp-app:window', action),
     pickExe: () => ipcRenderer.invoke('studio:hqp-app:pick-exe'),
+    diagnostics: () => ipcRenderer.invoke('studio:hqp-app:diagnostics'),
   },
 });

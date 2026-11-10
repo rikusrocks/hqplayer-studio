@@ -32,7 +32,8 @@ import {
   type Theme,
 } from '@hqps/ui';
 import { useEffect, useState } from 'react';
-import { getShell, type HqpAppState } from '../shell';
+import { getShell, type HqpAppState, type HqpRunReport } from '../shell';
+import { describeReport, describeSearchStep } from './hqpReport';
 import { ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
 import {
@@ -717,6 +718,17 @@ function HqplayerAppCard() {
       alive = false;
     };
   }, [api]);
+  // while Studio is still tidying HQPlayer's windows away, follow its progress
+  const watching = state?.reports[0]?.window.status === 'watching';
+  useEffect(() => {
+    if (!api || !watching) return;
+    let alive = true;
+    const timer = setInterval(() => void api.get().then((s) => alive && s && setState(s)), 2500);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [api, watching]);
   if (!api || !state?.supported) return null;
   const act = async (fn: () => Promise<HqpAppState | null>) => {
     setBusy(true);
@@ -736,7 +748,12 @@ function HqplayerAppCard() {
       <p className="hint">{t('hqpApp.hint')}</p>
       <div className="kv">
         <span>{t('hqpApp.program')}</span>
-        <span className="hq-mono">{state.exePath ?? t('hqpApp.notFound')}</span>
+        <span className="kv__list">
+          <span className="hq-mono">{state.exePath ?? t('hqpApp.notFound')}</span>
+          {state.exePath && state.exeSource && (
+            <span className="hint">{t(`hqpApp.source.${state.exeSource}`)}</span>
+          )}
+        </span>
         <span>{t('hqpApp.status')}</span>
         <strong>
           {state.running
@@ -746,12 +763,33 @@ function HqplayerAppCard() {
             : t('hqpApp.stopped')}
         </strong>
       </div>
+      {!state.exePath && (
+        <div className="hqp-report hqp-report--warn">
+          <p>{t('hqpApp.notFoundHelp')}</p>
+          {state.searched.length > 0 && (
+            <>
+              <p className="hint">{t('hqpApp.searched')}</p>
+              <ul>
+                {state.searched.map((step, i) => (
+                  <li key={i}>{describeSearchStep(step, t)}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+      {state.runningError && (
+        <p className="hint hqp-warn">{t('hqpApp.runningUnknown', { error: state.runningError })}</p>
+      )}
+      {state.windowsError && (
+        <p className="hint hqp-warn">{t('hqpApp.windowsError', { error: state.windowsError })}</p>
+      )}
       <label className="engine-option engine-control">
         <input
           type="checkbox"
           role="switch"
           checked={state.prefs.autoStart}
-          disabled={busy || !state.exePath}
+          disabled={busy}
           onChange={(e) => void act(() => api.set({ autoStart: e.target.checked }))}
         />
         <span>
@@ -780,7 +818,7 @@ function HqplayerAppCard() {
           <button
             type="button"
             className="hq-btn"
-            disabled={busy || !state.exePath}
+            disabled={busy}
             onClick={() => void act(api.launch)}
           >
             {busy ? <Spinner size={14} /> : <Icon name="play" size={14} />}
@@ -816,6 +854,39 @@ function HqplayerAppCard() {
           {t('hqpApp.pick')}
         </button>
       </div>
+      <HqpRunReports reports={state.reports} />
+    </div>
+  );
+}
+
+/** What the latest "start HQPlayer / tidy its window" runs did, step by step. */
+function HqpRunReports({ reports }: { reports: HqpRunReport[] }) {
+  const { t } = useI18n();
+  const [latest, ...earlier] = reports;
+  const render = (report: HqpRunReport) => (
+    <div key={report.id} className="hqp-report__run">
+      <p className="hint">
+        {new Date(report.at).toLocaleTimeString()} · {t(`hqpApp.trigger.${report.trigger}`)}
+      </p>
+      <ul>
+        {describeReport(report, t).map((line, i) => (
+          <li key={i} className={`hqp-report__line hqp-report__line--${line.tone}`}>
+            {line.text}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  return (
+    <div className="hqp-report" aria-live="polite">
+      <strong>{t('hqpApp.lastRun')}</strong>
+      {latest ? render(latest) : <p className="hint">{t('hqpApp.noRun')}</p>}
+      {earlier.length > 0 && (
+        <details>
+          <summary>{t('hqpApp.earlierRuns', { count: earlier.length })}</summary>
+          {earlier.map(render)}
+        </details>
+      )}
     </div>
   );
 }
@@ -833,9 +904,13 @@ function CopyDiagnostics() {
   const copy = async () => {
     setBusy(true);
     const report = await run(() => client.engine.diagnostics());
+    // what happened when Studio started / hid the HQPlayer program (desktop app only)
+    const hqplayerApp = await getShell()
+      ?.hqplayerApp.diagnostics()
+      .catch(() => null);
     setBusy(false);
     if (!report) return;
-    const text = JSON.stringify(report, null, 2);
+    const text = JSON.stringify(hqplayerApp ? { ...report, hqplayerApp } : report, null, 2);
     try {
       await navigator.clipboard.writeText(text);
       toasts.push('success', t('diag.copied'));

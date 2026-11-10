@@ -153,6 +153,12 @@ export const en: Record<MessageKey, string> = {
   'notice.media_key_control_off':
     'Media key ignored: turn on “Allow Studio to control HQPlayer” in Settings → Playback & engine first.',
   'notice.media_key_failed': 'Media key ignored: HQPlayer did not accept the command.',
+  'notice.hqp_app_not_found':
+    'HQPlayer was not started: Studio cannot find the program. Choose it in Settings → Playback & engine capabilities → HQPlayer program.',
+  'notice.hqp_app_start_failed':
+    'HQPlayer could not be started: {error} (details in Settings → Playback & engine capabilities → HQPlayer program)',
+  'notice.hqp_app_window_failed':
+    'HQPlayer’s window could not be hidden or minimized: {error} (details in Settings → Playback & engine capabilities → HQPlayer program)',
   'notice.queue_followed_engine': "Studio now follows HQPlayer's playlist ({count} tracks)",
   'notice.queue_released':
     "Studio dropped its old queue; the queue panel shows HQPlayer's own playlist",
@@ -392,9 +398,62 @@ export const en: Record<MessageKey, string> = {
   'hqpApp.show': 'Show HQPlayer',
   'hqpApp.hide': 'Hide HQPlayer',
   'hqpApp.pick': 'Choose HQPlayer…',
+  'hqpApp.notFoundHelp':
+    'Studio could not find the HQPlayer program, so it cannot start it for you yet. Use “Choose HQPlayer…” to point at HQPlayer’s .exe — or open HQPlayer by hand once while Studio is running, and Studio will remember where it is.',
+  'hqpApp.searched': 'Places Studio looked',
+  'hqpApp.source.preference': 'the location you chose',
+  'hqpApp.source.registry': 'Windows’ installed programs list',
+  'hqpApp.source.shortcut': 'Start menu / desktop shortcuts',
+  'hqpApp.source.folder': 'Program Files folders',
+  'hqpApp.source.remembered': 'where HQPlayer was last seen running',
+  'hqpApp.source.running': 'the running HQPlayer',
+  'hqpApp.search.found': 'found',
+  'hqpApp.search.none': 'nothing',
+  'hqpApp.search.missing': 'listed, but the program file was not found',
+  'hqpApp.search.error': 'error',
+  'hqpApp.searchLine': '{where}: {result}',
+  'hqpApp.searchLineDetail': '{where}: {result} ({detail})',
+  'hqpApp.sep.clause': '; ',
+  'hqpApp.sep.item': ', ',
+  'hqpApp.runningUnknown':
+    'Windows’ process list could not be read ({error}); the status above is inferred from HQPlayer’s control port.',
+  'hqpApp.windowsError': 'HQPlayer’s windows could not be read: {error}',
+  'hqpApp.lastRun': 'Latest result',
+  'hqpApp.earlierRuns': 'Earlier results ({count})',
+  'hqpApp.noRun':
+    'Studio has not started or hidden HQPlayer since it was opened (the options above apply the next time Studio starts; or use “Start HQPlayer” now).',
+  'hqpApp.trigger.startup': 'When Studio started',
+  'hqpApp.trigger.manual': 'Started by hand',
+  'hqpApp.trigger.connected': 'After connecting to HQPlayer',
+  'hqpApp.trigger.settings': 'After changing the window setting',
+  'hqpApp.act.hide': 'hide',
+  'hqpApp.act.minimize': 'minimize',
+  'hqpApp.r.exeFound': 'Program: {file} (from {source})',
+  'hqpApp.r.exeNotFound': 'Program: not found. {searched}',
+  'hqpApp.r.checkError': 'Process: Windows’ process list could not be read: {error}',
+  'hqpApp.r.running': 'Process: HQPlayer was already running ({image})',
+  'hqpApp.r.started': 'Process: HQPlayer was started',
+  'hqpApp.r.startedShell':
+    'Process: HQPlayer was started through Windows (the direct start failed: {error})',
+  'hqpApp.r.startedNotSeen':
+    'Process: the start was accepted, but 5 seconds later HQPlayer was not in the process list — it may have exited at once, or be waiting for a permission prompt.',
+  'hqpApp.r.notRunning': 'Process: HQPlayer is not running (this step does not start it)',
+  'hqpApp.r.notRunningAutoOff':
+    'Process: HQPlayer is not running; “Start HQPlayer together with Studio” is off, so it was not started',
+  'hqpApp.r.noExe': 'Process: not started — the HQPlayer program was not found',
+  'hqpApp.r.startFailed': 'Process: could not be started: {error}',
+  'hqpApp.r.winNormal': 'Window: set to “Normal”, left alone',
+  'hqpApp.r.winWatching':
+    'Window: working — while HQPlayer starts, Studio will {action} every window that appears…',
+  'hqpApp.r.winDone': 'Window: done ({action}) for {count} window(s): {titles}',
+  'hqpApp.r.winNothing': 'Window: no visible window needed to be changed ({action})',
+  'hqpApp.r.winNoWindow': 'Window: HQPlayer showed no window within {seconds} s',
+  'hqpApp.r.winNotRunning': 'Window: the HQPlayer process was not found, nothing to do',
+  'hqpApp.r.winFailed': 'Window: failed ({action}): {error}',
+  'hqpApp.r.winCancelled': 'Window: replaced by a later action',
   'diag.report': 'Diagnostics report',
   'diag.reportHint':
-    'If control misbehaves, copy this and send it to the developer. It contains status and the recent conversation with HQPlayer; file paths, titles, artists, albums and the computer name are replaced by numbers.',
+    'If control misbehaves, copy this and send it to the developer. It contains status, the recent conversation with HQPlayer and what happened when Studio started / hid the HQPlayer program; file paths, titles, artists, albums and the computer name are replaced by numbers.',
   'diag.copy': 'Copy diagnostics',
   'diag.copied': 'Diagnostics copied to the clipboard',
   'diag.saved': 'Clipboard unavailable — downloaded as a file instead',
