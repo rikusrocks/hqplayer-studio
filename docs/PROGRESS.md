@@ -1,5 +1,28 @@
 # PROGRESS
 
+## 2026-11-10 — v0.1.9：由 Studio 启动 HQPlayer，并可隐藏其窗口
+
+```text
+Implemented:
+- 设置 → 播放与引擎能力 → “HQPlayer 程序”（仅 Windows）：自动找到 HQPlayer Desktop（Windows“已安装的程序”记录，
+  或 Program Files\Signalyst），也可手动“选择 HQPlayer…”；“启动 Studio 时自动启动 HQPlayer”；
+  “HQPlayer 窗口：正常 / 最小化 / 隐藏（后台运行）”；“启动 / 显示 / 隐藏 HQPlayer”按钮。
+  隐藏后 HQPlayer 照常运行与播放，由 Studio 控制；关闭 Studio 后它仍在后台，下次在 Studio 里点“显示”即可。
+  Studio 不修改 HQPlayer 的安装或设置，只启动程序并用 Windows 标准窗口调用显示/隐藏窗口。
+- 测试修复：桌面端主进程的测试（窗口位置、HQPlayer 程序）之前根本没有运行，现在纳入测试。
+
+Verified:
+- 自动化测试通过；Windows CI 上用记事本真实验证“隐藏 → 不可见 → 显示 → 可见”。
+- 未在你的电脑上验证：HQPlayer 的安装位置识别、HQPlayer 窗口的隐藏/恢复。
+
+Known limitations:
+- 音量：HQPlayer 目前拒绝远程调音量（VolumeRange enabled=0），需要先在 HQPlayer 设置中允许，见 Next。
+
+Next:
+- 你：在 Studio 设置里看“HQPlayer 程序”是否自动找到；试“隐藏 / 显示 HQPlayer”和“启动时自动启动”。
+- 音量：请把 HQPlayer 设置里与音量相关的部分截图给我（以及是否勾选 Direct SDM）。
+```
+
 ## 2026-11-10 — v0.1.8：双击播放、移除文件夹、重复导入、同文件夹合并专辑
 
 ```text

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -18,4 +19,6 @@ export default defineConfig({
   },
   server: { host: '127.0.0.1', port: 5173, strictPort: true, proxy },
   preview: { host: '127.0.0.1', port: 4173, strictPort: true, proxy },
+  // The Vite root is the renderer; tests live in src/main too (window state, HQPlayer program).
+  test: { dir: fileURLToPath(new URL('./src', import.meta.url)) },
 });

@@ -11,6 +11,28 @@ export interface StudioShell {
   relaunch(): void;
   setAlwaysOnTop(on: boolean): Promise<boolean>;
   pickFolder(): Promise<string | null>;
+  /** Start / show / hide HQPlayer Desktop (Windows). */
+  hqplayerApp: {
+    get(): Promise<HqpAppState | null>;
+    set(patch: Partial<HqpAppPrefs>): Promise<HqpAppState | null>;
+    launch(): Promise<HqpAppState | null>;
+    window(action: 'show' | 'hide' | 'minimize'): Promise<HqpAppState | null>;
+    pickExe(): Promise<HqpAppState | null>;
+  };
+}
+
+export interface HqpAppPrefs {
+  exePath: string | null;
+  autoStart: boolean;
+  windowMode: 'normal' | 'minimized' | 'hidden';
+}
+
+export interface HqpAppState {
+  supported: boolean;
+  prefs: HqpAppPrefs;
+  exePath: string | null;
+  running: boolean;
+  windows: { handle: number; title: string; className: string; visible: boolean }[];
 }
 
 declare global {

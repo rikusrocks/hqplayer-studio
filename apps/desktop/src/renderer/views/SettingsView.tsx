@@ -33,8 +33,8 @@ import {
   type MessageKey,
   type Theme,
 } from '@hqps/ui';
-import { useState } from 'react';
-import { getShell } from '../shell';
+import { useEffect, useState } from 'react';
+import { getShell, type HqpAppState } from '../shell';
 import { ViewHeader } from './common';
 
 const SECTIONS: Array<{ id: string; label: MessageKey; icon: IconName }> = [
@@ -346,6 +346,7 @@ function PlaybackSettings() {
   return (
     <div className="settings-stack">
       <EngineModeCard />
+      <HqplayerAppCard />
       <p className="hint">{t('settings.capabilitiesHint')}</p>
       <div className="kv">
         <span>{t('diag.adapter')}</span>
@@ -668,6 +669,128 @@ function ControlSwitch({
         </span>
       </span>
     </label>
+  );
+}
+
+/**
+ * Start HQPlayer Desktop with Studio and keep its window out of sight (Windows). HQPlayer keeps
+ * running and playing; Studio only starts the program and shows/minimizes/hides its window.
+ */
+function HqplayerAppCard() {
+  const { t } = useI18n();
+  const shell = getShell();
+  const toasts = useToasts();
+  const [state, setState] = useState<HqpAppState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const api = shell?.hqplayerApp;
+  useEffect(() => {
+    if (!api) return;
+    let alive = true;
+    void api.get().then((s) => alive && setState(s));
+    return () => {
+      alive = false;
+    };
+  }, [api]);
+  if (!api || !state?.supported) return null;
+  const act = async (fn: () => Promise<HqpAppState | null>) => {
+    setBusy(true);
+    try {
+      const next = await fn();
+      if (next) setState(next);
+    } catch (err) {
+      toasts.push('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const hidden = state.running && state.windows.length > 0 && !state.windows.some((w) => w.visible);
+  return (
+    <div className="settings-block">
+      <h3>{t('hqpApp.title')}</h3>
+      <p className="hint">{t('hqpApp.hint')}</p>
+      <div className="kv">
+        <span>{t('hqpApp.program')}</span>
+        <span className="hq-mono">{state.exePath ?? t('hqpApp.notFound')}</span>
+        <span>{t('hqpApp.status')}</span>
+        <strong>
+          {state.running
+            ? hidden
+              ? t('hqpApp.runningHidden')
+              : t('hqpApp.running')
+            : t('hqpApp.stopped')}
+        </strong>
+      </div>
+      <label className="engine-option engine-control">
+        <input
+          type="checkbox"
+          role="switch"
+          checked={state.prefs.autoStart}
+          disabled={busy || !state.exePath}
+          onChange={(e) => void act(() => api.set({ autoStart: e.target.checked }))}
+        />
+        <span>
+          <strong>{t('hqpApp.autoStart')}</strong>
+          <span className="hint">{t('hqpApp.autoStartHint')}</span>
+        </span>
+      </label>
+      <div className="button-row">
+        <span>{t('hqpApp.windowMode')}</span>
+        <select
+          value={state.prefs.windowMode}
+          disabled={busy}
+          onChange={(e) =>
+            void act(() =>
+              api.set({ windowMode: e.target.value as HqpAppState['prefs']['windowMode'] }),
+            )
+          }
+        >
+          <option value="normal">{t('hqpApp.mode.normal')}</option>
+          <option value="minimized">{t('hqpApp.mode.minimized')}</option>
+          <option value="hidden">{t('hqpApp.mode.hidden')}</option>
+        </select>
+      </div>
+      <div className="button-row">
+        {!state.running && (
+          <button
+            type="button"
+            className="hq-btn"
+            disabled={busy || !state.exePath}
+            onClick={() => void act(api.launch)}
+          >
+            {busy ? <Spinner size={14} /> : <Icon name="play" size={14} />}
+            {t('hqpApp.launch')}
+          </button>
+        )}
+        {state.running && (
+          <>
+            <button
+              type="button"
+              className="hq-btn"
+              disabled={busy}
+              onClick={() => void act(() => api.window('show'))}
+            >
+              {t('hqpApp.show')}
+            </button>
+            <button
+              type="button"
+              className="hq-btn"
+              disabled={busy}
+              onClick={() => void act(() => api.window('hide'))}
+            >
+              {t('hqpApp.hide')}
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          className="hq-btn hq-btn--ghost"
+          disabled={busy}
+          onClick={() => void act(api.pickExe)}
+        >
+          {t('hqpApp.pick')}
+        </button>
+      </div>
+    </div>
   );
 }
 

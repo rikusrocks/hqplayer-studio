@@ -14,4 +14,12 @@ contextBridge.exposeInMainWorld('studioShell', {
     ipcRenderer.invoke('studio:set-always-on-top', on === true) as Promise<boolean>,
   pickFolder: (): Promise<string | null> =>
     ipcRenderer.invoke('studio:pick-folder') as Promise<string | null>,
+  hqplayerApp: {
+    get: () => ipcRenderer.invoke('studio:hqp-app:get'),
+    set: (patch: Record<string, unknown>) => ipcRenderer.invoke('studio:hqp-app:set', patch),
+    launch: () => ipcRenderer.invoke('studio:hqp-app:launch'),
+    window: (action: 'show' | 'hide' | 'minimize') =>
+      ipcRenderer.invoke('studio:hqp-app:window', action),
+    pickExe: () => ipcRenderer.invoke('studio:hqp-app:pick-exe'),
+  },
 });

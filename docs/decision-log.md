@@ -135,3 +135,9 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Nesting:** a folder inside a library folder is refused; a parent of library folders absorbs them (track ids kept → playlists intact; `mtime_ms` cleared so files are re-read relative to the new folder). The fictional demo root never takes part.
 - **Folder = album:** merge albums inside one album folder only with strong numbering evidence (see `planFolderAlbum`); otherwise leave them separate. Online confirmation (MusicBrainz) is deferred and must be opt-in because it sends album/artist names to a third party.
 - **Jump while playing:** try SelectTrack+Play; if the playing file does not change within 2.5 s, fall back to Stop → stopped → SelectTrack → Play (the Gate C-verified sequence).
+
+## D-025 Studio may start HQPlayer and hide its window — never reconfigure it — 2026-11-10
+
+- **Request:** “open HQPlayer with Studio, or leave it running silently — I don't want to see the original HQPlayer”.
+- **Choice (Windows):** detect `HQPlayer*.exe` from the Uninstall registry entries / `Program Files\Signalyst` (or a user-picked path), start it detached (it outlives Studio), and show/minimize/hide its top-level windows via Win32 `ShowWindow` through PowerShell (`-EncodedCommand`, parameters only via environment variables). Preferences in `app_settings` (`hqplayer.app`). Nothing in HQPlayer's install or configuration is changed.
+- **Risk:** HQPlayer's window/class names are unverified on the user's machine; “show” restores Qt top-level windows (`QWindowIcon`) or ones titled “HQPlayer”.

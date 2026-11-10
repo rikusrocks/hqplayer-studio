@@ -20,6 +20,17 @@ import {
 } from 'electron';
 import { bootstrapStudio, type Bootstrapped } from '@hqps/core';
 import { legacyDecodingAvailable } from '@hqps/library';
+import {
+  applyWindowMode,
+  detectHqplayerExe,
+  launchHqplayer,
+  normalizePrefs,
+  processNameOf,
+  windowControl,
+  type HqpAppPrefs,
+  type HqpAppState,
+  type HqpWindowAction,
+} from './hqplayer-app';
 import { loadWindowState, saveWindowState, validateBounds, type WindowState } from './window-state';
 
 const SMOKE = process.argv.includes('--smoke-test');
@@ -177,6 +188,86 @@ function registerIpc(): void {
   });
 }
 
+// ------------------------------------------------------------------ HQPlayer program (Windows)
+
+const HQP_APP_SETTING = 'hqplayer.app';
+let detectedExe: string | null | undefined;
+
+function hqpPrefs(): HqpAppPrefs {
+  return normalizePrefs(studio?.ctx.settings.get(HQP_APP_SETTING, null));
+}
+
+async function hqpExe(prefs = hqpPrefs()): Promise<string | null> {
+  if (prefs.exePath) return prefs.exePath;
+  if (detectedExe === undefined) detectedExe = await detectHqplayerExe().catch(() => null);
+  return detectedExe;
+}
+
+async function hqpState(): Promise<HqpAppState> {
+  const prefs = hqpPrefs();
+  const exePath = await hqpExe(prefs);
+  const supported = process.platform === 'win32';
+  if (!supported || !exePath) return { supported, prefs, exePath, running: false, windows: [] };
+  const { pids, windows } = await windowControl(processNameOf(exePath), 'list').catch(() => ({
+    pids: [] as number[],
+    windows: [],
+  }));
+  return { supported, prefs, exePath, running: pids.length > 0, windows };
+}
+
+/** Start HQPlayer if needed, then put its window where the user wants it. */
+async function hqpEnsure(launchIfStopped: boolean): Promise<void> {
+  if (process.platform !== 'win32') return;
+  const prefs = hqpPrefs();
+  const exePath = await hqpExe(prefs);
+  if (!exePath) return;
+  const { pids } = await windowControl(processNameOf(exePath), 'list');
+  if (pids.length === 0) {
+    if (!launchIfStopped) return;
+    launchHqplayer(exePath);
+  }
+  await applyWindowMode(exePath, prefs.windowMode);
+}
+
+function registerHqplayerIpc(): void {
+  ipcMain.handle('studio:hqp-app:get', async (event) => (fromStudio(event) ? hqpState() : null));
+  ipcMain.handle('studio:hqp-app:set', async (event, patch: unknown) => {
+    if (!fromStudio(event) || !studio) return null;
+    const next = normalizePrefs({ ...hqpPrefs(), ...(patch as object) });
+    studio.ctx.settings.set(HQP_APP_SETTING, next);
+    return hqpState();
+  });
+  ipcMain.handle('studio:hqp-app:launch', async (event) => {
+    if (!fromStudio(event)) return null;
+    await hqpEnsure(true);
+    return hqpState();
+  });
+  ipcMain.handle('studio:hqp-app:window', async (event, action: unknown) => {
+    if (!fromStudio(event)) return null;
+    const exePath = await hqpExe();
+    const allowed: HqpWindowAction[] = ['show', 'hide', 'minimize'];
+    if (exePath && allowed.includes(action as HqpWindowAction)) {
+      await windowControl(processNameOf(exePath), action as HqpWindowAction);
+    }
+    return hqpState();
+  });
+  ipcMain.handle('studio:hqp-app:pick-exe', async (event) => {
+    if (!fromStudio(event) || !studio) return null;
+    const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+    const opts = {
+      title: 'Choose HQPlayer Desktop (.exe)',
+      properties: ['openFile' as const],
+      filters: [{ name: 'Programs', extensions: ['exe'] }],
+    };
+    const res = parent
+      ? await dialog.showOpenDialog(parent, opts)
+      : await dialog.showOpenDialog(opts);
+    const picked = res.canceled ? null : (res.filePaths[0] ?? null);
+    if (picked) studio.ctx.settings.set(HQP_APP_SETTING, { ...hqpPrefs(), exePath: picked });
+    return hqpState();
+  });
+}
+
 function lockDown(): void {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
     callback(false),
@@ -261,6 +352,7 @@ app.whenReady().then(async () => {
   windowState = loadWindowState(stateFile);
   lockDown();
   registerIpc();
+  registerHqplayerIpc();
   try {
     studio = await startCore();
   } catch (err) {
@@ -273,7 +365,15 @@ app.whenReady().then(async () => {
   }
   baseUrl = studio.url;
   mainWindow = createMainWindow();
-  if (SMOKE) await runSmokeTest();
+  if (SMOKE) {
+    await runSmokeTest();
+    return;
+  }
+  // Start HQPlayer with Studio (opt-in), or tidy its window away if it is already running.
+  const prefs = hqpPrefs();
+  if (prefs.autoStart || prefs.windowMode !== 'normal') {
+    void hqpEnsure(prefs.autoStart).catch(() => undefined);
+  }
 });
 
 app.on('window-all-closed', () => {
