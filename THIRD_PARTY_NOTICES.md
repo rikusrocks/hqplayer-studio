@@ -44,6 +44,22 @@ THE SOFTWARE.
 
 Bundled-dependency licence comments are emitted by esbuild to `apps/desktop/dist/main/main.mjs.LEGAL.txt` at build time. A full licence audit is a Phase 5 release task.
 
+## Online services (all opt-in, off by default)
+
+Studio contacts these third-party services only after the user switches them on in Settings; none of them is affiliated with this project.
+
+| Service                             | Used for                  | Interface                                   |
+| ----------------------------------- | ------------------------- | ------------------------------------------- |
+| LRCLIB (lrclib.net)                 | lyrics                    | documented public API                       |
+| lyrics.ovh                          | plain lyrics              | documented public API                       |
+| NetEase Cloud Music (music.163.com) | lyrics                    | the web player's interface — not documented |
+| Kugou Music (lyrics.kugou.com)      | lyrics                    | the player's interface — not documented     |
+| iTunes Search API (Apple)           | album covers              | documented public API                       |
+| Deezer API                          | album covers              | documented public API                       |
+| MusicBrainz + Cover Art Archive     | album check, album covers | documented public API, open data            |
+
+Lyrics and cover images belong to their respective owners; Studio stores what it fetched on the user's computer only and never redistributes it. No lyrics or cover images are part of this repository.
+
 ## Demo content
 
 All demo artists, albums, track titles and lyrics in `fixtures/` and tests are fictional and written for this project. Demo cover art is generated procedurally at runtime.

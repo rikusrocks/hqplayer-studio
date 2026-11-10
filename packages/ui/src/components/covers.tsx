@@ -1,5 +1,5 @@
 import type { CoverCandidate } from '@hqps/contracts';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStudio } from '../data/StudioProvider';
 import { useT } from '../i18n/I18nProvider';
 import { Icon } from './Icon';
@@ -31,6 +31,9 @@ export function CoverSearchDialog({
   const [results, setResults] = useState<CoverCandidate[] | null>(null);
   const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  // `run` changes identity whenever a toast appears; the first search must not start over then.
+  const runRef = useRef(run);
+  runRef.current = run;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -51,11 +54,13 @@ export function CoverSearchDialog({
         setOnlineEnabled(on);
         if (!on) return;
         setBusy(true);
-        return run(() => client.covers.search(albumId)).then((res) => {
-          if (!alive) return;
-          setBusy(false);
-          if (res) setResults(res);
-        });
+        return runRef
+          .current(() => client.covers.search(albumId))
+          .then((res) => {
+            if (!alive) return;
+            setBusy(false);
+            if (res) setResults(res);
+          });
       })
       .catch(() => {
         if (alive) setOnlineEnabled(false);
@@ -63,7 +68,7 @@ export function CoverSearchDialog({
     return () => {
       alive = false;
     };
-  }, [client, run, albumId]);
+  }, [client, albumId]);
 
   const search = async () => {
     if (!query.trim()) return;

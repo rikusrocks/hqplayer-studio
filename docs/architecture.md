@@ -13,7 +13,7 @@
  │   │    ├─ EngineService ── HQPlayerAdapter (Mock | Live TCP/XML)      │
  │   │    ├─ QueueService  (planned queue, sync detection)               │
  │   │    ├─ LibraryService (scan jobs)                                  │
- │   │    ├─ LyricsService (.lrc / tags / lyrics_cache / LRCLIB opt-in)  │
+ │   │    ├─ LyricsService (.lrc / tags / lyrics_cache / online opt-in)   │
  │   │    ├─ media keys (globalShortcut) + tray icon → same EngineService │
  │   │    └─ SQLite via node:sqlite (WAL)  %APPDATA%/HQPlayer Studio/data │
  │   ├─ renderer (React, sandboxed, no Node) ── window.studioShell       │
@@ -80,7 +80,11 @@ On the Mac the same Core runs standalone (`pnpm dev:core`) with `MockHQPlayerAda
 
 ## Lyrics (Phase 4)
 
-Order: hand-picked LRCLIB match > `<same name>.lrc` next to the audio file > lyrics in the file's tags > stored LRCLIB result > LRCLIB online. Online lookups are off by default (`lyrics.online`), only for the track HQPlayer is playing (or Studio's current queue item), serialised with a minimum interval, and paused after 429/outages (D-028). The association, the per-track offset and LRCLIB's "not found" answer live in `lyrics_cache`. Clients receive parsed lines; synced lines follow `EngineStatus.positionMs` (already the audible position, D-018) minus the user offset. Phones may read lyrics and change the offset; LRCLIB search/selection and lyrics settings exist only on the loopback app.
+Order: hand-picked match > a lyrics file next to the audio file (`<same name>.lrc`, `Song.lrc`, `Artist - Song.lrc`, a `Lyrics` sub-folder, same-named `.txt`) > lyrics in the file's tags > stored online result > the enabled online sources in order (LRCLIB, NetEase, Kugou, lyrics.ovh — each its own switch, `lyrics.providers`; synced beats plain). Online lookups are off by default (`lyrics.online`), only for the track HQPlayer is playing (or Studio's current queue item), serialised per source with a minimum interval, and paused after 429/outages (D-028, D-034). The association, the per-track offset and the "not found" answer live in `lyrics_cache`. Clients receive parsed lines; synced lines follow `EngineStatus.positionMs` (already the audible position, D-018) minus the user offset. Phones may read lyrics and change the offset; online search/selection and lyrics settings exist only on the loopback app.
+
+## Covers
+
+Local first (`findLocalArtwork`, used by the scanner): a cover image in the album folder (well-known names in any case, names containing cover/front, the only image, `Artwork`/`Covers`/`Scans` sub-folders, the parent of a disc folder), then the picture embedded in an audio file. `CoverService` adds opt-in online sources (`covers.online`, off by default; iTunes Search, Deezer, MusicBrainz + Cover Art Archive): by itself only for the playing album that has no cover; otherwise the album page's picker or the "find all" job in Settings. Core downloads images itself from the source's own hosts (validated references, checked redirects, size cap, type by signature) into the content-addressed artwork cache; the page only ever loads `/artwork/:id` and `/covers/preview`. Loopback only (D-035).
 
 ## Desktop shell (Phase 4)
 
