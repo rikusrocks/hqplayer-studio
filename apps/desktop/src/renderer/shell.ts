@@ -2,6 +2,8 @@
  * Bridge exposed by the Electron preload script (contextIsolation on, no Node in the renderer).
  * Absent when the UI runs in a normal browser — always feature-detect.
  */
+import type { HqpAppPrefs, HqpAppState } from '../main/hqplayer-app';
+
 export interface StudioShell {
   isElectron: true;
   platform: string;
@@ -28,6 +30,8 @@ export interface StudioShell {
     launch(): Promise<HqpAppState | null>;
     window(action: 'show' | 'hide' | 'minimize'): Promise<HqpAppState | null>;
     pickExe(): Promise<HqpAppState | null>;
+    /** What the latest start / hide runs did, without folders or window titles. */
+    diagnostics(): Promise<unknown>;
   };
 }
 
@@ -43,19 +47,8 @@ export interface DesktopShellState {
   tray: { supported: boolean; active: boolean };
 }
 
-export interface HqpAppPrefs {
-  exePath: string | null;
-  autoStart: boolean;
-  windowMode: 'normal' | 'minimized' | 'hidden';
-}
-
-export interface HqpAppState {
-  supported: boolean;
-  prefs: HqpAppPrefs;
-  exePath: string | null;
-  running: boolean;
-  windows: { handle: number; title: string; className: string; visible: boolean }[];
-}
+// Types only: nothing from the main process is bundled into the renderer.
+export type { HqpAppPrefs, HqpAppState, HqpRunReport, HqpSearchStep } from '../main/hqplayer-app';
 
 declare global {
   interface Window {
