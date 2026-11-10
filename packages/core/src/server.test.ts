@@ -712,6 +712,38 @@ describe('queue control against a busy HQPlayer (stateful stand-in engine)', () 
     expect(studio.queue.get().items).toEqual([]);
   });
 
+  it('v0.1.5 report: clear while playing leaves no song even when HQPlayer stops slowly', async () => {
+    // HQPlayer ACKs Stop before it has stopped; the playing track can't be cleared/removed yet.
+    engine = await startFakeEngine({ playlist: [], stopDelayMs: 400 });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const { studio, call } = await startStudio();
+    await call('POST', `/playback/album/${a.albumId}`, {});
+    await vi.waitFor(() => expect(studio.engine.getStatus().transport).toBe('playing'));
+
+    const res = await call<QueueState>('POST', '/queue/clear', {});
+    expect(res.status).toBe(200);
+    expect(engine.playlist()).toEqual([]);
+    expect(engine.state().transport).toBe(0);
+
+    // and switching albums mid-song really switches
+    const b = addShareAlbum(liveCtx.library, 'Album B', 2);
+    await call('POST', `/playback/album/${a.albumId}`, {});
+    await vi.waitFor(() => expect(studio.engine.getStatus().transport).toBe('playing'));
+    const sw = await call<QueueState>('POST', `/playback/album/${b.albumId}`, {});
+    expect(sw.status).toBe(200);
+    expect(engine.playlist().map((t) => t.uri)).toEqual(b.uris);
+
+    const diag = await call<{ protocol: { entries: { dir: string; text: string }[] } }>(
+      'GET',
+      '/engine/diagnostics',
+    );
+    expect(diag.status).toBe(200);
+    const text = JSON.stringify(diag.body);
+    expect(text).toMatch(/stopped confirmed after/);
+    expect(text).not.toMatch(/nas|Song 1|Album A|Test Artist/i); // paths + metadata redacted
+    expect(text).toMatch(/uri#\d+\.flac/);
+  });
+
   it("take over after a change in the native UI: HQPlayer stopped, holds exactly Studio's queue, stays in sync", async () => {
     engine = await startFakeEngine({ playlist: [] });
     const a = addShareAlbum(liveCtx.library, 'Album A', 3);

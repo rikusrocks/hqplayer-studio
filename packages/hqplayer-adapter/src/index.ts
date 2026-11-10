@@ -3,6 +3,7 @@ export * from './errors';
 export * from './mock/MockHQPlayerAdapter';
 export * from './live/LiveHQPlayerAdapter';
 export * from './live/capability-matrix';
+export * from './live/protocol-log';
 export * from './protocol/xml';
 export * from './protocol/framer';
 export * from './protocol/commands';

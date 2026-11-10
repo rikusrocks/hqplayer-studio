@@ -31,6 +31,7 @@ import {
   CapabilityUnavailableError,
   LiveHQPlayerAdapter,
   MockHQPlayerAdapter,
+  ProtocolLog,
 } from '@hqps/hqplayer-adapter';
 import { ArtworkStore } from '@hqps/library';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -117,6 +118,45 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
             throw new CapabilityUnavailableError('dsp.read', 'adapter cannot read DSP state');
           return a.getDspState();
         });
+      });
+      // "复制诊断信息": everything needed to debug engine control, nothing private (paths and
+      // track metadata are replaced by labels). Only for clients on this computer.
+      api.get('/engine/diagnostics', async (req) => {
+        if (!isTrustedRequest(req)) {
+          throw new HttpError(403, 'forbidden', 'Diagnostics are only available on this computer');
+        }
+        const status = engine.getStatus();
+        const caps = await engine.getCapabilities();
+        const q = s.queue.get();
+        const adapter = engine.adapter as Partial<LiveHQPlayerAdapter>;
+        const scrub = new ProtocolLog();
+        return {
+          generatedAt: new Date().toISOString(),
+          appVersion: s.appVersion,
+          adapter: engine.adapter.kind,
+          engine: caps.engine,
+          status: {
+            connection: status.connection,
+            transport: status.transport,
+            trackIndex: status.trackIndex,
+            trackCount: status.trackCount,
+            positionMs: status.positionMs,
+            durationMs: status.durationMs,
+            outputDelayMs: status.outputDelayMs,
+            inStudioLibrary: status.track ? Boolean(status.track.studioTrackId) : null,
+            lastError: status.lastError ? scrub.sanitize(status.lastError) : null,
+          },
+          usable: Object.entries(caps.items)
+            .filter(([, v]) => v.usable)
+            .map(([k]) => k),
+          queue: {
+            items: q.items.length,
+            currentIndex: q.currentIndex,
+            sync: q.sync.state,
+            code: q.sync.code,
+          },
+          protocol: adapter.getProtocolLog?.() ?? null,
+        };
       });
       api.get('/engine/queue', async (): Promise<EngineQueue> => {
         engine.require('queue.read');
@@ -211,7 +251,7 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
         return ctx.library.listFolders(q.rootId, q.path);
       });
       api.get('/library/roots', async (req) => {
-        const roots = ctx.library.listRoots();
+        const roots = lib.listRoots();
         // Local paths are only shown to clients on this computer.
         return isTrustedRequest(req) ? roots : roots.map((r) => ({ ...r, path: r.name }));
       });

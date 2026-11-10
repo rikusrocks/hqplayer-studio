@@ -24,7 +24,29 @@ export function openDatabase(file: string, options: OpenDatabaseOptions = {}): D
   db.exec('PRAGMA synchronous = NORMAL');
   db.exec('PRAGMA foreign_keys = ON');
   if (!options.skipMigrations) migrate(db);
+  cacheStatements(db);
   return db;
+}
+
+/**
+ * Repositories call `db.prepare(sql)` inline; compiling the same SQL on every call cost ~40 % of
+ * a library scan. Keep the most recent statements (node:sqlite statements reset on every run, and
+ * nothing here holds an `.iterate()` cursor open, so reuse is safe).
+ */
+function cacheStatements(db: Database, max = 256): void {
+  const compile = db.prepare.bind(db);
+  const cache = new Map<string, ReturnType<Database['prepare']>>();
+  db.prepare = ((source: string) => {
+    let stmt = cache.get(source);
+    if (stmt) {
+      cache.delete(source); // refresh LRU position
+    } else {
+      stmt = compile(source);
+      if (cache.size >= max) cache.delete(cache.keys().next().value as string);
+    }
+    cache.set(source, stmt);
+    return stmt;
+  }) as Database['prepare'];
 }
 
 const depth = new WeakMap<Database, number>();

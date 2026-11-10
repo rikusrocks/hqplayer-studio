@@ -19,6 +19,7 @@ export interface ScanProgress {
   filesUnchanged: number;
   added: number;
   updated: number;
+  moved: number;
   markedUnavailable: number;
   errors: number;
   currentFolder: string | null;
@@ -42,6 +43,19 @@ export interface ScanOptions {
   readMetadata?: MetadataReader;
   readPicture?: (file: string) => Promise<{ data: Uint8Array; mime: string } | null>;
   now?: () => number;
+  /**
+   * Only rescan these folders (relative to the root, "/"-separated), e.g. the ones a file
+   * watcher reported. Files that vanished under them become unavailable; the rest of the root
+   * is untouched. Omitted/empty = the whole root.
+   */
+  subtrees?: string[];
+  /**
+   * Which albums without artwork to look at: `all` (manual full scan) or only albums whose
+   * tracks changed in this scan / live under `subtrees` (`changed`, automatic scans).
+   */
+  artworkScope?: 'all' | 'changed';
+  /** Awaited before each file; lets the caller slow a scan down (e.g. while HQPlayer plays). */
+  pace?: () => Promise<void>;
 }
 
 const SKIP_DIRS = new Set([
@@ -62,6 +76,13 @@ const FOLDER_IMAGES = [
   'front.png',
   'albumart.jpg',
 ];
+
+/** Paths the scanner never indexes: hidden entries, recycle bins, NAS metadata folders. */
+export function isIgnoredLibraryPath(relPath: string): boolean {
+  return relPath
+    .split('/')
+    .some((part) => part.startsWith('.') || SKIP_DIRS.has(part.toLowerCase()));
+}
 
 function toRelativeDir(rootPath: string, filePath: string): string {
   const rel = relative(rootPath, filePath);
@@ -142,9 +163,45 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     filesUnchanged: 0,
     added: 0,
     updated: 0,
+    moved: 0,
     markedUnavailable: 0,
     errors: 0,
     currentFolder: null,
+  };
+
+  // Database writes are queued and committed in batches (one transaction per ~200 files or
+  // 200 ms) instead of one commit per file. Each write is isolated: a failing one is counted
+  // and skipped without rolling back the rest of the batch.
+  const pending: Array<() => void> = [];
+  let lastFlush = now();
+  const flush = () => {
+    lastFlush = now();
+    if (pending.length === 0) return;
+    const ops = pending.splice(0);
+    library.batch(() => {
+      for (const op of ops) {
+        try {
+          op();
+        } catch {
+          p.errors++;
+        }
+      }
+    });
+  };
+  const claimedMoves = new Set<string>();
+  /** The file at a new path may be an old track whose file was moved or renamed by folder. */
+  const movedFrom = async (identity: string, fileName: string, key: string) => {
+    for (const c of library.findMoveCandidates(identity, fileName, key)) {
+      if (claimedMoves.has(c.id) || (c.last_seen_at ?? 0) >= startedAt) continue;
+      try {
+        await stat(c.source_path);
+        continue; // the old file is still there: this is a copy, not a move
+      } catch {
+        claimedMoves.add(c.id);
+        return c.id;
+      }
+    }
+    return null;
   };
   let lastEmit = 0;
   const emit = (force = false) => {
@@ -178,14 +235,31 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
 
   const queue: string[] = [];
   let walking = true;
+  const subtrees = normalizeSubtrees(opts.subtrees);
   const producer = (async () => {
-    for await (const file of walk(root.path, opts.signal)) {
-      queue.push(file);
-      p.filesSeen++;
+    for (const start of subtrees ?? ['']) {
+      const abs = start ? join(root.path, ...start.split('/')) : root.path;
+      let isDir: boolean;
+      try {
+        const st = await stat(abs);
+        isDir = st.isDirectory();
+        if (!isDir && AUDIO_EXTENSIONS.has(extname(abs).slice(1).toLowerCase())) {
+          queue.push(abs);
+          p.filesSeen++;
+        }
+      } catch {
+        continue; // gone: whatever was indexed under it becomes unavailable below
+      }
+      if (!isDir) continue;
+      for await (const file of walk(abs, opts.signal)) {
+        queue.push(file);
+        p.filesSeen++;
+      }
     }
     walking = false;
   })();
 
+  const touchedAlbums = new Set<string>();
   const processFile = async (file: string) => {
     const relDir = toRelativeDir(root.path, file);
     const fileName = basename(file).normalize('NFC');
@@ -205,10 +279,13 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
       existing.size_bytes === st.size &&
       existing.mtime_ms === Math.floor(st.mtimeMs)
     ) {
-      library.touchTrack(existing.id, now());
+      const seen = now();
+      pending.push(() => library.touchTrack(existing.id, seen));
       p.filesUnchanged++;
       return;
     }
+    const moveSource = existing ? null : await movedFrom(identity, fileName, key);
+    await opts.pace?.(); // only real reads are slowed down; unchanged files cost one stat
     let tags = emptyMetadata();
     let scanError: string | null = null;
     try {
@@ -221,51 +298,63 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     const fromPath = metadataFromPath(relDir, fileName);
     const m = merge(tags, fromPath, relDir);
     const seenAt = now();
-    const albumId = library.ensureAlbum({
-      title: m.album as string,
-      albumArtist: m.albumArtist as string,
-      year: m.year,
-      releaseId: m.releaseId,
-      rootId: root.id,
-      folder: albumFolderOf(relDir),
-      genre: m.genre,
-      now: seenAt,
+    pending.push(() => {
+      if (moveSource) {
+        library.relocateTrack(moveSource, {
+          rootId: root.id,
+          sourcePath: file,
+          pathKey: key,
+          relativeDir: relDir,
+          fileName,
+        });
+      }
+      const albumId = library.ensureAlbum({
+        title: m.album as string,
+        albumArtist: m.albumArtist as string,
+        year: m.year,
+        releaseId: m.releaseId,
+        rootId: root.id,
+        folder: albumFolderOf(relDir),
+        genre: m.genre,
+        now: seenAt,
+      });
+      const { created } = library.upsertTrack({
+        rootId: root.id,
+        sourcePath: file,
+        pathKey: key,
+        relativeDir: relDir,
+        fileName,
+        fileIdentity: identity,
+        title: m.title as string,
+        artist: m.artist as string,
+        albumArtist: m.albumArtist as string,
+        album: m.album as string,
+        albumId,
+        genre: m.genre,
+        year: m.year,
+        discNumber: m.discNumber,
+        discTotal: m.discTotal,
+        trackNumber: m.trackNumber,
+        trackTotal: m.trackTotal,
+        durationMs: m.durationMs,
+        sampleRate: m.sampleRate,
+        bitDepth: m.bitDepth,
+        channels: m.channels,
+        codec: m.codec,
+        container: m.container,
+        lossless: m.lossless,
+        isDsd: m.isDsd,
+        bitrate: m.bitrate,
+        mtimeMs: Math.floor(st.mtimeMs),
+        sizeBytes: st.size,
+        metadataSource: scanError || (!tags.title && !tags.album) ? 'filename' : 'tags',
+        scanError,
+        seenAt,
+      });
+      if (moveSource) p.moved++;
+      else if (created) p.added++;
+      else p.updated++;
     });
-    const { created } = library.upsertTrack({
-      rootId: root.id,
-      sourcePath: file,
-      pathKey: key,
-      relativeDir: relDir,
-      fileName,
-      fileIdentity: identity,
-      title: m.title as string,
-      artist: m.artist as string,
-      albumArtist: m.albumArtist as string,
-      album: m.album as string,
-      albumId,
-      genre: m.genre,
-      year: m.year,
-      discNumber: m.discNumber,
-      discTotal: m.discTotal,
-      trackNumber: m.trackNumber,
-      trackTotal: m.trackTotal,
-      durationMs: m.durationMs,
-      sampleRate: m.sampleRate,
-      bitDepth: m.bitDepth,
-      channels: m.channels,
-      codec: m.codec,
-      container: m.container,
-      lossless: m.lossless,
-      isDsd: m.isDsd,
-      bitrate: m.bitrate,
-      mtimeMs: Math.floor(st.mtimeMs),
-      sizeBytes: st.size,
-      metadataSource: scanError || (!tags.title && !tags.album) ? 'filename' : 'tags',
-      scanError,
-      seenAt,
-    });
-    if (created) p.added++;
-    else p.updated++;
   };
 
   const workers = Array.from({ length: concurrency }, async () => {
@@ -278,20 +367,36 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
         continue;
       }
       await processFile(file);
+      if (pending.length >= 200 || now() - lastFlush >= 200) flush();
       emit();
     }
   });
-  await Promise.all([producer, ...workers]);
+  try {
+    await Promise.all([producer, ...workers]);
+  } finally {
+    flush();
+  }
 
   if (opts.signal?.aborted) {
     library.setRootStatus(root.id, 'online', null);
     return finish('cancelled', 'Scan cancelled; nothing was marked unavailable.');
   }
 
-  p.markedUnavailable += library.markUnseenUnavailable(root.id, startedAt);
+  p.markedUnavailable += subtrees
+    ? library.markUnseenUnavailableUnder(root.id, startedAt, subtrees)
+    : library.markUnseenUnavailable(root.id, startedAt);
 
   // Artwork pass: folder image first (cheap), embedded picture second.
-  for (const a of library.albumsMissingArtwork(root.id)) {
+  const underSubtrees = subtrees ? library.albumIdsUnder(root.id, subtrees) : new Set<string>();
+  const artworkCandidates = library
+    .albumsMissingArtwork(root.id)
+    .filter(
+      (a) =>
+        opts.artworkScope !== 'changed' ||
+        touchedAlbums.has(a.albumId) ||
+        underSubtrees.has(a.albumId),
+    );
+  for (const a of artworkCandidates) {
     if (opts.signal?.aborted) break;
     let artId: string | null = null;
     const dirs = [a.folderPath];
@@ -315,6 +420,7 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     }
     if (!artId) {
       try {
+        await opts.pace?.();
         const pic = await readPic(a.sourcePath);
         if (pic) artId = opts.artwork.put(pic.data, pic.mime, 'embedded');
       } catch {
@@ -328,7 +434,31 @@ export async function scanRoot(opts: ScanOptions): Promise<ScanResult> {
     root.id,
     'online',
     p.errors ? `${p.errors} file(s) could not be fully read` : null,
-    now(),
+    subtrees ? undefined : now(),
   );
   return finish('completed', null);
+}
+
+/** "/"-separated, NFC, no leading/trailing slashes; drops folders inside other listed folders. */
+export function normalizeSubtrees(subtrees: string[] | undefined): string[] | null {
+  if (!subtrees || subtrees.length === 0) return null;
+  const clean = [
+    ...new Set(
+      subtrees.map((d) =>
+        d
+          .replace(/\\/g, '/')
+          .split('/')
+          .filter((part) => part && part !== '.')
+          .join('/')
+          .normalize('NFC'),
+      ),
+    ),
+  ];
+  if (clean.some((d) => d === '' || d.split('/').includes('..'))) return null; // whole root
+  clean.sort();
+  const out: string[] = [];
+  for (const d of clean) {
+    if (!out.some((parent) => d.startsWith(`${parent}/`))) out.push(d);
+  }
+  return out;
 }

@@ -177,6 +177,11 @@ CREATE TABLE engine_observations (
 );
 `,
   },
+  {
+    id: 2,
+    name: 'track identity index (move detection)',
+    sql: `CREATE INDEX IF NOT EXISTS idx_tracks_identity ON tracks(file_identity, file_name);`,
+  },
 ];
 
 export function migrate(db: DatabaseSync): number[] {

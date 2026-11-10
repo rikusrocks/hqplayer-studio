@@ -1,62 +1,18 @@
-import { mkdirSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openLibrary, type LibraryContext } from '../index';
-import { scanRoot } from './scanner';
-
-/** Build a tiny, valid PCM WAV file with RIFF INFO tags (license-safe synthetic test data). */
-function makeWav(
-  tags: { title?: string; artist?: string; album?: string; track?: string },
-  ms = 120,
-): Buffer {
-  const sampleRate = 44100;
-  const channels = 2;
-  const bits = 16;
-  const dataBytes = Math.floor((sampleRate * ms) / 1000) * channels * (bits / 8);
-  const infoChunks: Buffer[] = [];
-  const sub = (id: string, value?: string) => {
-    if (!value) return;
-    let body = Buffer.from(`${value}\0`, 'utf8');
-    if (body.length % 2) body = Buffer.concat([body, Buffer.alloc(1)]);
-    const h = Buffer.alloc(8);
-    h.write(id, 0, 'ascii');
-    h.writeUInt32LE(Buffer.byteLength(`${value}\0`, 'utf8'), 4);
-    infoChunks.push(h, body);
-  };
-  sub('INAM', tags.title);
-  sub('IART', tags.artist);
-  sub('IPRD', tags.album);
-  sub('ITRK', tags.track);
-  const info = Buffer.concat([Buffer.from('INFO', 'ascii'), ...infoChunks]);
-  const list = Buffer.alloc(8);
-  list.write('LIST', 0, 'ascii');
-  list.writeUInt32LE(info.length, 4);
-  const fmt = Buffer.alloc(24);
-  fmt.write('fmt ', 0, 'ascii');
-  fmt.writeUInt32LE(16, 4);
-  fmt.writeUInt16LE(1, 8);
-  fmt.writeUInt16LE(channels, 10);
-  fmt.writeUInt32LE(sampleRate, 12);
-  fmt.writeUInt32LE((sampleRate * channels * bits) / 8, 16);
-  fmt.writeUInt16LE((channels * bits) / 8, 20);
-  fmt.writeUInt16LE(bits, 22);
-  const dataHeader = Buffer.alloc(8);
-  dataHeader.write('data', 0, 'ascii');
-  dataHeader.writeUInt32LE(dataBytes, 4);
-  const body = Buffer.concat([
-    Buffer.from('WAVE', 'ascii'),
-    fmt,
-    list,
-    info,
-    dataHeader,
-    Buffer.alloc(dataBytes),
-  ]);
-  const riff = Buffer.alloc(8);
-  riff.write('RIFF', 0, 'ascii');
-  riff.writeUInt32LE(body.length, 4);
-  return Buffer.concat([riff, body]);
-}
+import { makeWav, writeSyntheticTree } from '../testing/synthetic-audio';
+import { normalizeSubtrees, scanRoot } from './scanner';
 
 // 1x1 transparent PNG
 const PNG = Buffer.from(
@@ -178,6 +134,91 @@ describe('scanRoot', () => {
     });
     expect(res.state).toBe('cancelled');
     expect(ctx.library.stats().unavailableTrackCount).toBe(0);
+  });
+
+  it("keeps a moved file's identity, so playlists keep pointing at it", async () => {
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const id = ctx.library.listTracks({ q: '南方的风' }).items[0]!.id;
+    const pl = ctx.playlists.create({ name: 'keep', trackIds: [id] });
+    renameSync(
+      join(musicDir, '林夏 - 城市漫游者 (2020)'),
+      join(musicDir, '林夏 - 城市漫游者 [FLAC]'),
+    );
+
+    const res = await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    expect(res).toMatchObject({ moved: 2, added: 0, markedUnavailable: 0 });
+    const track = ctx.library.getTrack(id);
+    expect(track.available).toBe(true);
+    expect(track.folder).toBe('林夏 - 城市漫游者 [FLAC]');
+    expect(ctx.playlists.get(pl.id).items[0]!.track).toMatchObject({ id, available: true });
+    expect(ctx.library.stats().trackCount).toBe(5);
+  });
+
+  it('treats a copy (old file still present) as a new track, not a move', async () => {
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const src = join(musicDir, '林夏 - 城市漫游者 (2020)', '01 城市漫游者.wav');
+    mkdirSync(join(musicDir, 'Copies'));
+    copyFileSync(src, join(musicDir, 'Copies', '01 城市漫游者.wav'));
+    const res = await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    expect(res).toMatchObject({ moved: 0, added: 1 });
+    expect(ctx.library.stats().trackCount).toBe(6);
+  });
+
+  it('handles 1,200 files with incremental add / edit / delete / move', async () => {
+    const big = join(dir, 'Big Library');
+    const files = writeSyntheticTree(big, { artists: 12, albumsPerArtist: 10, tracksPerAlbum: 10 });
+    const root = ctx.library.addRoot(big);
+    const first = await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    expect(first).toMatchObject({ state: 'completed', added: 1200, errors: 0 });
+    const albums = ctx.library.stats().albumCount;
+    expect(albums).toBe(120);
+
+    writeFileSync(files[0]!, makeWav({ title: 'edited', artist: 'Edited', album: 'Edited' }, 3));
+    unlinkSync(files[1]!);
+    writeFileSync(join(big, 'new single.wav'), makeWav({ title: 'new single' }, 2));
+    const lastArtist = join(files.at(-1)!, '..', '..');
+    renameSync(lastArtist, `${lastArtist} (moved)`);
+    const inc = await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    expect(inc).toMatchObject({
+      state: 'completed',
+      filesSeen: 1200,
+      added: 1,
+      updated: 1,
+      moved: 100,
+      markedUnavailable: 1,
+      errors: 0,
+    });
+    expect(ctx.library.stats()).toMatchObject({ trackCount: 1201, unavailableTrackCount: 1 });
+  });
+
+  it('rescans only the given folders and leaves the rest of the root alone', async () => {
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const scannedAt = ctx.library.listRoots()[0]!.lastScannedAt;
+    unlinkSync(join(musicDir, '林夏 - 城市漫游者 (2020)', '02 南方的风.wav'));
+    unlinkSync(join(musicDir, 'broken track.flac')); // outside the subtree: not noticed yet
+    writeFileSync(
+      join(musicDir, '林夏 - 城市漫游者 (2020)', '03 午夜地铁.wav'),
+      makeWav({ title: '午夜地铁', artist: '林夏', album: '城市漫游者', track: '3' }),
+    );
+    const res = await scanRoot({
+      library: ctx.library,
+      artwork: ctx.artwork,
+      rootId: root.id,
+      subtrees: ['林夏 - 城市漫游者 (2020)'],
+    });
+    expect(res).toMatchObject({ filesSeen: 2, added: 1, markedUnavailable: 1 });
+    expect(ctx.library.stats().unavailableTrackCount).toBe(1);
+    expect(ctx.library.listRoots()[0]!.lastScannedAt).toBe(scannedAt); // not a full scan
+  });
+
+  it('normalizes subtree lists', () => {
+    expect(normalizeSubtrees(undefined)).toBeNull();
+    expect(normalizeSubtrees(['a\\b', 'a', 'c/', './d'])).toEqual(['a', 'c', 'd']);
+    expect(normalizeSubtrees(['a', ''])).toBeNull(); // root itself → whole root
+    expect(normalizeSubtrees(['../escape'])).toBeNull();
   });
 
   it('rejects relative or duplicate roots', () => {

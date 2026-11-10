@@ -111,3 +111,14 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Choice:** every load/clear sends `Stop` → `PlaylistClear` → `PlaylistGet` (leftovers removed with `PlaylistRemove`, else error) → adds → `PlaylistGet` (count must match) → `SelectTrack` → optional `Play`. Never select or play on a playlist that is not exactly Studio's.
 - **Queue sync:** two explicit resolutions — “以 HQPlayer 为准” (read-only: adopt HQPlayer's playlist when every entry is in the library, otherwise drop Studio's plan) and “用 Studio 队列替换 HQPlayer” (confirmed, stops playback). A plan restored at startup that disagrees with a non-empty HQPlayer playlist follows HQPlayer silently. Engine statuses older than Studio's own last change, or within 4 s of it, never flag a mismatch. Sync reasons are codes translated by clients.
 - **Trade-off:** switching albums mid-playback costs HQPlayer's Stop time (~3.8 s) — correctness over speed.
+
+## D-021 Clear only after HQPlayer reports "stopped" — 2026-11-10
+
+- **Evidence:** v0.1.5 still left one song after “clear”. Gate C's clear (which passed) ran only after waiting for the pushed `Status state="0"`; v0.1.5 cleared right after the `Stop` ACK. Conclusion: the ACK precedes the actual stop, and the active entry can't be cleared or removed until then.
+- **Choice:** after `Stop`, wait (≤ 6 s) for a Status with `transport = stopped` observed after the Stop was sent, then clear; leftovers → `PlaylistRemove` → 1 s pause → retry, three attempts, then a clear error. A privacy-safe protocol timeline (“复制诊断信息”) records each step so the next real-engine report is evidence rather than inference.
+
+## D-022 Library stays current by watching folders, with a slow fallback — 2026-11-10
+
+- **Choice:** `fs.watch(root, { recursive: true })` per root → debounce (4 s quiet, ≤ 30 s) → rescan only the changed folders; full incremental fallback every 12 h (1 h for roots that can't be watched); no forced scan at startup. Moved/renamed files keep their track id when the old path is gone and size+mtime+file name match (a copy stays a new track).
+- **Performance:** cached prepared statements and ~200-file write batches; file reads (not stats) wait 25 ms each while HQPlayer is playing; automatic scans only look for artwork of changed albums.
+- **Trade-off:** watcher events on some SMB/NAS shares are unreliable — those roots show “无法监听” and rely on the hourly fallback.

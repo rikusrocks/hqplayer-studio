@@ -1,6 +1,6 @@
 {
   "name": "hqplayer-studio",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "HQPlayer Studio — a third-party modern music library, playlist manager and web remote for HQPlayer Desktop 6. Not affiliated with Signalyst.",
   "license": "MIT",
@@ -24,7 +24,8 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "probe": "pnpm --filter @hqps/hqp-probe start",
     "demo:reset": "pnpm --filter @hqps/core demo:reset",
-    "gatec": "pnpm --filter @hqps/hqp-probe gatec"
+    "gatec": "pnpm --filter @hqps/hqp-probe gatec",
+    "bench:scan": "pnpm --filter @hqps/core exec tsx ../library/src/testing/scan-bench.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

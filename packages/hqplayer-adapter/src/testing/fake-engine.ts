@@ -31,6 +31,11 @@ export interface FakeEngineOptions {
   clearKeepsActiveTrack?: boolean;
   /** Start with the first playlist entry playing (HQPlayer already busy when Studio connects). */
   startPlaying?: boolean;
+  /**
+   * Stop is acknowledged at once but the engine keeps "playing" for this long before it is
+   * really stopped (models the v0.1.5 report: a clear right after Stop kept one song).
+   */
+  stopDelayMs?: number;
 }
 
 export interface FakeEngine {
@@ -131,6 +136,13 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         }
         return ok;
       case 'Stop':
+        if (opts.stopDelayMs && transport !== 0) {
+          setTimeout(() => {
+            transport = 0;
+            setPos(0);
+          }, opts.stopDelayMs);
+          return ok;
+        }
         transport = 0;
         setPos(0);
         return ok;
@@ -196,6 +208,8 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         const i = Number(a.index);
         if (i < 1 || i > playlist.length)
           return `${D}<PlaylistRemove result="Error">index</PlaylistRemove>\n`;
+        if (i === current && transport !== 0)
+          return `${D}<PlaylistRemove result="Error">track is playing</PlaylistRemove>\n`;
         playlist.splice(i - 1, 1);
         if (current > playlist.length) current = playlist.length;
         return ok;

@@ -27,6 +27,7 @@ import {
   useNowPlaying,
   useStudio,
   useTheme,
+  useToasts,
   type IconName,
   type Locale,
   type MessageKey,
@@ -120,6 +121,7 @@ function scanJobLine(job: ScanJob, t: ReturnType<typeof useI18n>['t']): string {
     parsed: job.filesParsed,
     added: job.added,
     updated: job.updated,
+    moved: job.moved,
     unavailable: job.markedUnavailable,
     errors: job.errors,
   });
@@ -268,12 +270,18 @@ function RootRow({
           {root.lastScannedAt
             ? t('settings.lastScanned', { date: formatDate(root.lastScannedAt, locale) })
             : t('settings.neverScanned')}
+          {root.watching && root.kind !== 'fixture' && (
+            <> · {t(`settings.watch.${root.watching}`)}</>
+          )}
         </div>
         {root.lastError && <div className="root-row__error">{root.lastError}</div>}
         {job && (
           <div className={`root-row__job${running ? ' is-running' : ''}`}>
             {running && <Spinner size={12} />}
             <strong>{t(`scan.state.${job.state}`)}</strong>
+            {job.trigger !== 'manual' && (
+              <span className="hq-badge">{t(`scan.trigger.${job.trigger}`)}</span>
+            )}
             <span>{jobLine(job)}</span>
             {job.currentFolder && running && (
               <span className="hq-mono hq-muted">{job.currentFolder}</span>
@@ -487,6 +495,8 @@ function Diagnostics() {
 
       {canUse(capabilities, 'queue.read') && <EngineQueueCard />}
 
+      <CopyDiagnostics />
+
       {isMock && (
         <div className="settings-block">
           <h3>{t('diag.mockControls')}</h3>
@@ -622,6 +632,48 @@ function ControlSwitch({
         </span>
       </span>
     </label>
+  );
+}
+
+/**
+ * Copies a privacy-safe report (status, capabilities, recent HQPlayer conversation with paths
+ * and track names replaced by labels) so a problem can be diagnosed without guessing.
+ */
+function CopyDiagnostics() {
+  const { t } = useI18n();
+  const { client, run, server } = useStudio();
+  const toasts = useToasts();
+  const [busy, setBusy] = useState(false);
+  if (server && !server.trustedClient) return null;
+  const copy = async () => {
+    setBusy(true);
+    const report = await run(() => client.engine.diagnostics());
+    setBusy(false);
+    if (!report) return;
+    const text = JSON.stringify(report, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      toasts.push('success', t('diag.copied'));
+    } catch {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = `hqplayer-studio-diagnostics-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toasts.push('info', t('diag.saved'));
+    }
+  };
+  return (
+    <div className="settings-block">
+      <h3>{t('diag.report')}</h3>
+      <p className="hint">{t('diag.reportHint')}</p>
+      <div className="button-row">
+        <button type="button" className="hq-btn" onClick={() => void copy()} disabled={busy}>
+          {busy ? <Spinner size={14} /> : <Icon name="copy" size={14} />}
+          {t('diag.copy')}
+        </button>
+      </div>
+    </div>
   );
 }
 

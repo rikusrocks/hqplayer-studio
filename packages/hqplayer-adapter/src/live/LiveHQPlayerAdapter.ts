@@ -18,6 +18,7 @@ import type {
 import { CapabilityUnavailableError, EngineCommandError, EngineUnavailableError } from '../errors';
 import { DEFAULT_CONTROL_PORT } from '../protocol/commands';
 import { HqpConnection, type TranscriptEntry } from '../protocol/connection';
+import { ProtocolLog } from './protocol-log';
 import {
   mapStateDocument,
   mapStatusDocument,
@@ -48,6 +49,10 @@ export interface LiveAdapterOptions {
   evidence?: Record<EngineCapabilityKey, CapabilityEvidence>;
   policy?: CapabilityPolicy;
   onTranscript?: (entry: TranscriptEntry) => void;
+  /** Max wait for HQPlayer's "stopped" Status after Stop, before clearing (default 6 s). */
+  stopSettleMs?: number;
+  /** Pause between clear attempts when HQPlayer kept an entry (default 1 s). */
+  clearRetryMs?: number;
 }
 
 /**
@@ -80,6 +85,9 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   private policy: CapabilityPolicy;
   private runtime: RuntimeLimits = {};
   private readonly listeners = new Set<StatusListener>();
+  /** Internal waiters re-checked on every published status (e.g. "until stopped"). */
+  private readonly waiters = new Set<() => void>();
+  private readonly log = new ProtocolLog();
   private readonly evidence: Record<EngineCapabilityKey, CapabilityEvidence>;
   private readonly host: string;
   private readonly port: number;
@@ -117,7 +125,10 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       // Stop takes ~3.8 s to acknowledge while playing (Gate C, engine 6.1.0).
       requestTimeoutMs: this.options.requestTimeoutMs ?? 10_000,
       allowSideEffects: this.sideEffectsAllowed(),
-      onTranscript: this.options.onTranscript,
+      onTranscript: (entry) => {
+        this.log.record(entry);
+        this.options.onTranscript?.(entry);
+      },
     });
     this.publish({ ...this.last, connection: 'connecting', lastError: null });
     try {
@@ -298,23 +309,71 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
    * (`PlaylistRemove`, confirmed) and anything still left is reported as an error.
    */
   private async clearPlaylistVerified(conn: HqpConnection): Promise<void> {
+    const wasStopped = this.last.transport === 'stopped';
+    const stopSentAt = Date.now();
     await conn.request('Stop');
-    await conn.request('PlaylistClear');
-    let playlist = await this.readPlaylist(conn);
-    if (playlist.entries.length > 0) {
+    if (!wasStopped) {
+      // v0.1.5 report: one song survived the clear. HQPlayer ACKs Stop before it has fully
+      // stopped (Gate C waited for the pushed "stopped" Status before clearing — and passed).
+      const stopped = await this.waitForStatus(
+        (s) => s.transport === 'stopped' && s.observedAt >= stopSentAt,
+        this.options.stopSettleMs ?? 6000,
+      );
+      this.log.note(
+        stopped
+          ? `stopped confirmed after ${Date.now() - stopSentAt} ms`
+          : `no "stopped" Status within ${Date.now() - stopSentAt} ms — clearing anyway`,
+      );
+    }
+    let playlist: EngineQueueSnapshot | null = null;
+    const attempts = 3;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      await conn.request('PlaylistClear');
+      playlist = await this.readPlaylist(conn);
+      if (playlist.entries.length === 0) break;
+      this.log.note(`PlaylistClear left ${playlist.entries.length} item(s) (attempt ${attempt})`);
       for (let n = playlist.entries.length; n > 0; n -= 1) {
-        await conn.request('PlaylistRemove', { index: toEngineIndex(n - 1) });
+        await conn
+          .request('PlaylistRemove', { index: toEngineIndex(n - 1) })
+          .catch((err: Error) => this.log.note(`PlaylistRemove ${n} refused: ${err.message}`));
       }
       playlist = await this.readPlaylist(conn);
+      if (playlist.entries.length === 0) break;
+      if (attempt < attempts) {
+        await new Promise((r) => setTimeout(r, this.options.clearRetryMs ?? 1000));
+        if (this.last.transport !== 'stopped') await conn.request('Stop');
+      }
     }
     this.playlist = playlist;
     this.publishPlaylistCount();
-    if (playlist.entries.length > 0) {
+    if (playlist && playlist.entries.length > 0) {
       throw new EngineCommandError(
         'PlaylistClear',
-        `HQPlayer kept ${playlist.entries.length} item(s) in its playlist`,
+        `HQPlayer kept ${playlist.entries.length} item(s) in its playlist after ${attempts} attempts — please use “复制诊断信息” in Settings and send it to the developer`,
       );
     }
+  }
+
+  /** Resolves true once `pred(status)` holds for a published status, false on timeout. */
+  private waitForStatus(pred: (s: EngineStatus) => boolean, timeoutMs: number): Promise<boolean> {
+    if (pred(this.last)) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const check = () => {
+        if (pred(this.last)) done(true);
+      };
+      const timer = setTimeout(() => done(false), timeoutMs);
+      const done = (ok: boolean) => {
+        clearTimeout(timer);
+        this.waiters.delete(check);
+        resolve(ok);
+      };
+      this.waiters.add(check);
+    });
+  }
+
+  /** Privacy-safe recent HQPlayer conversation for “复制诊断信息”. */
+  getProtocolLog() {
+    return this.log.snapshot();
   }
 
   private publishPlaylistCount(): void {
@@ -478,6 +537,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     this.serial += 1;
     this.last = { ...status, serial: this.serial };
     for (const l of this.listeners) l(this.last);
+    for (const w of [...this.waiters]) w();
   }
 
   private capabilityEntry(key: EngineCapabilityKey) {

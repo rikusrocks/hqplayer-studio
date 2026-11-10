@@ -10,7 +10,7 @@ import { errorHandler } from './http/errors';
 import { registerApiRoutes, serverInfo } from './http/routes';
 import { HTML_CSP, isLoopbackHost, registerSecurity } from './http/security';
 import { EngineService, type EngineServiceOptions } from './services/engine-service';
-import { LibraryService } from './services/library-service';
+import { LibraryService, type LibraryServiceOptions } from './services/library-service';
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
 
 export interface StudioServerOptions {
@@ -27,6 +27,9 @@ export interface StudioServerOptions {
   logger?: boolean;
   engine?: EngineServiceOptions;
   queue?: QueueServiceOptions;
+  library?: LibraryServiceOptions;
+  /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
+  scanPaceWhilePlayingMs?: number;
 }
 
 export interface EngineInfo {
@@ -64,7 +67,17 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   const hub = new EventHub();
   const engine = new EngineService(opts.adapter, hub, opts.ctx.library, opts.engine);
   const queue = new QueueService(engine, opts.ctx, hub, opts.queue);
-  const library = new LibraryService(opts.ctx, hub);
+  const paceMs = opts.scanPaceWhilePlayingMs ?? 25;
+  const library = new LibraryService(opts.ctx, hub, {
+    // Scans yield to playback: while HQPlayer plays, every file read waits a little, so a big
+    // rescan never competes with DSD512 for disk/NAS bandwidth or CPU.
+    pace: async () => {
+      if (paceMs > 0 && engine.getStatus().transport === 'playing') {
+        await new Promise((r) => setTimeout(r, paceMs));
+      }
+    },
+    ...opts.library,
+  });
   const services: StudioServices = {
     appVersion: opts.appVersion,
     demoMode: Boolean(opts.demoMode),
@@ -146,6 +159,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     app,
     async listen() {
       await engine.start();
+      library.start();
       const address = await app.listen({ host, port: opts.port ?? DEFAULT_PORT });
       const url = new URL(address);
       return {

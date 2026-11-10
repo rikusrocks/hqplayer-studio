@@ -108,6 +108,12 @@ export const LibraryRootSchema = z.object({
   lastScannedAt: z.number().nullable(),
   lastError: z.string().nullable(),
   trackCount: z.number().int(),
+  /**
+   * Automatic updates: `active` = folder changes trigger a rescan of just those folders;
+   * `unavailable` = the OS could not watch it (e.g. some network shares) — the periodic
+   * fallback scan still runs; `off` = disabled/demo root.
+   */
+  watching: z.enum(['active', 'unavailable', 'off']).optional(),
 });
 export type LibraryRoot = z.infer<typeof LibraryRootSchema>;
 
@@ -116,6 +122,8 @@ export const ScanJobSchema = z.object({
   id: z.string(),
   rootId: z.string(),
   state: ScanJobStateSchema,
+  /** manual = user; watch = folder changes (partial rescan); schedule = periodic fallback. */
+  trigger: z.enum(['manual', 'watch', 'schedule']),
   startedAt: z.number().nullable(),
   finishedAt: z.number().nullable(),
   filesSeen: z.number().int(),
@@ -123,6 +131,8 @@ export const ScanJobSchema = z.object({
   filesUnchanged: z.number().int(),
   added: z.number().int(),
   updated: z.number().int(),
+  /** Files found at a new path that keep their old identity (playlists keep pointing at them). */
+  moved: z.number().int(),
   markedUnavailable: z.number().int(),
   errors: z.number().int(),
   /** Current folder relative to the root (never an absolute path). */

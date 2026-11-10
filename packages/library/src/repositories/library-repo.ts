@@ -386,6 +386,49 @@ export class LibraryRepository {
     });
   }
 
+  /** Run several repository writes in one transaction (scanner batches ~200 files per commit). */
+  batch<T>(fn: () => T): T {
+    return transaction(this.db, fn);
+  }
+
+  /**
+   * Tracks that could be the same file seen at a new path: same size+mtime identity and the same
+   * file name, under another path. The caller checks that the old path is really gone.
+   */
+  findMoveCandidates(
+    fileIdentity: string,
+    fileName: string,
+    excludePathKey: string,
+  ): { id: string; source_path: string; last_seen_at: number | null }[] {
+    return this.db
+      .prepare(
+        'SELECT id, source_path, last_seen_at FROM tracks WHERE file_identity = ? AND file_name = ? AND path_key != ? LIMIT 5',
+      )
+      .all(fileIdentity, fileName, excludePathKey) as {
+      id: string;
+      source_path: string;
+      last_seen_at: number | null;
+    }[];
+  }
+
+  /** Point an existing track (id, playlists, queue entries) at the file's new location. */
+  relocateTrack(
+    id: string,
+    to: {
+      rootId: string;
+      sourcePath: string;
+      pathKey: string;
+      relativeDir: string;
+      fileName: string;
+    },
+  ): void {
+    this.db
+      .prepare(
+        'UPDATE tracks SET root_id = ?, source_path = ?, path_key = ?, relative_dir = ?, file_name = ? WHERE id = ?',
+      )
+      .run(to.rootId, to.sourcePath, to.pathKey, to.relativeDir, to.fileName, id);
+  }
+
   /** Unchanged file seen again during a scan: just refresh availability. */
   touchTrack(id: string, seenAt: number): void {
     this.db
@@ -401,6 +444,34 @@ export class LibraryRepository {
       )
       .run(Date.now(), rootId, scanStartedAt);
     return Number(res.changes);
+  }
+
+  /** Like markUnseenUnavailable, limited to tracks in the given folders (partial rescans). */
+  markUnseenUnavailableUnder(rootId: string, scanStartedAt: number, relDirs: string[]): number {
+    let changed = 0;
+    const stmt = this.db.prepare(
+      `UPDATE tracks SET available = 0, updated_at = ? WHERE root_id = ? AND available = 1 AND (last_seen_at IS NULL OR last_seen_at < ?)
+       AND (relative_dir = ? OR relative_dir LIKE ? ESCAPE '\\')`,
+    );
+    for (const dir of relDirs) {
+      const res = stmt.run(Date.now(), rootId, scanStartedAt, dir, `${escapeLike(dir)}/%`);
+      changed += Number(res.changes);
+    }
+    return changed;
+  }
+
+  /** Albums with at least one track in the given folders. */
+  albumIdsUnder(rootId: string, relDirs: string[]): Set<string> {
+    const out = new Set<string>();
+    const stmt = this.db.prepare(
+      `SELECT DISTINCT album_id FROM tracks WHERE root_id = ? AND album_id IS NOT NULL
+       AND (relative_dir = ? OR relative_dir LIKE ? ESCAPE '\\')`,
+    );
+    for (const dir of relDirs) {
+      for (const r of stmt.all(rootId, dir, `${escapeLike(dir)}/%`) as { album_id: string }[])
+        out.add(r.album_id);
+    }
+    return out;
   }
 
   setRootTracksAvailable(rootId: string, available: boolean): number {
@@ -726,4 +797,8 @@ export class LibraryRepository {
     return this.db.prepare('SELECT id, mime, file_name FROM artwork_cache WHERE id = ?').get(id) as
       { id: string; mime: string; file_name: string } | undefined;
   }
+}
+
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }

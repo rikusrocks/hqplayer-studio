@@ -256,9 +256,16 @@ export const en: Record<MessageKey, string> = {
   'settings.rootAdded': 'Folder added',
   'settings.scanStarted': 'Scan started',
   'settings.scanJob':
-    'Seen {seen} · parsed {parsed} · added {added} · updated {updated} · marked unavailable {unavailable} · errors {errors}',
+    'Seen {seen} · parsed {parsed} · added {added} · updated {updated} · moved {moved} · marked unavailable {unavailable} · errors {errors}',
+  'settings.watch.active': 'Auto-update: on',
+  'settings.watch.unavailable':
+    'Auto-update: this folder cannot be watched — checked hourly instead',
+  'settings.watch.off': 'Auto-update: off',
+  'scan.trigger.manual': 'Manual scan',
+  'scan.trigger.watch': 'Auto-update',
+  'scan.trigger.schedule': 'Periodic check',
   'settings.libraryHint':
-    'Music files stay where they are. Studio only reads tags and artwork — it never moves, rewrites or re-encodes files. Offline disks mark entries unavailable instead of deleting them.',
+    'Music files stay where they are. Studio only reads tags and artwork — it never moves, rewrites or re-encodes files. Offline disks mark entries unavailable instead of deleting them. Changed folders are rescanned automatically; moved or renamed files stay in your playlists. Scanning slows down while music plays.',
   'scan.state.queued': 'Queued',
   'scan.state.running': 'Scanning',
   'scan.state.completed': 'Completed',
@@ -295,6 +302,12 @@ export const en: Record<MessageKey, string> = {
   'diag.trusted': 'Local (trusted)',
   'diag.untrusted': 'Remote',
   'diag.lastError': 'Last error',
+  'diag.report': 'Diagnostics report',
+  'diag.reportHint':
+    'If control misbehaves, copy this and send it to the developer. It contains status and the recent conversation with HQPlayer; file paths, titles, artists, albums and the computer name are replaced by numbers.',
+  'diag.copy': 'Copy diagnostics',
+  'diag.copied': 'Diagnostics copied to the clipboard',
+  'diag.saved': 'Clipboard unavailable — downloaded as a file instead',
   'diag.demo': 'Demo data mode',
   'diag.mockControls': 'Mock engine test tools',
   'diag.mockHint': 'Simulate failures to verify how the UI degrades. Available in Mock mode only.',

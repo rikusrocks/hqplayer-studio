@@ -148,6 +148,8 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       dsp: () => get(DspStateSchema, '/engine/dsp'),
       /** HQPlayer's own playlist, read-only. */
       queue: () => get(EngineQueueSchema, '/engine/queue'),
+      /** Privacy-safe diagnostics (this computer only): status + recent HQPlayer conversation. */
+      diagnostics: () => get(z.record(z.string(), z.unknown()), '/engine/diagnostics'),
       mockControl: (action: MockControlRequest['action']) =>
         post(OkSchema, '/engine/mock', { action }),
     },

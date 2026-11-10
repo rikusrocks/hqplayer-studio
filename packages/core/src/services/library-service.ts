@@ -1,45 +1,130 @@
 import type { LibraryRoot, ScanJob } from '@hqps/contracts';
 import { newId, scanRoot, type LibraryContext } from '@hqps/library';
 import type { EventHub } from '../event-hub';
+import { LibraryWatcher, type LibraryWatcherOptions } from './library-watcher';
+
+export type ScanTrigger = ScanJob['trigger'];
+
+export interface LibraryServiceOptions {
+  /** Watch roots for changes and rescan just the changed folders (default on). */
+  watch?: boolean;
+  watcher?: LibraryWatcherOptions;
+  /** Periodic fallback: full incremental rescan when the last full scan is older than this. */
+  rescanAfterMs?: number;
+  /** …and much sooner when a root cannot be watched (changes would otherwise go unnoticed). */
+  rescanUnwatchedAfterMs?: number;
+  /** How often the fallback schedule is checked (also retries failed watchers). */
+  tickMs?: number;
+  /** Awaited before each file of a scan (CoreServer slows scans while HQPlayer plays). */
+  pace?: () => Promise<void>;
+}
+
+interface JobPlan {
+  /** null = whole root */
+  subtrees: string[] | null;
+}
 
 /**
  * Library roots + scan jobs. Scans run one at a time with low metadata concurrency so they don't
  * compete with HQPlayer for disk I/O during DSD512 playback.
+ *
+ * Automatic updates (handoff §8.1): a file watcher queues rescans of just the folders that
+ * changed; a low-frequency fallback scan catches anything the watcher missed. Startup never
+ * forces a full scan — only when the last one is older than `rescanAfterMs`.
  */
 export class LibraryService {
   private readonly jobs = new Map<string, ScanJob>();
+  private readonly plans = new Map<string, JobPlan>();
   private readonly pending: string[] = [];
   private running = false;
   private abort: AbortController | null = null;
+  private readonly watcher: LibraryWatcher | null;
+  private tick: ReturnType<typeof setInterval> | null = null;
+  private readonly rescanAfterMs: number;
+  private readonly rescanUnwatchedAfterMs: number;
+  private readonly tickMs: number;
 
   constructor(
     private readonly ctx: LibraryContext,
     private readonly hub: EventHub,
-  ) {}
+    private readonly options: LibraryServiceOptions = {},
+  ) {
+    this.watcher =
+      options.watch === false
+        ? null
+        : new LibraryWatcher(
+            ctx,
+            (rootId, subtrees) => this.scan(rootId, { trigger: 'watch', subtrees }),
+            options.watcher,
+          );
+    this.rescanAfterMs = options.rescanAfterMs ?? 12 * 3600_000;
+    this.rescanUnwatchedAfterMs = options.rescanUnwatchedAfterMs ?? 3600_000;
+    this.tickMs = options.tickMs ?? 5 * 60_000;
+  }
+
+  /** Begin watching and the fallback schedule (called when the server starts listening). */
+  start(): void {
+    this.watcher?.sync();
+    if (this.tick) return;
+    this.tick = setInterval(() => this.onTick(), this.tickMs);
+    this.tick.unref?.();
+  }
+
+  listRoots(): LibraryRoot[] {
+    return this.ctx.library
+      .listRoots()
+      .map((r) => ({ ...r, watching: r.kind === 'fixture' ? 'off' : this.watchState(r.id) }));
+  }
+
+  watchState(rootId: string): NonNullable<LibraryRoot['watching']> {
+    return this.watcher?.state(rootId) ?? 'off';
+  }
 
   addRoot(path: string): LibraryRoot {
     const root = this.ctx.library.addRoot(path);
     this.scan(root.id);
-    return root;
+    this.watcher?.sync();
+    return { ...root, watching: this.watchState(root.id) };
   }
 
-  scan(rootId?: string): ScanJob[] {
+  scan(
+    rootId?: string,
+    opts: { trigger?: ScanTrigger; subtrees?: string[] | null } = {},
+  ): ScanJob[] {
+    const trigger = opts.trigger ?? 'manual';
+    const subtrees = opts.subtrees && opts.subtrees.length ? opts.subtrees : null;
     const roots = rootId
       ? [this.ctx.library.getRootRow(rootId)]
       : this.ctx.library.listRoots().filter((r) => r.enabled);
     const created: ScanJob[] = [];
     for (const r of roots) {
-      const already = [...this.jobs.values()].find(
-        (j) => j.rootId === r.id && (j.state === 'queued' || j.state === 'running'),
+      const queued = [...this.jobs.values()].find((j) => j.rootId === r.id && j.state === 'queued');
+      if (queued) {
+        // merge into the waiting job: whole root wins, otherwise the union of folders
+        const plan = this.plans.get(queued.id) as JobPlan;
+        plan.subtrees =
+          plan.subtrees && subtrees ? [...new Set([...plan.subtrees, ...subtrees])] : null;
+        if (trigger === 'manual') queued.trigger = 'manual';
+        created.push(queued);
+        continue;
+      }
+      const running = [...this.jobs.values()].find(
+        (j) => j.rootId === r.id && j.state === 'running',
       );
-      if (already) {
-        created.push(already);
+      if (
+        running &&
+        trigger === 'manual' &&
+        !subtrees &&
+        this.plans.get(running.id)?.subtrees === null
+      ) {
+        created.push(running); // a full scan of this root is already under way
         continue;
       }
       const job: ScanJob = {
         id: newId('scan'),
         rootId: r.id,
         state: 'queued',
+        trigger,
         startedAt: null,
         finishedAt: null,
         filesSeen: 0,
@@ -47,16 +132,19 @@ export class LibraryService {
         filesUnchanged: 0,
         added: 0,
         updated: 0,
+        moved: 0,
         markedUnavailable: 0,
         errors: 0,
         currentFolder: null,
         message: null,
       };
       this.jobs.set(job.id, job);
+      this.plans.set(job.id, { subtrees });
       this.pending.push(job.id);
       this.hub.publish({ type: 'library.scan', job });
       created.push(job);
     }
+    this.trimJobs();
     void this.pump();
     return created;
   }
@@ -70,6 +158,9 @@ export class LibraryService {
   }
 
   async stop(): Promise<void> {
+    if (this.tick) clearInterval(this.tick);
+    this.tick = null;
+    this.watcher?.stop();
     this.pending.length = 0;
     this.abort?.abort();
   }
@@ -79,6 +170,30 @@ export class LibraryService {
     while (this.running || this.pending.length) await new Promise((r) => setTimeout(r, 10));
   }
 
+  /** Fallback schedule: rescan roots whose last full scan is too old; retry failed watchers. */
+  private onTick(): void {
+    this.watcher?.sync();
+    const now = Date.now();
+    for (const r of this.ctx.library.listRoots()) {
+      if (!r.enabled || r.kind === 'fixture') continue;
+      const limit =
+        this.watchState(r.id) === 'active' ? this.rescanAfterMs : this.rescanUnwatchedAfterMs;
+      if (r.lastScannedAt === null || now - r.lastScannedAt >= limit) {
+        this.scan(r.id, { trigger: 'schedule' });
+      }
+    }
+  }
+
+  private trimJobs(): void {
+    const finished = [...this.jobs.values()].filter(
+      (j) => j.state !== 'queued' && j.state !== 'running',
+    );
+    for (const j of finished.slice(0, Math.max(0, finished.length - 50))) {
+      this.jobs.delete(j.id);
+      this.plans.delete(j.id);
+    }
+  }
+
   private async pump(): Promise<void> {
     if (this.running) return;
     this.running = true;
@@ -86,6 +201,7 @@ export class LibraryService {
       for (let id = this.pending.shift(); id; id = this.pending.shift()) {
         const job = this.jobs.get(id);
         if (!job) continue;
+        const plan = this.plans.get(id) ?? { subtrees: null };
         this.abort = new AbortController();
         const update = (patch: Partial<ScanJob>) => {
           Object.assign(job, patch);
@@ -99,6 +215,9 @@ export class LibraryService {
             rootId: job.rootId,
             signal: this.abort.signal,
             onProgress: (p) => update({ ...p }),
+            subtrees: plan.subtrees ?? undefined,
+            artworkScope: job.trigger === 'manual' ? 'all' : 'changed',
+            pace: this.options.pace,
           });
           update({
             ...res,
@@ -110,7 +229,10 @@ export class LibraryService {
         } catch (err) {
           update({ state: 'failed', finishedAt: Date.now(), message: (err as Error).message });
         }
-        this.hub.publish({ type: 'library.changed', stats: this.ctx.library.stats() });
+        const quiet =
+          job.trigger !== 'manual' &&
+          job.added + job.updated + job.moved + job.markedUnavailable === 0;
+        if (!quiet) this.hub.publish({ type: 'library.changed', stats: this.ctx.library.stats() });
       }
     } finally {
       this.running = false;
