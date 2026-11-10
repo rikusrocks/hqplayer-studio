@@ -191,7 +191,7 @@ describe('scanRoot', () => {
       errors: 0,
     });
     expect(ctx.library.stats()).toMatchObject({ trackCount: 1201, unavailableTrackCount: 1 });
-  });
+  }, 60_000); // Windows runners are ~10× slower creating small files
 
   it('rescans only the given folders and leaves the rest of the root alone', async () => {
     const root = ctx.library.addRoot(musicDir);

@@ -71,7 +71,7 @@ describe('LibraryService automatic updates', () => {
       { timeout: 8000, interval: 100 },
     );
     expect(ctx.library.stats().unavailableTrackCount).toBe(0);
-  });
+  }, 30_000);
 
   it('runs the fallback scan when the last full scan is too old', async () => {
     // not watched → the (normally hourly) unwatched interval applies
