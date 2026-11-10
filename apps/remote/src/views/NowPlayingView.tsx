@@ -1,7 +1,6 @@
 import {
   Artwork,
   FormatBadge,
-  Icon,
   LyricsPanel,
   ProgressBar,
   QueueSyncBanner,
@@ -12,7 +11,7 @@ import {
   useStudio,
   useT,
 } from '@hqps/ui';
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 
 const LYRICS_KEY = 'hqps.remote.showLyrics';
 
@@ -37,31 +36,47 @@ export function NowPlayingView() {
       // private mode: not remembered
     }
   };
+  // A tap on the lyrics goes back to the artwork — but not a tap on the calibration buttons
+  // under them, a link, or the end of a text selection. Scrolling never produces a click.
+  const onLyricsTap = (e: MouseEvent<HTMLDivElement>) => {
+    if ((e.target as Element).closest('button, a, input, .hq-lyrics__footer')) return;
+    if (globalThis.getSelection?.()?.toString()) return;
+    setShowLyrics(false);
+  };
   const albumHref = now.libraryTrack?.albumId
     ? buildHref('/browse/album', now.libraryTrack.albumId)
     : null;
 
   return (
-    <div className="rm-now">
+    <div className={`rm-now${showLyrics ? ' rm-now--lyrics' : ''}`}>
       <QueueSyncBanner />
-      {showLyrics ? (
-        <div className="rm-now__lyrics">
-          <LyricsPanel />
-        </div>
-      ) : (
-        <div className="rm-now__art">
-          <Artwork artworkId={now.artworkId} size="full" alt={now.album ?? ''} />
-        </div>
-      )}
-      <button
-        type="button"
-        className={`rm-now__toggle${showLyrics ? ' is-active' : ''}`}
-        onClick={() => setShowLyrics(!showLyrics)}
-        aria-pressed={showLyrics}
-      >
-        <Icon name={showLyrics ? 'album' : 'lyrics'} size={16} />
-        {showLyrics ? t('lyrics.showArtwork') : t('lyrics.showLyrics')}
-      </button>
+      {/* The stage takes whatever height is left, so the controls below never leave the screen.
+          Tapping it switches between artwork and lyrics. */}
+      <div className="rm-now__stage">
+        {showLyrics ? (
+          <div className="rm-now__lyrics" onClick={onLyricsTap}>
+            {/* keyboard / screen-reader way back; touch users tap the lyrics */}
+            <button
+              type="button"
+              className="rm-now__back-to-art"
+              onClick={() => setShowLyrics(false)}
+            >
+              {t('lyrics.showArtwork')}
+            </button>
+            <LyricsPanel />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="rm-now__art"
+            onClick={() => setShowLyrics(true)}
+            aria-label={t('lyrics.showLyrics')}
+            title={t('lyrics.showLyrics')}
+          >
+            <Artwork artworkId={now.artworkId} size="full" alt={now.album ?? ''} />
+          </button>
+        )}
+      </div>
       <div className="rm-now__meta">
         <h1 className="rm-now__title">{now.hasTrack ? now.title : t('player.nothingPlaying')}</h1>
         {now.hasTrack && <div className="rm-now__artist">{now.artist}</div>}
