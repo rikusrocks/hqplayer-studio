@@ -36,10 +36,13 @@ Verified (Mac, Node 26.11.1, 2026-11-10):
   手机 375×812 遥控页同步显示；在手机端“全部播放”播放列表 → 桌面队列 1 秒内切换；模拟断线 → 红色状态、
   传输禁用、队列“引擎离线”；重连 → 恢复且未自动播放；两个页面控制台均无错误。
 - `pnpm dev` 三个服务（Core 47321、桌面 5173、遥控 5174）均可用，代理 REST + WS 正常。
+- GitHub Actions（rikusrocks/hqplayer-studio）：CI 在 ubuntu-latest 与 windows-latest 上 format/lint/typecheck/test/build 全部通过；
+  Windows build：测试 → 打包 portable+zip → 打包后的 HQPlayer Studio.exe 冒烟测试 SMOKE_OK（Windows 上 Electron 内 SQLite 3.53.4）
+  → hqp-probe.exe 冒烟测试写出报告 → 上传 artifacts（HQPlayerStudio-windows-x64 ≈252 MB、hqp-probe-windows-x64 ≈38 MB，保留至 2026-12-10）。
+  首次推送暴露的两个 CI 问题已修复：Windows 检出为 CRLF（加 .gitattributes 固定 LF）；两处固定毫秒等待的测试在慢机器上不稳定（改为条件等待）。
 
 Known limitations:
 - 未接触真实 HQPlayer：所有 Desktop 6 能力均为 untested（Album Mode 切换为 unsupported：SDK 无此命令）。
-- Windows CI 尚未在 GitHub 上跑过第一次（首推后核对；Windows 路径相关测试首次在 Windows 运行）。
 - Core 只监听 127.0.0.1；手机遥控需 Phase 3 配对后才能在局域网使用。
 - 服务端返回的同步原因/通知文本目前是英文（界面其他文字已中英双语）。
 - 无文件监听（需手动“扫描”）；移动文件会成为新曲目（旧条目标记不可用）；无 FTS5（大库搜索待优化）。
@@ -47,12 +50,11 @@ Known limitations:
 - 歌词仅有解析器，无 UI/LRCLIB（Phase 4）；无托盘/媒体键（Phase 4）。
 
 Next:
-- 首次推送后核对 CI（ubuntu/windows）与 Windows artifacts，修正 Windows 专有问题。
 - Phase 1：根据探测报告填写能力矩阵 → Live adapter 只读接入（真实状态显示）→ 经同意的 Gate C 写命令测试。
 - Phase 2：真实音乐目录扫描（文件监听、移动检测、FTS5、Shift-JIS/GBK 标签）。
 
 Windows action needed:
-1. 等 GitHub Actions 的 “Windows build” 运行成功后，下载 artifact `hqp-probe-windows-x64`，解压。
+1. 打开 https://github.com/rikusrocks/hqplayer-studio/actions/workflows/windows-build.yml → 最新成功的运行 → Artifacts，下载 `hqp-probe-windows-x64`，解压。
 2. 在装有 HQPlayer Desktop 6 的电脑上先打开 HQPlayer，再双击 hqp-probe.exe（SmartScreen：更多信息 → 仍要运行）。
 3. 约 10 秒后按回车关闭；把同目录生成的 hqp-probe-report-*.json 发回（已脱敏）。
 4. （可选）下载 `HQPlayerStudio-windows-x64`，运行 portable exe，确认界面能打开（Mock 模式，不会碰 HQPlayer）。
@@ -60,11 +62,11 @@ Windows action needed:
 
 ## Phase 状态
 
-| Phase                         | 状态                                       | 退出条件                                                                                   |
-| ----------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 0 仓库 + 风险隔离             | ✅ 本地完成；⏳ 等首个 CI/Windows artifact | Mac 上 install/dev/test/build ✔；Mock 播放/暂停/换歌/断线 ✔；CI 产出 Windows 包与探测器 ⏳ |
-| 1 Desktop 6 API Spike         | ⏳ 等探测报告                              | 稳定读取真实状态；传输/装载结果有实测记录                                                  |
-| 2 持久音乐库 + 播放列表       | 部分（数据层与扫描器已就绪）               | 真实目录、重启不丢、CJK 路径、实际选专辑播放                                               |
-| 3 同步网页遥控                | 部分（本机已同步）                         | 局域网配对、断线恢复                                                                       |
-| 4 迷你播放器 / 歌词 / 设置 UX | 部分（迷你窗、设置分层）                   | 歌词、托盘/媒体键                                                                          |
-| 5 稳定性与发布                | 未开始                                     | 长时间 DSD512、备份/回滚、签名与声明                                                       |
+| Phase                         | 状态                         | 退出条件                                                                                            |
+| ----------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| 0 仓库 + 风险隔离             | ✅ 完成                      | Mac 上 install/dev/test/build ✔；Mock 播放/暂停/换歌/断线 ✔；CI 产出并冒烟测试 Windows 包与探测器 ✔ |
+| 1 Desktop 6 API Spike         | ⏳ 等探测报告                | 稳定读取真实状态；传输/装载结果有实测记录                                                           |
+| 2 持久音乐库 + 播放列表       | 部分（数据层与扫描器已就绪） | 真实目录、重启不丢、CJK 路径、实际选专辑播放                                                        |
+| 3 同步网页遥控                | 部分（本机已同步）           | 局域网配对、断线恢复                                                                                |
+| 4 迷你播放器 / 歌词 / 设置 UX | 部分（迷你窗、设置分层）     | 歌词、托盘/媒体键                                                                                   |
+| 5 稳定性与发布                | 未开始                       | 长时间 DSD512、备份/回滚、签名与声明                                                                |
