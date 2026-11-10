@@ -338,6 +338,9 @@ export class MockHQPlayerAdapter implements HQPlayerAdapter {
     await this.delay();
     return {
       albumMode: this.albumMode,
+      currentIndex: this.index,
+      currentMatchedBy: this.index === null ? 'none' : 'index',
+      statusTrackBase: null,
       entries: this.queue.map((t, index) => ({
         index,
         uri: t.uri,
@@ -503,6 +506,7 @@ export class MockHQPlayerAdapter implements HQPlayerAdapter {
       connection: connected ? 'connected' : 'disconnected',
       transport: connected ? this.transport : 'unknown',
       positionMs: connected ? Math.round(this.currentPosition()) : 0,
+      outputDelayMs: null,
       durationMs: connected ? (track?.durationMs ?? null) : null,
       track:
         connected && track

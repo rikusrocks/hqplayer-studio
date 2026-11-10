@@ -8,6 +8,7 @@ import {
   type RepeatMode,
 } from '@hqps/contracts';
 import type {
+  EngineQueueEntry,
   EngineQueueSnapshot,
   HQPlayerAdapter,
   PlayableTrack,
@@ -68,6 +69,12 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   private volumeRange: { min: number; max: number } | null = null;
   private serials: string | null = null;
   private refreshing = false;
+  /**
+   * Numbering base of Status `track`, verified by matching the playing file's URI against the
+   * playlist (PlaylistItem.index is known to be 1-based). null until verified.
+   */
+  private statusTrackBase: number | null = null;
+  private currentMatchedBy: 'uri' | 'index' | 'none' = 'none';
   private readonly listeners = new Set<StatusListener>();
   private readonly evidence: Record<EngineCapabilityKey, CapabilityEvidence>;
   private readonly host: string;
@@ -236,7 +243,12 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       trackCount: this.playlist.entries.length,
       albumMode: this.playlist.albumMode,
     });
-    return this.playlist;
+    return {
+      ...this.playlist,
+      currentIndex: this.last.trackIndex,
+      currentMatchedBy: this.last.trackIndex === null ? 'none' : this.currentMatchedBy,
+      statusTrackBase: this.statusTrackBase,
+    };
   }
 
   private async readPlaylist(conn: HqpConnection): Promise<EngineQueueSnapshot> {
@@ -295,9 +307,24 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
 
   private applyStatus(doc: XmlElement): void {
     const mapped = mapStatusDocument(doc);
-    const entry =
-      mapped.trackIndex !== null ? this.playlist?.entries[mapped.trackIndex] : undefined;
-    let track = mapped.track;
+    const rawTrack = attrInt(doc, 'track');
+    let trackIndex = mapped.trackIndex;
+    this.currentMatchedBy = trackIndex === null ? 'none' : 'index';
+    // Prefer locating the playing file by URI (unique within the playlist) over trusting the
+    // numbering of Status `track`; when that works, it also verifies the numbering base.
+    const playingUri = mapped.track?.uri ?? null;
+    if (playingUri && this.playlist) {
+      const hits = this.playlist.entries.filter((e) => e.uri === playingUri);
+      if (hits.length === 1) {
+        trackIndex = (hits[0] as EngineQueueEntry).index;
+        this.currentMatchedBy = 'uri';
+        if (rawTrack !== null) this.statusTrackBase = rawTrack - trackIndex;
+      }
+    } else if (rawTrack !== null && this.statusTrackBase !== null) {
+      trackIndex = rawTrack >= this.statusTrackBase ? rawTrack - this.statusTrackBase : null;
+    }
+    const entry = trackIndex !== null ? this.playlist?.entries[trackIndex] : undefined;
+    let track = mapped.track ? { ...mapped.track, index: trackIndex } : null;
     if (track && entry && !track.title) {
       // Stopped/paused status has no <metadata>: describe the selected track from the playlist.
       track = {
@@ -312,6 +339,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     this.publish({
       ...this.last,
       ...mapped,
+      trackIndex,
       track,
       durationMs: mapped.durationMs ?? track?.durationMs ?? null,
       trackCount: this.playlist?.entries.length ?? null,

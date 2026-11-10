@@ -15,7 +15,8 @@ export interface CapabilityEvidence {
 
 /**
  * Evidence for the user's HQPlayer Desktop 6 (engine 6.1.0, Windows).
- * - Read paths: exercised by hqp-probe v0.1.0 on 2026-11-10 (Gate A/B, 19/19 commands answered).
+ * - Read paths: exercised by hqp-probe v0.1.0 (stopped) and v0.1.1 (playing) on 2026-11-10
+ *   (Gate A/B, 19/19 commands answered each time).
  * - Write paths: still SDK-only (`untested`) — they stay disabled until Gate C with consent.
  * Update this table (and docs/protocol-capabilities.md) from probe reports / Gate C records only.
  */
@@ -30,14 +31,14 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     status: 'confirmed',
     readOnly: true,
     evidence: 'Status subscribe="0" + State (probe 2026-11-10, engine 6.1.0)',
-    note: 'Only observed while stopped: position units and track index base during playback still to confirm.',
+    note: 'Stopped + playing observed: position/length in seconds, output_delay in µs (audible = position − delay); Status track base is verified at runtime by URI match.',
   },
   'status.subscribe': {
-    status: 'observed',
+    status: 'confirmed',
     readOnly: true,
     evidence:
-      'Status subscribe="1" acknowledged, 1 push in 3 s while stopped (probe 2026-11-10, engine 6.1.0)',
-    note: 'Push cadence during playback not yet observed.',
+      'Status subscribe="1": ~1 push/s while playing (median 1001 ms), on change while stopped (probes 2026-11-10, engine 6.1.0)',
+    note: null,
   },
   'transport.play': {
     status: 'untested',
@@ -93,13 +94,13 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     status: 'confirmed',
     readOnly: true,
     evidence: 'PlaylistGet returned the current playlist (probe 2026-11-10, engine 6.1.0)',
-    note: 'PlaylistItem index is 1-based; uri is "file:" + raw Windows path (backslashes, unencoded non-ASCII).',
+    note: 'PlaylistItem index is 1-based; uri is "file://" + raw Windows path (backslashes, unencoded spaces/non-ASCII).',
   },
   'queue.select': {
     status: 'untested',
     readOnly: false,
     evidence: 'SDK SelectTrack index=',
-    note: 'Presumed 1-based like PlaylistItem.index; confirm in Gate C.',
+    note: 'Presumed 1-based like PlaylistItem.index and Status track (both observed); confirm in Gate C.',
   },
   'mode.album': {
     status: 'unsupported',

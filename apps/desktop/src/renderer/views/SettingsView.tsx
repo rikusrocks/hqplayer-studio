@@ -607,6 +607,15 @@ function EngineQueueCard() {
           </span>
         )}
       </div>
+      {queue && (
+        <p className="hint">
+          {queue.currentMatchedBy === 'uri' && queue.statusTrackBase !== null
+            ? t('engine.queue.check.uri', { base: String(queue.statusTrackBase) })
+            : queue.currentMatchedBy === 'index'
+              ? t('engine.queue.check.index')
+              : t('engine.queue.check.none')}
+        </p>
+      )}
       {queue &&
         (queue.entries.length === 0 ? (
           <p className="hint">{t('engine.queue.empty')}</p>
@@ -614,7 +623,11 @@ function EngineQueueCard() {
           <table className="hq-table engine-queue">
             <tbody>
               {queue.entries.map((e) => (
-                <tr key={e.index}>
+                <tr
+                  key={e.index}
+                  className={e.index === queue.currentIndex ? 'is-current' : undefined}
+                  aria-current={e.index === queue.currentIndex ? 'true' : undefined}
+                >
                   <td className="hq-mono hq-muted">{e.index + 1}</td>
                   <td>
                     <div>{e.title ?? '—'}</div>

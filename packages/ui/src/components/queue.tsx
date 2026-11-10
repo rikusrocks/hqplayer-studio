@@ -1,3 +1,5 @@
+import { canUse, type EngineQueue } from '@hqps/contracts';
+import { useEffect, useState } from 'react';
 import { useDialogs } from '../data/dialogs';
 import { useCapabilityGate, useStudio } from '../data/StudioProvider';
 import { formatDuration } from '../format';
@@ -55,12 +57,7 @@ export function QueueList({ large = false }: { large?: boolean }) {
   const editReason = gate('queue.replace');
 
   if (queue.items.length === 0) {
-    return (
-      <div className="hq-queue">
-        <QueueSyncBanner />
-        <EmptyState icon="queue" title={t('queue.empty')} hint={t('queue.emptyHint')} />
-      </div>
-    );
+    return <EmptyOrEngineQueue large={large} />;
   }
 
   return (
@@ -133,6 +130,93 @@ export function QueueList({ large = false }: { large?: boolean }) {
               >
                 <Icon name="close" size={14} />
               </button>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * When Studio has not queued anything but HQPlayer is connected with its own playlist (e.g. the
+ * user queued music in HQPlayer itself), show that playlist read-only instead of "queue empty".
+ */
+function EmptyOrEngineQueue({ large }: { large: boolean }) {
+  const { client, status, capabilities, isMock } = useStudio();
+  const t = useT();
+  const [engineQueue, setEngineQueue] = useState<EngineQueue | null>(null);
+  const live = !isMock && status.connection === 'connected' && canUse(capabilities, 'queue.read');
+  const trackKey = `${status.trackIndex}|${status.trackCount}|${status.track?.uri ?? status.track?.title ?? ''}`;
+
+  useEffect(() => {
+    if (!live) {
+      setEngineQueue(null);
+      return;
+    }
+    let cancelled = false;
+    client.engine
+      .queue()
+      .then((q) => {
+        if (!cancelled) setEngineQueue(q);
+      })
+      .catch(() => {
+        if (!cancelled) setEngineQueue(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, live, trackKey]);
+
+  if (!engineQueue || engineQueue.entries.length === 0) {
+    return (
+      <div className="hq-queue">
+        <QueueSyncBanner />
+        <EmptyState icon="queue" title={t('queue.empty')} hint={t('queue.emptyHint')} />
+      </div>
+    );
+  }
+  const current = status.trackIndex ?? engineQueue.currentIndex;
+  return (
+    <div className={`hq-queue${large ? ' hq-queue--large' : ''}`}>
+      <div className="hq-queue__meta">
+        <div className="hq-queue__source">
+          <span>{t('engine.queue.title')}</span>
+          {engineQueue.albumMode !== null && (
+            <span className="hq-badge">
+              {t(engineQueue.albumMode ? 'queue.mode.album' : 'queue.mode.playlist')}
+            </span>
+          )}
+          <span className="hq-muted">
+            {t('common.tracksCount', { count: engineQueue.entries.length })}
+          </span>
+        </div>
+      </div>
+      <p className="hint hq-queue__hint">{t('engine.queue.readOnlyHint')}</p>
+      <ol className="hq-queue__list">
+        {engineQueue.entries.map((e) => {
+          const isCurrent = e.index === current;
+          const isPast = current !== null && e.index < current;
+          return (
+            <li
+              key={e.index}
+              className={`hq-queue__item${isCurrent ? ' is-current' : ''}${isPast ? ' is-past' : ''}`}
+              aria-current={isCurrent ? 'true' : undefined}
+            >
+              <div className="hq-queue__main hq-queue__main--static">
+                <span className="hq-queue__num hq-muted">{e.index + 1}</span>
+                <span className="hq-queue__text">
+                  <span className="hq-queue__title">{e.title ?? '—'}</span>
+                  <span className="hq-queue__artist">{e.artist ?? ''}</span>
+                </span>
+                <span className="hq-queue__dur">
+                  {isCurrent ? (
+                    <Icon name="volume" size={14} className="hq-accent" />
+                  ) : (
+                    formatDuration(e.durationMs)
+                  )}
+                </span>
+              </div>
             </li>
           );
         })}

@@ -307,6 +307,13 @@ export const en: Record<MessageKey, string> = {
   'engine.queue.playlistMode': 'Playlist mode',
   'engine.queue.empty': 'The HQPlayer playlist is empty',
   'engine.queue.inLibrary': 'In library',
+  'engine.queue.readOnlyHint':
+    "Studio hasn't queued anything yet; this is HQPlayer's own playlist (read-only).",
+  'engine.queue.check.uri':
+    "Current track located by file URI; HQPlayer's track numbers start at {base} (verified).",
+  'engine.queue.check.index':
+    "Current track located by HQPlayer's track number (numbering base not yet verified).",
+  'engine.queue.check.none': 'No track is currently playing.',
 
   'remote.title': 'Studio Remote',
   'remote.offline':

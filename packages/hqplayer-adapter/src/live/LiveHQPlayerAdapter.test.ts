@@ -270,4 +270,56 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     expect(server.received.filter((r) => r.name === 'PlaylistGet').length).toBe(before + 1);
     await adapter.disconnect();
   });
+
+  it('shows the audible position and locates the playing track by URI (playing-state probe)', async () => {
+    // Shapes and numbers from the playing-state probe (engine 6.1.0): position 12.544 s,
+    // output_delay 4413312 µs (HQPlayer showed 0:08), length 320.64 s, uri "file://" + raw path.
+    const uri = 'file://D:\\Music\\A\\02 南方的风.flac';
+    const playing = (track: number) =>
+      xmlDoc(
+        `<Status state="2" track="${track}" tracks_total="3" position="12.54400000000000048" display_position="12.54400000000000048" length="320.64229166666666515" min="0" sec="8" output_delay="4413312" active_mode="SDM (DSD)" active_rate="24576000" active_bits="1" track_serial="57" transport_serial="6">` +
+          `<metadata uri="${uri}" song="南方的风" artist="林夏" album="城市漫游者" samplerate="48000" bits="24" channels="2" sdm="0"/></Status>`,
+      );
+    let statusTrack = 2;
+    server = await startFakeHqpServer({
+      GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE,
+      PlaylistGet: () =>
+        xmlDoc(
+          '<PlaylistGet album="0">' +
+            '<PlaylistItem index="1" uri="file://D:\\Music\\A\\01.flac" song="a" length="244"/>' +
+            `<PlaylistItem index="2" uri="${uri}" song="南方的风" length="321"/>` +
+            '<PlaylistItem index="3" uri="file://D:\\Music\\A\\03.flac" song="c" length="105"/>' +
+            '</PlaylistGet>',
+        ),
+      Status: () => playing(statusTrack),
+    });
+    const adapter = new LiveHQPlayerAdapter({ port: server.port });
+    await adapter.connect();
+    let s = await adapter.getStatus();
+    expect(s.transport).toBe('playing');
+    expect(s.outputDelayMs).toBe(4413);
+    expect(s.positionMs).toBe(12_544 - 4413); // 0:08, like HQPlayer's own display
+    expect(s.durationMs).toBe(320_642);
+    expect(s.trackIndex).toBe(1);
+    let q = await adapter.getEngineQueue();
+    expect(q).toMatchObject({
+      currentIndex: 1,
+      currentMatchedBy: 'uri',
+      statusTrackBase: 1,
+      albumMode: false,
+    });
+
+    // If the engine's numbering were 0-based, URI matching still finds the right track.
+    statusTrack = 1;
+    server.push(playing(1));
+    await vi.waitFor(async () => expect((await adapter.getEngineQueue()).statusTrackBase).toBe(0), {
+      timeout: 3000,
+    });
+    s = await adapter.getStatus();
+    expect(s.trackIndex).toBe(1);
+    q = await adapter.getEngineQueue();
+    expect(q.currentMatchedBy).toBe('uri');
+    await adapter.disconnect();
+  });
 });

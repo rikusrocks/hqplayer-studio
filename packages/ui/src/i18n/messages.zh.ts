@@ -297,6 +297,11 @@ export const zh = {
   'engine.queue.playlistMode': '播放列表模式',
   'engine.queue.empty': 'HQPlayer 播放列表为空',
   'engine.queue.inLibrary': '已在音乐库中',
+  'engine.queue.readOnlyHint': 'Studio 还没有安排队列，下面是 HQPlayer 自己的播放列表（只读）。',
+  'engine.queue.check.uri':
+    '当前曲目已按文件 URI 定位；HQPlayer 的 track 编号从 {base} 开始（已核对）。',
+  'engine.queue.check.index': '当前曲目按 HQPlayer 的 track 编号定位（编号基数尚未核对）。',
+  'engine.queue.check.none': '当前没有正在播放的曲目。',
 
   'realtime.open': '已连接',
   'realtime.connecting': '连接中',

@@ -780,6 +780,10 @@
   overflow-y: auto;
   display: block;
 }
+.engine-queue tr.is-current td {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
 .engine-queue td:first-child,
 .engine-queue td:last-child {
   width: 1%;
@@ -1053,6 +1057,27 @@ a.np-panel__album:hover {
   justify-content: flex-end;
   gap: 10px;
   min-width: 0;
+}
+.playerbar__right {
+  /* lay out by the column's own width (it narrows with window size and display scaling) */
+  container-type: inline-size;
+}
+.playerbar__right > .hq-icon-btn,
+.playerbar__right > .hq-format,
+.playerbar__right > .hq-volume {
+  flex: none; /* never squeeze these under each other; hide lower-priority parts instead */
+}
+/* Priority when space runs out: the format badge goes first (also shown in the status bar),
+   then the volume slider (the dB readout stays). */
+@container (max-width: 400px) {
+  .playerbar__right .hq-format {
+    display: none;
+  }
+}
+@container (max-width: 240px) {
+  .playerbar__right .hq-volume .hq-range {
+    display: none;
+  }
 }
 .statusbar {
   grid-area: status;

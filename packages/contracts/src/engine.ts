@@ -50,7 +50,13 @@ export type RepeatMode = z.infer<typeof RepeatModeSchema>;
 export const EngineStatusSchema = z.object({
   connection: ConnectionStateSchema,
   transport: TransportStateSchema,
+  /**
+   * Audible position: what is coming out of the DAC right now. For HQPlayer this is the engine's
+   * processing position minus `outputDelayMs` (matches HQPlayer's own min:sec display).
+   */
   positionMs: z.number().nonnegative(),
+  /** Output buffering delay reported by the engine (HQPlayer `output_delay`, µs → ms). */
+  outputDelayMs: z.number().nonnegative().nullable(),
   durationMs: z.number().nonnegative().nullable(),
   track: EngineTrackSchema.nullable(),
   trackIndex: z.number().int().nullable(),
@@ -98,6 +104,7 @@ export function disconnectedStatus(serial = 0, lastError: string | null = null):
     connection: 'disconnected',
     transport: 'unknown',
     positionMs: 0,
+    outputDelayMs: null,
     durationMs: null,
     track: null,
     trackIndex: null,

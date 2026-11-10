@@ -47,6 +47,11 @@ export interface EngineQueueEntry {
 export interface EngineQueueSnapshot {
   albumMode: boolean | null;
   entries: EngineQueueEntry[];
+  /** 0-based index of the engine's current track within `entries`, if known. */
+  currentIndex?: number | null;
+  currentMatchedBy?: 'uri' | 'index' | 'none';
+  /** Verified numbering base of the engine's Status track field (live adapter only). */
+  statusTrackBase?: number | null;
 }
 
 export type StatusListener = (status: EngineStatus) => void;

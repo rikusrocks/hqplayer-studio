@@ -483,9 +483,14 @@
   min-width: 0;
 }
 .hq-volume .hq-range {
+  flex: 1 1 80px;
+  min-width: 40px;
   max-width: 120px;
 }
 .hq-volume__value {
+  flex: none; /* never let the dB readout shrink under neighbouring buttons */
+  white-space: nowrap;
+  text-align: right;
   font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -945,6 +950,19 @@
   padding: 6px;
   text-align: left;
   border-radius: var(--radius-sm);
+}
+.hq-queue__main--static {
+  cursor: default;
+}
+.hq-queue__num {
+  width: 28px;
+  flex: none;
+  text-align: right;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.hq-queue__hint {
+  margin: 0 0 4px;
 }
 .hq-queue__main:disabled {
   cursor: default;

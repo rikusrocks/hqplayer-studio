@@ -224,6 +224,15 @@ export type EngineQueueEntry = z.infer<typeof EngineQueueEntrySchema>;
 export const EngineQueueSchema = z.object({
   albumMode: z.boolean().nullable(),
   entries: z.array(EngineQueueEntrySchema),
+  /** Index (0-based) of the engine's current track within `entries`, if known. */
+  currentIndex: z.number().int().nullable(),
+  /**
+   * How the current track was located: `uri` = matched by file URI (index base verified),
+   * `index` = from the engine's track number, `none` = no current track.
+   */
+  currentMatchedBy: z.enum(['uri', 'index', 'none']),
+  /** Numbering base of HQPlayer's Status `track` (1 or 0) once verified by URI; null if not yet. */
+  statusTrackBase: z.number().int().nullable(),
   observedAt: z.number(),
 });
 export type EngineQueue = z.infer<typeof EngineQueueSchema>;

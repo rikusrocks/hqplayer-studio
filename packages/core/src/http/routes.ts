@@ -126,6 +126,9 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
         });
         return {
           albumMode: snap.albumMode,
+          currentIndex: snap.currentIndex ?? null,
+          currentMatchedBy: snap.currentMatchedBy ?? 'none',
+          statusTrackBase: snap.statusTrackBase ?? null,
           observedAt: Date.now(),
           entries: snap.entries.map((e) => ({
             index: e.index,

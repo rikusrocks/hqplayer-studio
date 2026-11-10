@@ -68,12 +68,18 @@ export function toEngineIndex(studioIndex: number): number {
 export function mapStatusDocument(doc: XmlElement, now = Date.now()): MappedStatus {
   const meta = doc.children.find((c) => c.name === 'metadata');
 
-  // position/length are doubles in the SDK; assumed seconds. Fall back to min/sec.
+  // position/length are seconds (doubles). Confirmed during playback on engine 6.1.0
+  // (probe 2026-11-10: length 320.64 s for a 5:20 track). `output_delay` is in microseconds
+  // (SDK: output_delay_us); HQPlayer's own min:sec equals position − output_delay, i.e. what is
+  // audible at the DAC. Studio shows that audible position.
   const position = attrFloat(doc, 'position');
-  const positionMs =
+  const delayUs = attrInt(doc, 'output_delay');
+  const outputDelayMs = delayUs !== null && delayUs > 0 ? Math.round(delayUs / 1000) : null;
+  const enginePositionMs =
     position !== null
-      ? Math.max(0, Math.round(position * 1000))
+      ? Math.round(position * 1000)
       : ((attrInt(doc, 'min') ?? 0) * 60 + (attrInt(doc, 'sec') ?? 0)) * 1000;
+  const positionMs = Math.max(0, enginePositionMs - (outputDelayMs ?? 0));
   const length = attrFloat(doc, 'length');
   const durationMs = length !== null && length > 0 ? Math.round(length * 1000) : null;
 
@@ -117,6 +123,7 @@ export function mapStatusDocument(doc: XmlElement, now = Date.now()): MappedStat
   return {
     transport: mapTransport(attrInt(doc, 'state')),
     positionMs,
+    outputDelayMs,
     durationMs,
     track:
       meta || trackIndex !== null

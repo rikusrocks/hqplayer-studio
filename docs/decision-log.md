@@ -83,11 +83,17 @@ Format: problem · options · choice · why · risk · cost of reversing.
 ## D-016 Trust probe evidence over SDK assumptions — 2026-11-10
 
 - **Evidence:** probe of the user's HQPlayer Desktop 6 / engine 6.1.0 (19/19 read-only commands).
-- **Changes:** playlist indexes are 1-based (converted at the adapter boundary); `Status tracks_total` is not the playlist length (0 vs 52) so the playlist length comes from `PlaylistGet`; stopped status has no metadata, so the current track is described from the cached playlist; engine URIs are `file:` + raw Windows path and are parsed without URI-decoding.
-- **Still assumed (to confirm while playing):** `Status track` uses the same 1-based numbering with 0 = none; position/length in seconds.
+- **Changes:** playlist indexes are 1-based (converted at the adapter boundary); `Status tracks_total` is not the playlist length (0 vs 52) so the playlist length comes from `PlaylistGet`; stopped status has no metadata, so the current track is described from the cached playlist; engine URIs are `file://` + raw Windows path (first probe's sanitiser hid the `//`; confirmed by v0.1.1) and are parsed without URI-decoding.
+- **Confirmed by the playing-state probe:** position/length in seconds; `Status track` consistent with 1-based numbering (31 of 52). Studio still locates the current track by URI first and verifies the base at runtime.
 
 ## D-017 Engine choice is a saved preference applied on restart — 2026-11-10
 
 - **Options:** hot-swap adapters at runtime · preference + restart.
 - **Choice:** preference in `app_settings` (`engine.adapter`), applied at start; precedence launch flag/env > preference > mock. The desktop app relaunches itself (portable builds relaunch the original `.exe` via `PORTABLE_EXECUTABLE_FILE`, because the unpacked temp copy is deleted on exit).
 - **Why:** hot-swapping would have to re-plumb subscriptions, queue sync and capability caches mid-session for little benefit.
+
+## D-018 Show the audible position, not the engine's processing position — 2026-11-10
+
+- **Evidence:** while playing, HQPlayer reported `position` 12.544 s with `output_delay` 4,413,312 µs; its own `min:sec` was 0:08 (= position − delay). DSD512 + CUDA buffering puts ~4.4 s between processing and the DAC.
+- **Choice:** `EngineStatus.positionMs` is the audible position (position − output_delay); `outputDelayMs` is exposed separately for lyrics timing. The progress bar therefore matches what is heard and what HQPlayer itself displays.
+- **Risk:** Seek targets are engine positions; Gate C must check whether a seek to X lands audibly at X (expected, after the buffer refills).
