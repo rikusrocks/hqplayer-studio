@@ -37,7 +37,7 @@ export function useNowPlaying(): NowPlaying {
       title: hasTrack ? (engineTrack?.title ?? lib?.title ?? null) : null,
       artist: hasTrack ? (engineTrack?.artist ?? lib?.artist ?? null) : null,
       album: hasTrack ? (engineTrack?.album ?? lib?.album ?? null) : null,
-      artworkId: hasTrack ? (lib?.artworkId ?? null) : null,
+      artworkId: hasTrack ? (lib?.artworkId ?? engineTrack?.artworkId ?? null) : null,
       libraryTrack: hasTrack ? lib : null,
       inputLabel: hasTrack ? (lib?.format.label ?? status.input?.label ?? null) : null,
       durationMs: hasTrack

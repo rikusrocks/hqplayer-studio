@@ -832,6 +832,28 @@ describe('queue control against a busy HQPlayer (stateful stand-in engine)', () 
     expect(studio.queue.get().items).toHaveLength(3);
   });
 
+  it('shows library artwork for a track HQPlayer plays on its own', async () => {
+    const a = addShareAlbum(liveCtx.library, 'Album A', 2);
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+      'base64',
+    );
+    const art = liveCtx.artwork.put(png, 'image/png', 'folder') as string;
+    liveCtx.library.setAlbumArtwork(a.albumId, art);
+    engine = await startFakeEngine({
+      playlist: a.uris.map((uri) => ({ uri, song: 'x', lengthSec: 300 })),
+      startPlaying: true,
+    });
+    const { studio } = await startStudio();
+    await vi.waitFor(() =>
+      expect(studio.engine.getStatus().track).toMatchObject({
+        studioTrackId: a.ids[0],
+        artworkId: art,
+      }),
+    );
+    expect(studio.queue.get().items).toEqual([]); // not from Studio's queue
+  });
+
   it('never restores a queue of demo tracks when connected to a real HQPlayer', async () => {
     await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {}); // mock mode, demo
     expect(ctx.queue.load()?.items.length).toBe(6);

@@ -1,6 +1,7 @@
-import { extname } from 'node:path';
+import { basename, dirname, extname } from 'node:path';
 import { codecFromExtension } from '../format';
 import { discNumberFromFolder } from '../normalize';
+import { decodeLegacy, detectLegacyEncoding, languageHint } from './legacy-encoding';
 
 export interface ParsedMetadata {
   title: string | null;
@@ -95,12 +96,27 @@ export const readWithMusicMetadata: MetadataReader = async (filePath) => {
     /dsd|dsf|dsdiff|dff/i.test(`${container ?? ''} ${codec ?? ''}`) ||
     (f.bitsPerSample === 1 && (f.sampleRate ?? 0) >= 2_822_400);
   const year = c.year ?? (c.date ? Number.parseInt(String(c.date).slice(0, 4), 10) : null);
-  return {
+  const text = {
     title: clean(c.title),
     artist: clean(c.artist) ?? clean(c.artists?.join(', ')),
     albumArtist: clean(c.albumartist),
     album: clean(c.album),
     genre: clean(c.genre?.[0]),
+  };
+  // GBK / Shift-JIS tags read as Latin-1: judge all fields of the file together, with the
+  // album folder + file name (real Unicode) as a language hint.
+  const legacy = detectLegacyEncoding(
+    Object.values(text).filter((v): v is string => v !== null),
+    languageHint(`${basename(dirname(filePath))}/${basename(filePath)}`),
+  );
+  if (legacy) {
+    for (const key of Object.keys(text) as (keyof typeof text)[]) {
+      const v = text[key];
+      if (v) text[key] = decodeLegacy(v, legacy);
+    }
+  }
+  return {
+    ...text,
     year: Number.isFinite(year) ? (year as number) : null,
     discNumber: c.disk?.no ?? null,
     discTotal: c.disk?.of ?? null,

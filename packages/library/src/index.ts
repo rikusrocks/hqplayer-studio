@@ -10,6 +10,7 @@ export * from './repositories/settings-repo';
 export * from './artwork/artwork-store';
 export * from './artwork/generated-cover';
 export * from './scanner/metadata';
+export * from './scanner/legacy-encoding';
 export * from './scanner/scanner';
 export * from './seed/demo-seed';
 

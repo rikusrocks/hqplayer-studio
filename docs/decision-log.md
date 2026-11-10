@@ -122,3 +122,9 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Choice:** `fs.watch(root, { recursive: true })` per root → debounce (4 s quiet, ≤ 30 s) → rescan only the changed folders; full incremental fallback every 12 h (1 h for roots that can't be watched); no forced scan at startup. Moved/renamed files keep their track id when the old path is gone and size+mtime+file name match (a copy stays a new track).
 - **Performance:** cached prepared statements and ~200-file write batches; file reads (not stats) wait 25 ms each while HQPlayer is playing; automatic scans only look for artwork of changed albums.
 - **Trade-off:** watcher events on some SMB/NAS shares are unreliable — those roots show “无法监听” and rely on the hourly fallback.
+
+## D-023 Recover GBK / Shift-JIS tags automatically, conservatively — 2026-11-10
+
+- **Problem:** old Chinese/Japanese taggers wrote the Windows code page into Latin-1 tag fields; parsers return mojibake.
+- **Choice:** for Latin-1-only strings with ≥ 2 high bytes that are not valid UTF-8 and not European-looking (isolated accented letters), score GBK vs Shift-JIS by _byte ranges_ (GB2312 core hanzi vs kana/level-1 kanji; extension areas and half-width katakana penalised), all fields of a file together, folder/file name as hint; require a clear margin, else leave the text untouched. Big5 is not auto-detected (indistinguishable from GBK without frequency data).
+- **Evidence:** synthetic sample: 44/44 Chinese, 28/30 Japanese recovered, 0 wrong. Electron's runtime is checked for the decoders in the Windows smoke test.

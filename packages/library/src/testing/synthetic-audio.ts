@@ -8,7 +8,12 @@ import { join } from 'node:path';
 
 /** Build a tiny, valid PCM WAV file with RIFF INFO tags (license-safe synthetic test data). */
 export function makeWav(
-  tags: { title?: string; artist?: string; album?: string; track?: string },
+  tags: {
+    title?: string | Buffer;
+    artist?: string | Buffer;
+    album?: string | Buffer;
+    track?: string;
+  },
   ms = 120,
 ): Buffer {
   const sampleRate = 44100;
@@ -16,13 +21,17 @@ export function makeWav(
   const bits = 16;
   const dataBytes = Math.floor((sampleRate * ms) / 1000) * channels * (bits / 8);
   const infoChunks: Buffer[] = [];
-  const sub = (id: string, value?: string) => {
-    if (!value) return;
-    let body = Buffer.from(`${value}\0`, 'utf8');
-    if (body.length % 2) body = Buffer.concat([body, Buffer.alloc(1)]);
+  /** Strings are written as UTF-8; Buffers as raw bytes (e.g. GBK, like old Windows taggers). */
+  const sub = (id: string, value?: string | Buffer) => {
+    if (!value || value.length === 0) return;
+    const raw = Buffer.concat([
+      typeof value === 'string' ? Buffer.from(value, 'utf8') : value,
+      Buffer.alloc(1),
+    ]);
+    const body = raw.length % 2 ? Buffer.concat([raw, Buffer.alloc(1)]) : raw;
     const h = Buffer.alloc(8);
     h.write(id, 0, 'ascii');
-    h.writeUInt32LE(Buffer.byteLength(`${value}\0`, 'utf8'), 4);
+    h.writeUInt32LE(raw.length, 4);
     infoChunks.push(h, body);
   };
   sub('INAM', tags.title);
@@ -86,4 +95,39 @@ export function writeSyntheticTree(root: string, o: SyntheticTreeOptions): strin
     }
   }
   return files;
+}
+
+/**
+ * Encode text in a legacy code page (GBK / Shift-JIS) for tests: Node has decoders but no
+ * encoders, so build the reverse table from the decoder once.
+ */
+const legacyTables = new Map<string, Map<string, number[]>>();
+export function encodeLegacy(text: string, enc: 'gbk' | 'shift_jis'): Buffer {
+  let table = legacyTables.get(enc);
+  if (!table) {
+    table = new Map();
+    const d = new TextDecoder(enc, { fatal: true });
+    for (let lead = 0x81; lead <= 0xfe; lead += 1) {
+      for (let trail = 0x40; trail <= 0xfe; trail += 1) {
+        try {
+          const ch = d.decode(Uint8Array.of(lead, trail));
+          if (ch.length === 1 && !table.has(ch)) table.set(ch, [lead, trail]);
+        } catch {
+          // not a valid pair
+        }
+      }
+    }
+    legacyTables.set(enc, table);
+  }
+  const out: number[] = [];
+  for (const ch of text) {
+    const code = ch.codePointAt(0) as number;
+    if (code < 0x80) out.push(code);
+    else {
+      const bytes = table.get(ch);
+      if (!bytes) throw new Error(`"${ch}" is not encodable in ${enc}`);
+      out.push(...bytes);
+    }
+  }
+  return Buffer.from(out);
 }

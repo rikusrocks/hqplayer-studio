@@ -37,6 +37,11 @@ export const EngineTrackSchema = z.object({
   durationMs: z.number().nonnegative().nullable(),
   /** Studio track id when the engine track could be matched to the library. */
   studioTrackId: z.string().nullable(),
+  /**
+   * Album artwork of the matched library track — also when HQPlayer plays it outside Studio's
+   * queue (started in HQPlayer itself, or after “以 HQPlayer 为准”).
+   */
+  artworkId: z.string().nullable().optional(),
 });
 export type EngineTrack = z.infer<typeof EngineTrackSchema>;
 

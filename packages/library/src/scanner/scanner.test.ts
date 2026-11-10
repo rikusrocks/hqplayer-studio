@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { openLibrary, type LibraryContext } from '../index';
-import { makeWav, writeSyntheticTree } from '../testing/synthetic-audio';
+import { encodeLegacy, makeWav, writeSyntheticTree } from '../testing/synthetic-audio';
 import { normalizeSubtrees, scanRoot } from './scanner';
 
 // 1x1 transparent PNG
@@ -219,6 +219,43 @@ describe('scanRoot', () => {
     expect(normalizeSubtrees(['a\\b', 'a', 'c/', './d'])).toEqual(['a', 'c', 'd']);
     expect(normalizeSubtrees(['a', ''])).toBeNull(); // root itself → whole root
     expect(normalizeSubtrees(['../escape'])).toBeNull();
+  });
+
+  it('recovers GBK and Shift-JIS tags written by old Windows taggers', async () => {
+    const zh = join(musicDir, '老歌');
+    const ja = join(musicDir, '古い曲');
+    mkdirSync(zh);
+    mkdirSync(ja);
+    writeFileSync(
+      join(zh, '01.wav'),
+      makeWav({
+        title: encodeLegacy('南方的风', 'gbk'),
+        artist: encodeLegacy('林夏', 'gbk'),
+        album: encodeLegacy('城市漫游者', 'gbk'),
+      }),
+    );
+    writeFileSync(
+      join(ja, '01.wav'),
+      makeWav({
+        title: encodeLegacy('初雪のワルツ', 'shift_jis'),
+        artist: encodeLegacy('月見カルテット', 'shift_jis'),
+        album: encodeLegacy('冬の歌', 'shift_jis'),
+      }),
+    );
+    const root = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: root.id });
+    const byFolder = (folder: string) =>
+      ctx.library.listTracks({ limit: 50 }).items.find((t) => t.folder === folder)!;
+    expect(byFolder('老歌')).toMatchObject({
+      title: '南方的风',
+      artist: '林夏',
+      album: '城市漫游者',
+    });
+    expect(byFolder('古い曲')).toMatchObject({
+      title: '初雪のワルツ',
+      artist: '月見カルテット',
+      album: '冬の歌',
+    });
   });
 
   it('rejects relative or duplicate roots', () => {

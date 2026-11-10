@@ -44,6 +44,7 @@ export class EngineService {
   private readonly listeners = new Set<StatusListener>();
   private lastUri: string | null = null;
   private lastUriTrackId: string | null = null;
+  private lastUriArtworkId: string | null = null;
 
   constructor(
     readonly adapter: HQPlayerAdapter,
@@ -60,14 +61,33 @@ export class EngineService {
 
   private remapCurrentTrack(): void {
     this.lastUri = null;
-    this.lastUriTrackId = null;
     const track = this.status.track;
     if (!track?.uri) return;
-    const id = this.library.findTrackIdBySource(track.uri);
-    this.lastUri = track.uri;
-    this.lastUriTrackId = id;
-    if (id !== track.studioTrackId)
-      this.publish({ ...this.status, track: { ...track, studioTrackId: id } });
+    this.resolveUri(track.uri);
+    if (
+      this.lastUriTrackId !== track.studioTrackId ||
+      this.lastUriArtworkId !== (track.artworkId ?? null)
+    ) {
+      this.publish({
+        ...this.status,
+        track: { ...track, studioTrackId: this.lastUriTrackId, artworkId: this.lastUriArtworkId },
+      });
+    }
+  }
+
+  /** Map HQPlayer's file to a library track (+ its artwork); cached per URI. */
+  private resolveUri(uri: string): void {
+    if (uri === this.lastUri) return;
+    this.lastUri = uri;
+    this.lastUriTrackId = this.library.findTrackIdBySource(uri);
+    this.lastUriArtworkId = null;
+    if (this.lastUriTrackId) {
+      try {
+        this.lastUriArtworkId = this.library.getTrack(this.lastUriTrackId).artworkId;
+      } catch {
+        // removed meanwhile
+      }
+    }
   }
 
   async start(): Promise<void> {
@@ -204,11 +224,8 @@ export class EngineService {
     const wasConnected = this.status.connection === 'connected';
     let track = raw.track;
     if (track?.uri) {
-      if (track.uri !== this.lastUri) {
-        this.lastUri = track.uri;
-        this.lastUriTrackId = this.library.findTrackIdBySource(track.uri);
-      }
-      track = { ...track, studioTrackId: this.lastUriTrackId };
+      this.resolveUri(track.uri);
+      track = { ...track, studioTrackId: this.lastUriTrackId, artworkId: this.lastUriArtworkId };
     }
     this.publish({ ...raw, track });
     const connected = raw.connection === 'connected';

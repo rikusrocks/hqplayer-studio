@@ -19,6 +19,7 @@ import {
   type IpcMainInvokeEvent,
 } from 'electron';
 import { bootstrapStudio, type Bootstrapped } from '@hqps/core';
+import { legacyDecodingAvailable } from '@hqps/library';
 import { loadWindowState, saveWindowState, validateBounds, type WindowState } from './window-state';
 
 const SMOKE = process.argv.includes('--smoke-test');
@@ -236,13 +237,16 @@ async function runSmokeTest(): Promise<void> {
     albums: albums.total,
     remoteStatus: remote.status,
     sqlite: process.versions.sqlite ?? 'builtin',
+    // GBK / Shift-JIS tag recovery needs full ICU in Electron's Node
+    legacyDecoding: legacyDecodingAvailable(),
   };
   const ok =
     result.page.shell === true &&
     result.page.nodeLeak === false &&
     health.ok === true &&
     albums.total > 0 &&
-    remote.status === 200;
+    remote.status === 200 &&
+    result.legacyDecoding;
   const line = `${ok ? 'SMOKE_OK' : 'SMOKE_FAIL'} ${JSON.stringify(result)}`;
   console.log(line);
   // GUI-subsystem builds on Windows may not have a console: also write the result to a file.
