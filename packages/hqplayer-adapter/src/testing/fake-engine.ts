@@ -38,6 +38,12 @@ export interface FakeEngineOptions {
   stopDelayMs?: number;
   /** SelectTrack during playback is accepted but the engine keeps playing the old track. */
   selectIgnoredWhilePlaying?: boolean;
+  /**
+   * HQPlayer Settings → Outputs → "Fixed volume": true = VolumeRange enabled="0" and Volume is
+   * rejected (as on the user's engine in Gate C); false = enabled="1", Volume accepted within
+   * -60…-3 dB. Omitted = the original synthetic behaviour (enabled="0" but Volume accepted).
+   */
+  volumeFixed?: boolean;
 }
 
 export interface FakeEngine {
@@ -47,6 +53,8 @@ export interface FakeEngine {
   state(): { transport: number; current: number; repeat: number; random: number; volume: string };
   /** Someone used the native HQPlayer UI: load this playlist and play its first entry. */
   external(playlist: FakeTrack[]): void;
+  /** Toggle HQPlayer's "Fixed volume" while running. */
+  setVolumeFixed(on: boolean): void;
   close(): Promise<void>;
 }
 
@@ -62,6 +70,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
   let repeat = 0;
   let random = 0;
   let volume = opts.volume ?? '-6.02059991327962418';
+  let volumeFixed = opts.volumeFixed;
   const received: XmlElement[] = [];
   const sockets = new Set<net.Socket>();
 
@@ -105,7 +114,9 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
       case 'GetInfo':
         return `${D}<GetInfo engine="6.1.0" name="FAKE" platform="Windows" product="Signalyst HQPlayer Desktop" version="6"/>\n`;
       case 'VolumeRange':
-        return `${D}<VolumeRange adaptive="0" enabled="0" max="0.0" min="-12.0"/>\n`;
+        return volumeFixed === undefined
+          ? `${D}<VolumeRange adaptive="0" enabled="0" max="0.0" min="-12.0"/>\n`
+          : `${D}<VolumeRange adaptive="0" enabled="${volumeFixed ? 0 : 1}" max="-3.0" min="-60.0"/>\n`;
       case 'State':
         return `${D}<State state="${transport}" mode="2" filter="65" shaper="29" rate="0" volume="${volume}" repeat="${repeat}" random="${random}"/>\n`;
       case 'Status':
@@ -224,6 +235,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         random = Number(a.value);
         return ok;
       case 'Volume':
+        if (volumeFixed) return `${D}<Volume result="Error">volume is fixed</Volume>\n`;
         volume = a.value ?? volume;
         return ok;
       default:
@@ -253,6 +265,9 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
     received,
     playlist: () => [...playlist],
     state: () => ({ transport, current, repeat, random, volume }),
+    setVolumeFixed: (on) => {
+      volumeFixed = on;
+    },
     external: (next) => {
       playlist = [...next];
       current = playlist.length ? 1 : 0;

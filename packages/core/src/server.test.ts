@@ -663,7 +663,11 @@ describe('queue control against a busy HQPlayer (stateful stand-in engine)', () 
 
   async function startStudio(onCtx: LibraryContext = liveCtx) {
     const studio = await createStudioServer({
-      adapter: new LiveHQPlayerAdapter({ port: engine!.port, policy: { controlEnabled: true } }),
+      adapter: new LiveHQPlayerAdapter({
+        port: engine!.port,
+        policy: { controlEnabled: true },
+        volumeRangePollMs: 50,
+      }),
       ctx: onCtx,
       appVersion: 't',
       port: 0,
@@ -859,6 +863,32 @@ describe('queue control against a busy HQPlayer (stateful stand-in engine)', () 
       await engine.close();
     }
     engine = null;
+  });
+
+  it('volume: locked while HQPlayer uses a fixed volume, usable once unticked, capped steps', async () => {
+    engine = await startFakeEngine({ playlist: [], volumeFixed: true, volume: '-30' });
+    const { studio, call } = await startStudio();
+    type Caps = { items: Record<string, { usable: boolean; note: string | null }> };
+    await vi.waitFor(() => expect(studio.engine.getStatus().connection).toBe('connected'));
+    let caps = (await call<Caps>('GET', '/engine/capabilities')).body.items;
+    expect(caps['volume.set']).toMatchObject({ usable: false, note: 'fixed-volume' });
+    expect((await call('POST', '/engine/volume', { volumeDb: -20 })).status).toBe(409);
+
+    engine.setVolumeFixed(false); // the user unticks "Fixed volume" in HQPlayer
+    await vi.waitFor(async () => {
+      caps = (await call<Caps>('GET', '/engine/capabilities')).body.items;
+      expect(caps['volume.set']?.usable).toBe(true);
+    });
+    expect(studio.engine.getStatus().volumeRange).toEqual({ min: -60, max: -3 });
+
+    expect((await call('POST', '/engine/volume', { volumeDb: -25 })).status).toBe(200);
+    expect(engine.state().volume).toBe('-25');
+    await vi.waitFor(() => expect(studio.engine.getStatus().volumeDb).toBe(-25));
+    await call('POST', '/engine/volume', { volumeDb: -3 }); // +22 dB requested
+    expect(engine.state().volume).toBe('-13'); // at most +12 dB in one go
+    await vi.waitFor(() => expect(studio.engine.getStatus().volumeDb).toBe(-13));
+    await call('POST', '/engine/volume', { volumeDb: -80 }); // down: unlimited, within range
+    expect(engine.state().volume).toBe('-60');
   });
 
   it('shows library artwork for a track HQPlayer plays on its own', async () => {

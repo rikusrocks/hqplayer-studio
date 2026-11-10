@@ -55,6 +55,8 @@ export interface LiveAdapterOptions {
   clearRetryMs?: number;
   /** How long to wait for SelectTrack during playback to switch before stopping (2.5 s). */
   switchSettleMs?: number;
+  /** How often to re-read VolumeRange while connected (default 10 s). */
+  volumeRangePollMs?: number;
 }
 
 /**
@@ -90,6 +92,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   /** Internal waiters re-checked on every published status (e.g. "until stopped"). */
   private readonly waiters = new Set<() => void>();
   private readonly log = new ProtocolLog();
+  private readonly capabilityListeners = new Set<() => void>();
   private readonly evidence: Record<EngineCapabilityKey, CapabilityEvidence>;
   private readonly host: string;
   private readonly port: number;
@@ -159,19 +162,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       platform: attrStr(info, 'platform'),
       engine: attrStr(info, 'engine'),
     };
-    try {
-      const range = await conn.request('VolumeRange');
-      const min = attrFloat(range, 'min');
-      const max = attrFloat(range, 'max');
-      if (min !== null && max !== null) this.volumeRange = { min, max };
-      const enabled = range.attributes.enabled;
-      this.runtime = {
-        ...this.runtime,
-        volumeControlEnabled: enabled === undefined ? null : enabled === '1',
-      };
-    } catch {
-      // optional
-    }
+    await this.readVolumeRange(conn);
     try {
       this.playlist = await this.readPlaylist(conn);
     } catch {
@@ -185,6 +176,47 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     } catch {
       // State is optional for Phase 1; Status already carries the essentials.
     }
+    // HQPlayer's "Fixed volume" (Settings → Outputs) can be switched while we are connected:
+    // re-read the volume range now and then (read-only) so the slider unlocks without a restart.
+    const poll = setInterval(() => {
+      if (this.connection !== conn) {
+        clearInterval(poll);
+        return;
+      }
+      void this.readVolumeRange(conn);
+    }, this.options.volumeRangePollMs ?? 10_000);
+    poll.unref?.();
+    conn.onClose(() => clearInterval(poll));
+  }
+
+  /** VolumeRange: min/max dB and whether HQPlayer allows volume changes (Fixed volume off). */
+  private async readVolumeRange(conn: HqpConnection): Promise<void> {
+    try {
+      const range = await conn.request('VolumeRange');
+      const min = attrFloat(range, 'min');
+      const max = attrFloat(range, 'max');
+      const enabled = range.attributes.enabled;
+      const nextEnabled = enabled === undefined ? null : enabled === '1';
+      const nextRange = min !== null && max !== null ? { min, max } : this.volumeRange;
+      const changed =
+        nextEnabled !== this.runtime.volumeControlEnabled ||
+        nextRange?.min !== this.volumeRange?.min ||
+        nextRange?.max !== this.volumeRange?.max;
+      this.volumeRange = nextRange;
+      this.runtime = { ...this.runtime, volumeControlEnabled: nextEnabled };
+      if (changed && this.last.connection === 'connected') {
+        this.publish({ ...this.last, volumeRange: this.volumeRange });
+        for (const l of this.capabilityListeners) l();
+      }
+    } catch {
+      // optional (older engines)
+    }
+  }
+
+  /** Called when what this adapter can do changes at runtime (e.g. Fixed volume toggled). */
+  subscribeCapabilities(listener: () => void): () => void {
+    this.capabilityListeners.add(listener);
+    return () => this.capabilityListeners.delete(listener);
   }
 
   async disconnect(): Promise<void> {
@@ -246,7 +278,10 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     return this.write('transport.seek', 'Seek', { position: Math.round(positionMs / 1000) });
   }
   setVolume(volumeDb: number): Promise<void> {
-    return this.write('volume.set', 'Volume', { value: volumeDb });
+    // never outside the range the user configured in HQPlayer (Settings → Outputs)
+    const r = this.volumeRange;
+    const value = r ? Math.min(r.max, Math.max(r.min, volumeDb)) : volumeDb;
+    return this.write('volume.set', 'Volume', { value: Math.round(value * 10) / 10 });
   }
   setRepeat(mode: RepeatMode): Promise<void> {
     return this.write('playback.repeat', 'SetRepeat', { value: repeatToSdk(mode) });

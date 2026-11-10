@@ -416,6 +416,9 @@ export const zh = {
   'engine.control.on': '已允许 Studio 控制 HQPlayer',
   'engine.control.off': 'Studio 已恢复为只读',
   'cap.controlDisabled': '在 设置 → 播放与引擎能力 中开启“允许 Studio 控制 HQPlayer”后可用',
+  'cap.fixedVolume':
+    'HQPlayer 设置了固定音量：在 HQPlayer 设置 → Outputs 取消勾选“Fixed volume”即可在 Studio 调音量',
+  'notice.volume_step_limited': '为保护音箱，每次最多调高 {max} dB',
 
   'realtime.open': '已连接',
   'realtime.connecting': '连接中',

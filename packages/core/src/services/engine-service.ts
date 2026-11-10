@@ -32,6 +32,9 @@ type StatusListener = (status: EngineStatus) => void;
  *  - reconnects with backoff, and after reconnecting only re-reads state: it never sends Play,
  *    volume or DSP changes on its own.
  */
+/** Largest volume increase applied by one command (decreases are not limited). */
+export const MAX_VOLUME_STEP_DB = 12;
+
 export class EngineService {
   private status: EngineStatus = disconnectedStatus();
   private capabilities: EngineCapabilities | null = null;
@@ -92,7 +95,14 @@ export class EngineService {
 
   async start(): Promise<void> {
     this.stopped = false;
-    this.unsubscribe = this.adapter.subscribeStatus((s) => this.onAdapterStatus(s));
+    const offStatus = this.adapter.subscribeStatus((s) => this.onAdapterStatus(s));
+    const offCaps = this.adapter.subscribeCapabilities?.(
+      () => void this.refreshCapabilities().catch(() => undefined),
+    );
+    this.unsubscribe = () => {
+      offStatus();
+      offCaps?.();
+    };
     await this.tryConnect();
   }
 
@@ -176,11 +186,27 @@ export class EngineService {
     return this.status;
   }
 
+  /**
+   * Set HQPlayer's volume (dB). Turning it down is never limited; turning it up is limited to
+   * `MAX_VOLUME_STEP_DB` above the current level per command, so a slip of the slider cannot
+   * jump straight to full level on a DSD512 chain without an analogue volume control.
+   */
   async setVolume(volumeDb: number): Promise<EngineStatus> {
     this.require('volume.set');
+    const current = this.status.volumeDb;
+    let target = volumeDb;
+    if (current !== null && target > current + MAX_VOLUME_STEP_DB) {
+      target = current + MAX_VOLUME_STEP_DB;
+      this.hub.notice(
+        'info',
+        'volume_step_limited',
+        `Volume raised by at most ${MAX_VOLUME_STEP_DB} dB at a time.`,
+        { max: MAX_VOLUME_STEP_DB },
+      );
+    }
     await this.run('volume', (a) => {
       if (!a.setVolume) throw new CapabilityUnavailableError('volume.set', 'adapter has no volume');
-      return a.setVolume(volumeDb);
+      return a.setVolume(target);
     });
     return this.status;
   }

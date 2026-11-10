@@ -434,6 +434,10 @@ export const en: Record<MessageKey, string> = {
   'engine.control.off': 'Studio is read-only again',
   'cap.controlDisabled':
     'Enable “Allow Studio to control HQPlayer” in Settings → Playback to use this',
+  'cap.fixedVolume':
+    'HQPlayer uses a fixed volume: untick “Fixed volume” in HQPlayer Settings → Outputs to change volume from Studio',
+  'notice.volume_step_limited':
+    'To protect your speakers, volume goes up by at most {max} dB at a time',
 
   'remote.title': 'Studio Remote',
   'remote.offline':

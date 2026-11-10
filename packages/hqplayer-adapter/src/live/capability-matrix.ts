@@ -84,11 +84,11 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     note: null,
   },
   'volume.set': {
-    status: 'unsupported',
+    status: 'observed',
     readOnly: false,
     evidence:
-      'Volume (same value) rejected with result="Error" (Gate C 2026-11-10, engine 6.1.0); VolumeRange enabled="0"',
-    note: 'Remote volume is disabled in this HQPlayer’s settings. Adjust volume in HQPlayer or on the amplifier.',
+      'Gate C 2026-11-10 (engine 6.1.0): Volume rejected while HQPlayer’s “Fixed volume” was on (VolumeRange enabled="0"). The user then unticked Fixed volume (Settings → Outputs) and could change the volume.',
+    note: null,
   },
   'queue.replace': {
     status: 'confirmed',
@@ -179,6 +179,8 @@ export interface RuntimeLimits {
 }
 
 export const CONTROL_DISABLED_NOTE = 'control-disabled';
+/** volume.set note when HQPlayer's “Fixed volume” is on (VolumeRange enabled="0"). */
+export const FIXED_VOLUME_NOTE = 'fixed-volume';
 
 export function resolveCapabilities(
   evidence: Record<EngineCapabilityKey, CapabilityEvidence>,
@@ -201,7 +203,10 @@ export function resolveCapabilities(
       if (!usable) note = CONTROL_DISABLED_NOTE;
     } else if (e.status === 'untested') usable = Boolean(policy.allowUntestedWrites);
     else usable = false;
-    if (key === 'volume.set' && runtime.volumeControlEnabled === false) usable = false;
+    if (key === 'volume.set' && runtime.volumeControlEnabled !== true) {
+      usable = false; // HQPlayer only accepts Volume when its "Fixed volume" is off
+      if (connected && runtime.volumeControlEnabled === false) note = FIXED_VOLUME_NOTE;
+    }
     out[key] = { status: e.status, usable, evidence: e.evidence, note };
   }
   return out;
