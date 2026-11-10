@@ -322,11 +322,16 @@ async function runSmokeTest(): Promise<void> {
     total: number;
   };
   const remote = await fetch(`${baseUrl}/remote/`);
+  // Phase 3: the LAN listener must be off on a fresh install (handoff §12.3).
+  const lan = (await (await fetch(`${baseUrl}/api/v1/remote/settings`)).json()) as {
+    state: string;
+  };
   const result = {
     page: JSON.parse(page),
     health,
     albums: albums.total,
     remoteStatus: remote.status,
+    lanState: lan.state,
     sqlite: process.versions.sqlite ?? 'builtin',
     // GBK / Shift-JIS tag recovery needs full ICU in Electron's Node
     legacyDecoding: legacyDecodingAvailable(),
@@ -337,6 +342,7 @@ async function runSmokeTest(): Promise<void> {
     health.ok === true &&
     albums.total > 0 &&
     remote.status === 200 &&
+    lan.state === 'off' &&
     result.legacyDecoding;
   const line = `${ok ? 'SMOKE_OK' : 'SMOKE_FAIL'} ${JSON.stringify(result)}`;
   console.log(line);

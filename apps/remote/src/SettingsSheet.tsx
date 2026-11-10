@@ -2,6 +2,8 @@ import {
   ConnectionBadge,
   Icon,
   LOCALES,
+  useAsync,
+  useDialogs,
   useI18n,
   useStudio,
   useTheme,
@@ -9,11 +11,26 @@ import {
   type Theme,
 } from '@hqps/ui';
 import { useEffect } from 'react';
+import { useRemoteAuth } from './auth';
 
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const { t, locale, setLocale } = useI18n();
   const [theme, setTheme] = useTheme();
-  const { server, capabilities, realtime } = useStudio();
+  const { client, server, capabilities, realtime } = useStudio();
+  const auth = useRemoteAuth();
+  const { confirm } = useDialogs();
+  // Ask the server (the name may have been unknown when the page opened offline).
+  const pairing = useAsync(() => client.remote.pairingStatus(), [client]);
+  const deviceName = pairing.data?.device?.name ?? auth.device?.name ?? null;
+  const unpair = async () => {
+    const ok = await confirm({
+      title: t('remote.unpairTitle'),
+      message: t('remote.unpairMessage'),
+      confirmLabel: t('remote.unpair'),
+      danger: true,
+    });
+    if (ok) await auth.unpair();
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -58,6 +75,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             <strong className="hq-mono">{window.location.host}</strong>
           </div>
           <div className="rm-kv">
+            <span>{t('remote.thisDevice')}</span>
+            <strong>{auth.trusted ? t('remote.thisComputer') : (deviceName ?? '—')}</strong>
+          </div>
+          <div className="rm-kv">
             <span>{t('diag.adapter')}</span>
             <strong>{server?.adapter ?? capabilities?.adapter ?? '—'}</strong>
           </div>
@@ -100,6 +121,15 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             </select>
           </label>
         </div>
+
+        {!auth.trusted && (
+          <div className="rm-sheet__group">
+            <button type="button" className="hq-btn rm-sheet__danger" onClick={() => void unpair()}>
+              <Icon name="close" size={16} />
+              {t('remote.unpair')}
+            </button>
+          </div>
+        )}
 
         <p className="rm-note">
           <Icon name="info" size={14} />

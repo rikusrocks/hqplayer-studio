@@ -6,6 +6,7 @@ import {
   type StudioClient,
 } from '@hqps/api-client';
 import {
+  WS_CLOSE_UNAUTHORIZED,
   canUse,
   disconnectedStatus,
   emptyQueue,
@@ -55,6 +56,8 @@ export interface StudioContextValue {
   /** Bumps when library content may have changed — views refetch on change. */
   libraryVersion: number;
   playlistsVersion: number;
+  /** Bumps when the Web Remote listener, pairing code or paired devices change. */
+  remoteVersion: number;
   pending: ReadonlySet<PendingKey>;
   isMock: boolean;
   serverReachable: boolean;
@@ -103,12 +106,35 @@ export interface StudioProviderProps {
   children: ReactNode;
   /** Defaults to same-origin. */
   baseUrl?: string;
+  /** Web Remote on the LAN: this device's token (sent as a header / WS subprotocol). */
+  authToken?: string | null;
+  /** The server no longer accepts `authToken` (device revoked or forgotten). */
+  onUnauthorized?: () => void;
 }
 
-export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) {
+export function StudioProvider({
+  children,
+  baseUrl = '',
+  authToken = null,
+  onUnauthorized,
+}: StudioProviderProps) {
   const t = useT();
   const toasts = useToasts();
-  const client = useMemo(() => createStudioClient({ baseUrl }), [baseUrl]);
+  const tokenRef = useRef(authToken);
+  const onUnauthorizedRef = useRef(onUnauthorized);
+  useEffect(() => {
+    tokenRef.current = authToken;
+    onUnauthorizedRef.current = onUnauthorized;
+  }, [authToken, onUnauthorized]);
+  const client = useMemo(
+    () =>
+      createStudioClient({
+        baseUrl,
+        getAuthToken: () => tokenRef.current,
+        onUnauthorized: () => onUnauthorizedRef.current?.(),
+      }),
+    [baseUrl],
+  );
 
   const [server, setServer] = useState<ServerInfo | null>(null);
   const [status, setStatus] = useState<EngineStatus>(() => disconnectedStatus());
@@ -121,6 +147,7 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
   const [stats, setStats] = useState<LibraryStats | null>(null);
   const [libraryVersion, setLibraryVersion] = useState(0);
   const [playlistsVersion, setPlaylistsVersion] = useState(0);
+  const [remoteVersion, setRemoteVersion] = useState(0);
   const [pending, setPending] = useState<ReadonlySet<PendingKey>>(() => new Set());
 
   // Keep monotonic serial/version checks against the latest value, not a stale closure.
@@ -164,8 +191,29 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
 
   // Realtime subscription: `hello` carries the full state on every (re)connect.
   useEffect(() => {
-    const rt = new StudioRealtime({ url: client.eventsUrl() });
+    const rt = new StudioRealtime({
+      url: client.eventsUrl(),
+      protocols: () => client.eventsProtocols(),
+    });
     const offState = rt.onState(setRealtime);
+    // A paired phone learns that it was revoked either from the close code (open connection) or,
+    // when the upgrade itself is refused, by asking the server (at most every 5 s).
+    let lastProbe = 0;
+    const offClose = rt.onClose((code) => {
+      if (!tokenRef.current) return;
+      if (code === WS_CLOSE_UNAUTHORIZED) {
+        onUnauthorizedRef.current?.();
+        return;
+      }
+      if (Date.now() - lastProbe < 5000) return;
+      lastProbe = Date.now();
+      client.remote
+        .pairingStatus()
+        .then((s) => {
+          if (!s.trusted && !s.paired) onUnauthorizedRef.current?.();
+        })
+        .catch(() => undefined); // unreachable: the offline banner covers it
+    });
     const offEvent = rt.onEvent((event: StudioEvent) => {
       switch (event.type) {
         case 'hello':
@@ -201,6 +249,9 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
         case 'library.scan':
           setScanJobsById((jobs) => ({ ...jobs, [event.job.id]: event.job }));
           break;
+        case 'remote.changed':
+          setRemoteVersion((v) => v + 1);
+          break;
         case 'notice': {
           const key = `notice.${event.code}`;
           toasts.push(
@@ -215,6 +266,7 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
     return () => {
       offEvent();
       offState();
+      offClose();
       rt.stop();
     };
   }, [client, applyStatus, applyQueue, refreshPlaylists, refreshScanJobs, toasts]);
@@ -271,6 +323,7 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
       stats,
       libraryVersion,
       playlistsVersion,
+      remoteVersion,
       pending,
       isMock: server?.adapter === 'mock' || capabilities?.adapter === 'mock',
       serverReachable: realtime === 'open',
@@ -338,6 +391,7 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
     stats,
     libraryVersion,
     playlistsVersion,
+    remoteVersion,
     pending,
     run,
     applyStatus,

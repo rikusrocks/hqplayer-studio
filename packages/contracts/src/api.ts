@@ -177,6 +177,10 @@ export const ApiErrorCodeSchema = z.enum([
   'engine_error',
   'capability_unavailable',
   'forbidden',
+  /** LAN request without a valid device token (pair again). */
+  'unauthorized',
+  /** Too many requests / pairing attempts from this address; retry later. */
+  'rate_limited',
   'internal_error',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;

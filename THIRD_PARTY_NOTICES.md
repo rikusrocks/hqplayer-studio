@@ -38,6 +38,7 @@ THE SOFTWARE.
 | fastify, @fastify/static, @fastify/websocket | MIT                                          |
 | music-metadata                               | MIT                                          |
 | zod                                          | MIT                                          |
+| uqr (QR code for remote pairing)             | MIT                                          |
 | react, react-dom                             | MIT                                          |
 | ws                                           | MIT                                          |
 
