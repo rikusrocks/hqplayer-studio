@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@hqps/api-client": "workspace:*",
-    "@hqps/contracts": "workspace:*"
+    "@hqps/contracts": "workspace:*",
+    "@hqps/lyrics": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0",

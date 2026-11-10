@@ -72,6 +72,7 @@ export const en: Record<MessageKey, string> = {
   'player.waitingEngine': 'Waiting for HQPlayer to confirm…',
   'player.togglePanel': 'Show/hide side panel',
   'player.alwaysOnTop': 'Always on top',
+  'player.closeMini': 'Close Mini Player',
   'player.elapsed': 'Elapsed',
   'player.remaining': 'Remaining',
 
@@ -149,6 +150,9 @@ export const en: Record<MessageKey, string> = {
   'queue.jump': 'Jump to this track',
   'queue.jumpDouble': 'Double-click to play this track',
 
+  'notice.media_key_control_off':
+    'Media key ignored: turn on “Allow Studio to control HQPlayer” in Settings → Playback & engine first.',
+  'notice.media_key_failed': 'Media key ignored: HQPlayer did not accept the command.',
   'notice.queue_followed_engine': "Studio now follows HQPlayer's playlist ({count} tracks)",
   'notice.queue_released':
     "Studio dropped its old queue; the queue panel shows HQPlayer's own playlist",
@@ -484,6 +488,134 @@ export const en: Record<MessageKey, string> = {
   'pair.homeScreen':
     'Want it like an app? In Safari tap Share → Add to Home Screen, then open it from the Home Screen and pair there (the Home Screen remote pairs separately).',
 
+  'nav.lyrics': 'Lyrics',
+  'lyrics.loading': 'Looking for lyrics…',
+  'lyrics.loadFailed': 'Could not load lyrics',
+  'lyrics.notInLibrary': 'This track is not in the Studio library, so no lyrics can be matched',
+  'lyrics.notFound': 'No lyrics found',
+  'lyrics.notFoundLocalHint':
+    'Put a .lrc file with the same name next to the music file, or turn on online lyrics (LRCLIB) in Settings → Lyrics.',
+  'lyrics.notFoundOnlineHint': 'No lyrics next to the file, in its tags or on LRCLIB.',
+  'lyrics.notFoundRemoteHint':
+    'Put a .lrc file with the same name next to the music file, or turn on online lyrics in Studio on the computer (Settings → Lyrics).',
+  'lyrics.unavailable': 'Online lyrics are not available right now',
+  'lyrics.unavailableHint': 'Studio will try again later. Playback is not affected.',
+  'lyrics.instrumental': 'Instrumental — no lyrics',
+  'lyrics.plainNote': 'These lyrics have no timing, so they do not scroll with playback.',
+  'lyrics.source.local': 'Local LRC file',
+  'lyrics.source.embedded': 'Embedded in the file',
+  'lyrics.source.lrclib': 'LRCLIB (online)',
+  'lyrics.source.demo': 'Demo lyrics (fictional)',
+  'lyrics.manual': 'chosen by you',
+  'lyrics.offsetLabel': 'Lyrics timing offset (this track only)',
+  'lyrics.earlier': 'Show lyrics 0.5 s earlier',
+  'lyrics.later': 'Show lyrics 0.5 s later',
+  'lyrics.offsetReset': 'Click to reset to 0',
+  'lyrics.delayNote':
+    'HQPlayer’s output buffer ({seconds} s) is already taken into account, so lyrics follow what you hear; fine-tune with − / + if needed.',
+  'lyrics.search': 'Search LRCLIB…',
+  'lyrics.rematch': 'Match again',
+  'lyrics.rematchHint':
+    'Forget the current match (including your choice and “not found”) and look again',
+  'lyrics.searchTitle': 'Choose lyrics for “{title}”',
+  'lyrics.searchPlaceholder': 'Title, artist…',
+  'lyrics.searchPrivacy': 'Your search is sent to the third-party service LRCLIB (lrclib.net).',
+  'lyrics.searchEmpty': 'No matching lyrics found',
+  'lyrics.use': 'Use',
+  'lyrics.synced': 'Synced',
+  'lyrics.plain': 'Plain',
+  'lyrics.onlineOff': 'Online lyrics are off. Turn them on in Settings → Lyrics to search LRCLIB.',
+  'lyrics.openSettings': 'Lyrics settings',
+  'lyrics.selected': 'Using the chosen lyrics',
+  'lyrics.showLyrics': 'Show lyrics',
+  'lyrics.showArtwork': 'Show artwork',
+
+  'settings.output': 'Output',
+  'settings.lyrics': 'Lyrics',
+  'settings.appearance': 'Language & appearance',
+  'settings.capabilities': 'Engine capabilities (evidence)',
+  'settings.legend': 'Legend',
+  'settings.layer.studio': 'Studio setting',
+  'settings.layer.studio.hint': 'Stored by Studio; change it here',
+  'settings.layer.control': 'HQPlayer · controllable',
+  'settings.layer.control.hint':
+    'Studio sends HQPlayer commands verified on your HQPlayer; needs “Allow Studio to control HQPlayer”',
+  'settings.layer.readonly': 'HQPlayer · read-only',
+  'settings.layer.readonly.hint': 'Read from HQPlayer and shown here; change it in HQPlayer',
+  'settings.layer.native': 'HQPlayer only',
+  'settings.layer.native.hint': 'Studio neither reads nor changes it; use HQPlayer’s own settings',
+  'settings.setting': 'Setting',
+  'settings.currentValue': 'Current value',
+  'settings.whereToChange': 'Where to change it',
+  'settings.notReadable': 'Not readable by Studio',
+  'settings.desktop': 'Desktop integration',
+  'settings.desktopBrowser':
+    'Studio is open in a browser: the Mini Player, media keys and the tray icon are only available in the Windows desktop app.',
+  'settings.mini.onTop': 'Keep the Mini Player on top',
+  'settings.mini.onTopHint':
+    'The Mini Player remembers where it was; after a monitor is unplugged or changed it moves back onto a screen.',
+  'settings.mediaKeys': 'Control playback with keyboard media keys',
+  'settings.mediaKeysHint':
+    'Play/Pause, Next, Previous and Stop keys control HQPlayer from any program (needs “Allow Studio to control HQPlayer”).',
+  'settings.mediaKeys.unsupported': 'Only available in the Windows app.',
+  'settings.mediaKeys.active': '{count} media keys active.',
+  'settings.mediaKeys.taken':
+    'Another program already uses: {keys}. Turn off media keys in that program, then switch this off and on again.',
+  'settings.mediaKey.MediaPlayPause': 'Play/Pause',
+  'settings.mediaKey.MediaNextTrack': 'Next',
+  'settings.mediaKey.MediaPreviousTrack': 'Previous',
+  'settings.mediaKey.MediaStop': 'Stop',
+  'settings.mediaKeys.smtc':
+    'Windows’ volume overlay and lock screen will not show Studio as “now playing”: HQPlayer outputs the sound, Studio itself plays no audio.',
+  'settings.tray': 'Show an icon in the notification area',
+  'settings.trayHint':
+    'Right-click the icon for Play/Pause, Previous, Next, Mini Player, Show HQPlayer Studio and Quit. Click it to open the main window.',
+  'settings.closeToTray': 'Keep running when the main window is closed',
+  'settings.closeToTrayHint':
+    'The Web Remote and media keys keep working after you close the window; quit Studio from the tray icon’s menu.',
+  'settings.dsp.whyReadonly':
+    'Studio does not change DSP settings yet: HQPlayer’s control protocol has commands for it, but they have not been verified on your HQPlayer and changing them may interrupt playback. The values below are what HQPlayer reports; change them in HQPlayer.',
+  'settings.dsp.convolution': 'Convolution / room correction',
+  'settings.dsp.matrix': 'Matrix / channel processing',
+  'settings.dsp.cuda': 'CUDA offload',
+  'settings.openHqplayer': 'Show the HQPlayer window',
+  'settings.openHqplayerHint': 'Open its settings in HQPlayer’s main window to change them.',
+  'settings.openHqplayerManual':
+    'Switch to the HQPlayer window and change it in its settings (Studio cannot open HQPlayer’s settings directly).',
+  'settings.output.input': 'Input (music file)',
+  'settings.output.format': 'Output (to the DAC)',
+  'settings.output.delay': 'Output buffer',
+  'settings.output.delayValue':
+    '{seconds} s (progress bar and lyrics already account for it and follow what you hear)',
+  'settings.output.volumeNow': 'Current volume',
+  'settings.output.volumeRange': 'Allowed range (HQPlayer settings)',
+  'settings.output.volumeHint':
+    'Adjust it in the player bar. One step raises the level by at most 12 dB; the range comes from HQPlayer’s settings.',
+  'settings.output.device': 'Output device & driver',
+  'settings.output.deviceNative':
+    'Output device, ASIO / WASAPI / NAA, buffer size and rate limits can only be changed in HQPlayer’s settings. Studio neither reads nor ever changes them, so the audio chain stays exactly as you set it.',
+  'settings.lyrics.local': 'Local lyrics (default)',
+  'settings.lyrics.localHint':
+    'A .lrc file with the same name next to the music file (e.g. “01 Title.lrc” beside “01 Title.flac”) and lyrics embedded in the file’s tags show automatically, offline. UTF-8, UTF-16 and older GBK / Shift-JIS files are supported.',
+  'settings.lyrics.onlineTitle': 'Online lyrics (LRCLIB)',
+  'settings.lyrics.online': 'Look up LRCLIB when there are no local lyrics',
+  'settings.lyrics.onlinePrivacy':
+    'When on, Studio sends the title, artist, album and duration of the track that is playing to the third-party service LRCLIB (lrclib.net). Only the playing track is looked up — never in bulk while scanning; no file paths or account details are sent. Lyrics found are stored on this computer, so the track is not looked up again.',
+  'settings.lyrics.confirmTitle': 'Turn on online lyrics?',
+  'settings.lyrics.confirm': 'Turn on',
+  'settings.lyrics.onlineOn': 'Online lyrics turned on',
+  'settings.lyrics.onlineOff': 'Online lyrics turned off — no more online lookups',
+  'settings.lyrics.paused': 'LRCLIB asked Studio to pause; lookups resume in about {seconds} s.',
+  'settings.lyrics.cache': 'Stored lyrics',
+  'settings.lyrics.cached':
+    'Local files {local} · embedded {embedded} · LRCLIB {lrclib} · demo {demo} · not found {notFound}',
+  'settings.lyrics.clear': 'Clear online lyrics cache',
+  'settings.lyrics.clearHint':
+    'Deletes lyrics fetched automatically from LRCLIB and the “not found” records (lyrics you picked by hand stay). Lyrics are stored on this computer only.',
+  'settings.lyrics.cleared': 'Online lyrics cache cleared',
+  'settings.lyrics.calibration': 'Timing',
+  'settings.lyrics.calibrationHint':
+    'Studio aligns lyrics with HQPlayer’s reported output buffer. If a track is still off, use − / + in Now Playing → Lyrics; the offset is saved per track and shared with your phone.',
   'errors.generic': 'Action failed: {message}',
   'errors.network': 'Cannot reach the Studio server',
   'errors.loadFailed': 'Failed to load: {message}',

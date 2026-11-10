@@ -94,3 +94,18 @@ export function activeLineIndex(
   }
   return ans;
 }
+
+/** `[mm:ss.xx]` for a time in ms (minutes may exceed 59). */
+export function formatLrcTime(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 10));
+  const cs = total % 100;
+  const s = Math.floor(total / 100) % 60;
+  const m = Math.floor(total / 6000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `[${pad(m)}:${pad(s)}.${pad(cs)}]`;
+}
+
+/** Serialise timed lines back to LRC text (used for embedded SYLT lyrics and demo lyrics). */
+export function toLrcText(lines: readonly LyricLine[]): string {
+  return lines.map((l) => `${formatLrcTime(l.timeMs)}${l.text}`).join('\n');
+}

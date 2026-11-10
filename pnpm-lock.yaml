@@ -310,6 +310,9 @@ importers:
       '@hqps/library':
         specifier: workspace:*
         version: link:../library
+      '@hqps/lyrics':
+        specifier: workspace:*
+        version: link:../lyrics
       fastify:
         specifier: ^5.12.8
         version: 5.12.8
@@ -355,6 +358,9 @@ importers:
       '@hqps/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@hqps/lyrics':
+        specifier: workspace:*
+        version: link:../lyrics
     devDependencies:
       '@types/react':
         specifier: ^19.3.0

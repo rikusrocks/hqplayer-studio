@@ -9,6 +9,14 @@ contextBridge.exposeInMainWorld('studioShell', {
   platform: process.platform,
   toggleMiniPlayer: (): void => ipcRenderer.send('studio:toggle-mini'),
   showMainWindow: (): void => ipcRenderer.send('studio:show-main'),
+  closeMiniPlayer: (): void => ipcRenderer.send('studio:close-mini'),
+  getAlwaysOnTop: (): Promise<boolean> =>
+    ipcRenderer.invoke('studio:get-always-on-top') as Promise<boolean>,
+  setLocale: (locale: string): void => ipcRenderer.send('studio:set-locale', String(locale)),
+  desktop: {
+    get: () => ipcRenderer.invoke('studio:shell:get'),
+    set: (patch: Record<string, unknown>) => ipcRenderer.invoke('studio:shell:set', patch),
+  },
   relaunch: (): void => ipcRenderer.send('studio:relaunch'),
   setAlwaysOnTop: (on: boolean): Promise<boolean> =>
     ipcRenderer.invoke('studio:set-always-on-top', on === true) as Promise<boolean>,
