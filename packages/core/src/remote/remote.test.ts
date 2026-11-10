@@ -60,6 +60,9 @@ function options(over: Partial<StudioServerOptions['remote']> = {}): StudioServe
   };
 }
 
+// Seeding the demo library and starting a server can exceed 10 s on loaded Windows runners.
+const HOOK_TIMEOUT_MS = 30_000;
+
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'hqps-remote-'));
   staticDir = join(dir, 'remote-dist');
@@ -73,14 +76,14 @@ beforeEach(async () => {
   interfaces = HOME_PC;
   server = await createStudioServer(options());
   await server.listen();
-});
+}, HOOK_TIMEOUT_MS);
 
 afterEach(async () => {
   await server.close();
   adapter.dispose();
   ctx.close();
   rmSync(dir, { recursive: true, force: true });
-});
+}, HOOK_TIMEOUT_MS);
 
 // --- helpers -------------------------------------------------------------------------------------
 

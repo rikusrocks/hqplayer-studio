@@ -43,6 +43,9 @@ async function firstAlbumId(q: string): Promise<string> {
   return r.body.items[0]!.id;
 }
 
+// Seeding the demo library and starting a server can exceed 10 s on loaded Windows runners.
+const HOOK_TIMEOUT_MS = 30_000;
+
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), 'hqps-core-'));
   ctx = openLibrary(dir);
@@ -58,14 +61,14 @@ beforeEach(async () => {
     queue: { settleMs: 0 },
   });
   await server.engine.start();
-});
+}, HOOK_TIMEOUT_MS);
 
 afterEach(async () => {
   await server.close();
   adapter.dispose();
   ctx.close();
   rmSync(dir, { recursive: true, force: true });
-});
+}, HOOK_TIMEOUT_MS);
 
 describe('Studio Core REST API', () => {
   it('serves health, server info and library data (no absolute paths in track DTOs)', async () => {
