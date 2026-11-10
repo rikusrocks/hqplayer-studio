@@ -1,5 +1,43 @@
 # PROGRESS
 
+## 2026-11-10 — Phase 1 第一步：真机只读探测 + 只读真实模式
+
+```text
+Implemented:
+- 根据用户 hqp-probe 报告（HQPlayer Desktop 6，engine 6.1.0，Windows）更新能力矩阵：
+  connect / status.read / volume.read / queue.read / dsp.read → confirmed；status.subscribe、library.native → observed；
+  所有写命令仍为 untested 并禁用；mode.album 仍为 unsupported。
+- Live adapter 按真机行为修正：1 基索引转换；不再把 Status.tracks_total 当作播放列表长度（真机为 0，实际 52 首）；
+  停止时从 PlaylistGet 补全当前曲目；序号变化时只读重读播放列表；连接时读取 VolumeRange。
+- 引擎曲目 → 音乐库匹配：支持真机的 “file:” + 原始 Windows 路径形式（不 URI 解码）及标准 file URI。
+- 设置 → 播放与引擎能力：可选 “Mock 引擎” / “真实 HQPlayer（只读，实验）”，保存后一键重启生效
+  （优先级：启动参数 > 保存的选择 > Mock；portable 版重启原始 exe）。
+- 设置 → 诊断：只读显示 HQPlayer 当前播放列表（不暴露文件路径），并标出已在音乐库中的曲目。
+- 探测器 v0.1.1：数值属性不再脱敏（v0.1.0 隐藏了 album 模式标志），记录 file: 前缀确切形式。
+
+Verified (Mac, 2026-11-10):
+- 新增/更新测试全部通过（见 test-matrix）；Live adapter 测试使用与真机报告同结构的合成响应。
+- 端到端彩排：本机临时假 HQPlayer（按真机报告的属性结构、演示库路径）+ Core（STUDIO_ADAPTER=live）+ 浏览器：
+  显示 “停止 · 第 2 首 Velvet Steps · DSD512 (48k) · sinc-Mx · ASDM7EC-super 512+fs · −6.0 dB”；
+  诊断页读出 3 首、专辑模式、均匹配到音乐库；点“播放”在本地被拒绝（capability_unavailable），无引擎流量。
+
+Known limitations:
+- 只观察过停止状态：播放中的进度单位、Status 的 track 索引基数、<metadata> 是否给出 uri、推送频率仍待确认。
+- 写命令（播放/队列/音量/DSP）全部禁用，等待 Gate C 授权。
+- 真实模式下音乐库仍是演示数据（真实目录扫描为 Phase 2），因此 HQPlayer 播放的曲目通常不会匹配到音乐库。
+
+Next:
+- 用户在 Windows 上：① 用 v0.1.1 探测器在“正在播放”时再跑一次；② 在 Studio 中切换到“真实 HQPlayer（只读）”验证显示。
+- Gate C（需用户明确同意 + 指定小测试专辑）：先只读备份 HQPlayer 当前播放列表，再逐项验证 加载/播放/暂停/seek/下一首、
+  中文路径、PCM + DSF、两首连播。
+- Phase 2：扫描真实音乐目录。
+
+Windows action needed:
+1. 从最新成功的 “Windows build” 下载 hqp-probe-windows-x64，在 HQPlayer **正在播放**时运行，发回新的 JSON。
+2. 下载 HQPlayerStudio-windows-x64，打开后：设置 → 播放与引擎能力 → 选择“真实 HQPlayer（只读，实验）” → 立即重启；
+   看播放条与 设置 → 诊断 → “HQPlayer 当前播放列表（只读）” 是否与 HQPlayer 一致。
+```
+
 ## 2026-11-10 — Phase 0 交付（Mock 原型 + 只读探测器）
 
 ```text
@@ -62,11 +100,11 @@ Windows action needed:
 
 ## Phase 状态
 
-| Phase                         | 状态                         | 退出条件                                                                                            |
-| ----------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| 0 仓库 + 风险隔离             | ✅ 完成                      | Mac 上 install/dev/test/build ✔；Mock 播放/暂停/换歌/断线 ✔；CI 产出并冒烟测试 Windows 包与探测器 ✔ |
-| 1 Desktop 6 API Spike         | ⏳ 等探测报告                | 稳定读取真实状态；传输/装载结果有实测记录                                                           |
-| 2 持久音乐库 + 播放列表       | 部分（数据层与扫描器已就绪） | 真实目录、重启不丢、CJK 路径、实际选专辑播放                                                        |
-| 3 同步网页遥控                | 部分（本机已同步）           | 局域网配对、断线恢复                                                                                |
-| 4 迷你播放器 / 歌词 / 设置 UX | 部分（迷你窗、设置分层）     | 歌词、托盘/媒体键                                                                                   |
-| 5 稳定性与发布                | 未开始                       | 长时间 DSD512、备份/回滚、签名与声明                                                                |
+| Phase                         | 状态                                       | 退出条件                                                                                            |
+| ----------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| 0 仓库 + 风险隔离             | ✅ 完成                                    | Mac 上 install/dev/test/build ✔；Mock 播放/暂停/换歌/断线 ✔；CI 产出并冒烟测试 Windows 包与探测器 ✔ |
+| 1 Desktop 6 API Spike         | 🔄 只读已在真机验证；等播放中探测与 Gate C | 稳定读取真实状态；传输/装载结果有实测记录                                                           |
+| 2 持久音乐库 + 播放列表       | 部分（数据层与扫描器已就绪）               | 真实目录、重启不丢、CJK 路径、实际选专辑播放                                                        |
+| 3 同步网页遥控                | 部分（本机已同步）                         | 局域网配对、断线恢复                                                                                |
+| 4 迷你播放器 / 歌词 / 设置 UX | 部分（迷你窗、设置分层）                   | 歌词、托盘/媒体键                                                                                   |
+| 5 稳定性与发布                | 未开始                                     | 长时间 DSD512、备份/回滚、签名与声明                                                                |

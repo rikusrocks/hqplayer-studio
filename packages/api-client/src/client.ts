@@ -8,6 +8,8 @@ import {
   DspStateSchema,
   EngineCapabilitiesSchema,
   EngineCommandResultSchema,
+  EngineQueueSchema,
+  EngineSettingsSchema,
   EngineStatusSchema,
   FolderListingSchema,
   HealthResponseSchema,
@@ -144,8 +146,16 @@ export function createStudioClient(options: StudioClientOptions = {}) {
         post(EngineCommandResultSchema, '/engine/seek', { positionMs: Math.round(positionMs) }),
       volume: (volumeDb: number) => post(EngineCommandResultSchema, '/engine/volume', { volumeDb }),
       dsp: () => get(DspStateSchema, '/engine/dsp'),
+      /** HQPlayer's own playlist, read-only. */
+      queue: () => get(EngineQueueSchema, '/engine/queue'),
       mockControl: (action: MockControlRequest['action']) =>
         post(OkSchema, '/engine/mock', { action }),
+    },
+
+    settings: {
+      engine: () => get(EngineSettingsSchema, '/settings/engine'),
+      setEngine: (adapter: 'mock' | 'live') =>
+        post(EngineSettingsSchema, '/settings/engine', { adapter }),
     },
 
     library: {

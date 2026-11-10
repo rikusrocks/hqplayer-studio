@@ -78,6 +78,7 @@ describe('read-only probe', () => {
       expect(json, secret).not.toContain(secret);
     }
     expect(json).toContain('scheme=native-drive');
+    expect(json).toContain('"album":"1"'); // numeric flags survive sanitising
     expect(json).toContain('scheme=file-uri');
     expect(json).toContain('"name":"SDM"'); // DSP option names are kept
     expect(json).not.toContain(os.hostname());
@@ -101,5 +102,8 @@ describe('describeValue', () => {
     );
     expect(describeValue('\\\\NAS\\music\\x.flac')).toContain('scheme=unc');
     expect(describeValue('Some Title')).toBe('[redacted text len=10 nonAscii=no]');
+    // the form observed on HQPlayer Desktop 6.1.0: "file:" + raw Windows path
+    expect(describeValue('file:D:\\音乐\\A B\\01.flac')).toContain('prefix="file:" then=drive');
+    expect(describeValue('file:///D:/a%20b/01.flac')).toContain('prefix="file:///" then=drive');
   });
 });

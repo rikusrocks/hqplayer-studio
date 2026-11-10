@@ -7,6 +7,8 @@ export interface StudioShell {
   platform: string;
   toggleMiniPlayer(): void;
   showMainWindow(): void;
+  /** Restart the app (used after changing the engine adapter). */
+  relaunch(): void;
   setAlwaysOnTop(on: boolean): Promise<boolean>;
   pickFolder(): Promise<string | null>;
 }

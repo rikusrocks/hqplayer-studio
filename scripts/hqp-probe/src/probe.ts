@@ -9,7 +9,7 @@ import {
 } from '@hqps/hqplayer-adapter';
 import { sanitizeElement, type SanitizedElement } from './sanitize';
 
-export const PROBE_VERSION = '0.1.0';
+export const PROBE_VERSION = '0.1.1';
 export const REPORT_SCHEMA = 'hqps.probe.v1';
 
 /**

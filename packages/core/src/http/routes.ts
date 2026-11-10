@@ -9,6 +9,7 @@ import {
   FolderQuerySchema,
   LibraryQuerySchema,
   MockControlRequestSchema,
+  UpdateEngineSettingsRequestSchema,
   PlayAlbumRequestSchema,
   PlayPlaylistRequestSchema,
   QueueAddRequestSchema,
@@ -22,12 +23,15 @@ import {
   TransportRequestSchema,
   UpdatePlaylistRequestSchema,
   VolumeRequestSchema,
+  type EngineQueue,
+  type EngineSettings,
   type ServerInfo,
 } from '@hqps/contracts';
 import { CapabilityUnavailableError, MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { ArtworkStore } from '@hqps/library';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { ENGINE_ADAPTER_SETTING } from '../settings-keys';
 import type { StudioServices } from '../server';
 import { HttpError } from './errors';
 import { isTrustedRequest } from './security';
@@ -50,6 +54,19 @@ export function serverInfo(services: StudioServices, req: FastifyRequest): Serve
       note: 'LAN access for phones/tablets ships with pairing in Phase 3. Until then the Web Remote is available on this computer only.',
     },
     demoMode: services.demoMode,
+  };
+}
+
+export function engineSettings(s: StudioServices): EngineSettings {
+  const active = s.engine.adapter.kind;
+  const saved = s.ctx.settings.get<'mock' | 'live' | null>(ENGINE_ADAPTER_SETTING, null);
+  const preferred = saved ?? 'mock';
+  return {
+    activeAdapter: active,
+    preferredAdapter: preferred,
+    source: s.engineInfo.source,
+    restartRequired: s.engineInfo.source !== 'override' && preferred !== active,
+    hqplayer: s.engineInfo.hqplayer,
   };
 }
 
@@ -96,6 +113,39 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
           return a.getDspState();
         });
       });
+      api.get('/engine/queue', async (): Promise<EngineQueue> => {
+        engine.require('queue.read');
+        const snap = await engine.run('getEngineQueue', (a) => {
+          if (!a.getEngineQueue) {
+            throw new CapabilityUnavailableError(
+              'queue.read',
+              'adapter cannot read the engine queue',
+            );
+          }
+          return a.getEngineQueue();
+        });
+        return {
+          albumMode: snap.albumMode,
+          observedAt: Date.now(),
+          entries: snap.entries.map((e) => ({
+            index: e.index,
+            title: e.title,
+            artist: e.artist,
+            album: e.album,
+            durationMs: e.durationMs,
+            studioTrackId: e.uri ? ctx.library.findTrackIdBySource(e.uri) : null,
+          })),
+        };
+      });
+
+      // --- settings (local machine only: requests are loopback-gated)
+      api.get('/settings/engine', async () => engineSettings(s));
+      api.post('/settings/engine', async (req) => {
+        const { adapter } = body(UpdateEngineSettingsRequestSchema, req);
+        ctx.settings.set(ENGINE_ADAPTER_SETTING, adapter);
+        return engineSettings(s);
+      });
+
       api.post('/engine/mock', async (req) => {
         const adapter = engine.adapter;
         if (!(adapter instanceof MockHQPlayerAdapter)) {

@@ -13,8 +13,23 @@ import { LiveHQPlayerAdapter } from './LiveHQPlayerAdapter';
 const INFO = xmlDoc(
   '<GetInfo name="PC" product="HQPlayer Desktop" version="6.0.1" platform="Windows" engine="6.0.1"/>',
 );
+// Attribute sets mirror what HQPlayer Desktop 6 / engine 6.1.0 returned to hqp-probe (2026-11-10):
+// 1-based PlaylistItem indexes, tracks_total that does not reflect the playlist length,
+// "file:" + raw Windows path URIs, VolumeRange enabled="0". Values are synthetic.
+const VOLUME_RANGE = xmlDoc('<VolumeRange adaptive="0" enabled="0" max="0.000" min="-12.000"/>');
+const playlistGet = (album = '0') =>
+  xmlDoc(
+    `<PlaylistGet album="${album}">` +
+      '<PlaylistItem index="1" uri="file:D:\\Music\\A\\01.flac" song="Opening &amp;amp; Theme" artist="林夏" album="城市漫游者" length="244" rate="96000" bits="24" channels="2"/>' +
+      '<PlaylistItem index="2" uri="file:D:\\Music\\A\\02 南方的风.flac" song="南方的风" artist="林夏" album="城市漫游者" length="230" rate="96000" bits="24" channels="2"/>' +
+      '<PlaylistItem index="3" uri="file:D:\\Music\\A\\03.flac" song="午夜地铁" artist="林夏" album="城市漫游者" length="105" rate="96000" bits="24" channels="2"/>' +
+      '</PlaylistGet>',
+  );
+const STOPPED = xmlDoc(
+  '<Status state="0" track="2" tracks_total="0" position="0.000" length="0.000" volume="-6.02" active_mode="SDM (DSD)" active_filter="sinc-Mx" active_shaper="ASDM7EC-super 512+fs" active_rate="24576000" active_bits="1" active_channels="2" track_serial="56" transport_serial="6" repeat="0" random="0"/>',
+);
 const STATUS = xmlDoc(
-  '<Status state="2" track="0" tracks_total="3" position="12.5" length="200" volume="-14.5" active_mode="SDM" active_filter="poly-sinc-gauss-xla" active_shaper="ASDM7EC-ul" active_rate="22579200" active_bits="1" active_channels="2" repeat="0" random="0">' +
+  '<Status state="2" track="1" tracks_total="0" track_serial="56" transport_serial="6" position="12.5" length="200" volume="-14.5" active_mode="SDM" active_filter="poly-sinc-gauss-xla" active_shaper="ASDM7EC-ul" active_rate="22579200" active_bits="1" active_channels="2" repeat="0" random="0">' +
     '<metadata uri="D:\\Music\\A\\01.flac" song="Opening &amp;amp; Theme" artist="林夏" album="城市漫游者" samplerate="96000" bits="24" channels="2" sdm="0"/></Status>',
 );
 
@@ -92,6 +107,8 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
   it('connects read-only, maps identity and status, and receives Status pushes', async () => {
     server = await startFakeHqpServer({
       GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE,
+      PlaylistGet: () => playlistGet('1'),
       Status: () => STATUS,
       State: () => xmlDoc('<State state="2" repeat="2" random="1"/>'),
     });
@@ -102,7 +119,7 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
 
     const caps = await adapter.getCapabilities();
     expect(caps.engine?.version).toBe('6.0.1');
-    expect(caps.items['status.read']).toMatchObject({ status: 'untested', usable: true });
+    expect(caps.items['status.read']).toMatchObject({ status: 'confirmed', usable: true });
     expect(caps.items['transport.play']).toMatchObject({ status: 'untested', usable: false });
     expect(caps.items['mode.album'].status).toBe('unsupported');
 
@@ -117,17 +134,32 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     expect(s.output?.label).toBe('DSD512');
     expect(s.repeat).toBe('all');
     expect(s.random).toBe(true);
+    expect(s.trackIndex).toBe(0); // engine track="1" → Studio index 0
+    expect(s.trackCount).toBe(3); // from PlaylistGet, not tracks_total="0"
+    expect(s.albumMode).toBe(true);
+    expect(s.volumeRange).toEqual({ min: -12, max: 0 });
 
     server.push(STATUS.replace('position="12.5"', 'position="13.5"'));
     await vi.waitFor(() => expect(seen.at(-1)).toBe(13_500), { timeout: 3000 });
 
-    expect(server.received.map((r) => r.name)).toEqual(['GetInfo', 'Status', 'State']);
-    expect(server.received[1]?.attributes.subscribe).toBe('1');
+    expect(server.received.map((r) => r.name)).toEqual([
+      'GetInfo',
+      'VolumeRange',
+      'PlaylistGet',
+      'Status',
+      'State',
+    ]);
+    expect(server.received[3]?.attributes.subscribe).toBe('1');
     await adapter.disconnect();
   });
 
   it('blocks untested write commands by default (no engine traffic)', async () => {
-    server = await startFakeHqpServer({ GetInfo: () => INFO, Status: () => STATUS });
+    server = await startFakeHqpServer({
+      GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE,
+      PlaylistGet: () => playlistGet(),
+      Status: () => STATUS,
+    });
     const adapter = new LiveHQPlayerAdapter({ port: server.port });
     await adapter.connect();
     const before = server.received.length;
@@ -141,7 +173,12 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
   });
 
   it('with explicit Gate C consent, loads a queue via PlaylistClear/PlaylistAdd/SelectTrack/Play', async () => {
-    server = await startFakeHqpServer({ GetInfo: () => INFO, Status: () => STATUS });
+    server = await startFakeHqpServer({
+      GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE,
+      PlaylistGet: () => playlistGet(),
+      Status: () => STATUS,
+    });
     const adapter = new LiveHQPlayerAdapter({
       port: server.port,
       policy: { allowUntestedWrites: true },
@@ -168,19 +205,24 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
       ],
       { startIndex: 1, autoplay: true, albumMode: true },
     );
-    const sent = server.received.slice(3).map((r) => [r.name, r.attributes]);
+    const sent = server.received.slice(5).map((r) => [r.name, r.attributes]);
     expect(sent).toEqual([
       ['PlaylistClear', {}],
       ['PlaylistAdd', { uri: 'D:\\音乐\\01 「光」.flac', queued: '1', clear: '0' }],
       ['PlaylistAdd', { uri: 'D:\\音乐\\02.dsf', queued: '1', clear: '0' }],
-      ['SelectTrack', { index: '1' }],
+      ['SelectTrack', { index: '2' }], // Studio index 1 → engine index 2 (1-based)
       ['Play', { last: '0' }],
     ]);
     await adapter.disconnect();
   });
 
   it('publishes a disconnected status when the engine goes away', async () => {
-    server = await startFakeHqpServer({ GetInfo: () => INFO, Status: () => STATUS });
+    server = await startFakeHqpServer({
+      GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE,
+      PlaylistGet: () => playlistGet(),
+      Status: () => STATUS,
+    });
     const adapter = new LiveHQPlayerAdapter({ port: server.port });
     await adapter.connect();
     await server.close();
@@ -192,5 +234,40 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
       },
     );
     expect(adapter.isConnected()).toBe(false);
+  });
+
+  it('describes the selected track from the playlist while stopped, and maps 1-based indexes', async () => {
+    let album = '0';
+    server = await startFakeHqpServer({
+      GetInfo: () => INFO,
+      VolumeRange: () => VOLUME_RANGE,
+      PlaylistGet: () => playlistGet(album),
+      Status: () => STOPPED,
+    });
+    const adapter = new LiveHQPlayerAdapter({ port: server.port });
+    await adapter.connect();
+    const s = await adapter.getStatus();
+    expect(s.transport).toBe('stopped');
+    expect(s.trackIndex).toBe(1);
+    expect(s.track).toMatchObject({
+      title: '南方的风',
+      uri: 'file:D:\\Music\\A\\02 南方的风.flac',
+    });
+    expect(s.durationMs).toBe(230_000);
+    expect(s.trackCount).toBe(3);
+    expect(s.output?.label).toBe('DSD512 (48k)');
+
+    const queue = await adapter.getEngineQueue();
+    expect(queue.entries.map((e) => e.index)).toEqual([0, 1, 2]);
+
+    // a serial change (track/playlist changed elsewhere) triggers a read-only playlist refresh
+    album = '1';
+    const before = server.received.filter((r) => r.name === 'PlaylistGet').length;
+    server.push(STOPPED.replace('track_serial="56"', 'track_serial="57"'));
+    await vi.waitFor(async () => expect((await adapter.getStatus()).albumMode).toBe(true), {
+      timeout: 3000,
+    });
+    expect(server.received.filter((r) => r.name === 'PlaylistGet').length).toBe(before + 1);
+    await adapter.disconnect();
   });
 });

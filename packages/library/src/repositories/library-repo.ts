@@ -17,6 +17,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../errors';
 import {
   albumGroupKey,
   buildSearchText,
+  engineUriToPath,
   hostPlatform,
   normalizeText,
   pathKey,
@@ -473,15 +474,8 @@ export class LibraryRepository {
 
   /** Match an engine-reported URI/path back to a library track. */
   findTrackIdBySource(uriOrPath: string): string | null {
-    let p = uriOrPath;
-    if (/^file:/i.test(p)) {
-      try {
-        p = decodeURIComponent(new URL(p).pathname);
-        if (/^\/[A-Za-z]:\//.test(p)) p = p.slice(1);
-      } catch {
-        return null;
-      }
-    }
+    const p = engineUriToPath(uriOrPath);
+    if (!p) return null;
     const looksWindows = /^[A-Za-z]:[\\/]/.test(p) || p.startsWith('\\\\');
     const key = pathKey(p, looksWindows ? 'win32' : this.platform);
     const row = this.db.prepare('SELECT id FROM tracks WHERE path_key = ?').get(key) as

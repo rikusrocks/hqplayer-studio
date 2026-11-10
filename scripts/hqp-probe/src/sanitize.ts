@@ -51,7 +51,20 @@ export function describeValue(value: string): string {
     const sep = value.includes('\\') ? '\\' : '/';
     const parts = value.split(sep).filter(Boolean);
     const ext = /\.([A-Za-z0-9]{1,5})$/.exec(value)?.[1]?.toLowerCase() ?? null;
-    return `[redacted path scheme=${scheme} sep=${sep === '\\' ? 'backslash' : 'slash'} depth=${parts.length} ext=${ext ?? '-'} nonAscii=${nonAscii ? 'yes' : 'no'} pct=${pct ? 'yes' : 'no'} spaces=${/\s/.test(value) ? 'yes' : 'no'} len=${value.length}]`;
+    // For file: URIs keep the literal, non-identifying prefix (e.g. `file:`, `file://`, `file:///`)
+    // and what follows it, because Studio must reproduce/parse exactly that form.
+    let form = '';
+    const fileMatch = /^(file:[\\/]*)(.?)/i.exec(value);
+    if (fileMatch) {
+      const next =
+        /[A-Za-z]/.test(fileMatch[2] ?? '') && /^file:[\\/]*[A-Za-z]:/i.test(value)
+          ? 'drive'
+          : (fileMatch[2] ?? '') === ''
+            ? 'end'
+            : 'other';
+      form = ` prefix=${JSON.stringify(fileMatch[1])} then=${next}`;
+    }
+    return `[redacted path scheme=${scheme}${form} sep=${sep === '\\' ? 'backslash' : 'slash'} depth=${parts.length} ext=${ext ?? '-'} nonAscii=${nonAscii ? 'yes' : 'no'} pct=${pct ? 'yes' : 'no'} spaces=${/\s/.test(value) ? 'yes' : 'no'} len=${value.length}]`;
   }
   if (value.length > 200 && /^[A-Za-z0-9+/=]+$/.test(value))
     return `[redacted base64 len=${value.length}]`;
@@ -76,8 +89,11 @@ export function sanitizeElement(
   const visit = (node: XmlElement, depth: number): SanitizedElement => {
     const attributes: Record<string, string> = {};
     for (const [k, v] of Object.entries(node.attributes)) {
+      // Plain numbers (flags, indexes, rates, lengths) carry no personal data — keep them.
+      // (v0.1.0 redacted PlaylistGet's album="0|1" flag because "album" is a sensitive name.)
+      const numeric = /^-?\d+(?:\.\d+)?$/.test(v);
       attributes[k] =
-        v === '' ? '' : sensitive.has(k) || looksLikeLocalPath(v) ? describeValue(v) : v;
+        v === '' || numeric ? v : sensitive.has(k) || looksLikeLocalPath(v) ? describeValue(v) : v;
     }
     const out: SanitizedElement = { name: node.name, attributes };
     const text = node.text.trim();

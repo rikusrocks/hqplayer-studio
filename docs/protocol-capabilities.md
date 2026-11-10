@@ -1,6 +1,6 @@
 # HQPlayer Control API — 协议事实与能力矩阵
 
-> 状态：**Phase 0 / 尚未在 Desktop 6 真机上执行任何命令**。最后更新：2026-11-10。
+> 状态：**Phase 1 — 只读路径已在用户的 HQPlayer Desktop 6（engine 6.1.0，Windows）上验证；所有写命令仍为 `untested` 且禁用。** 最后更新：2026-11-10。
 >
 > 规则：没有真机证据的能力一律不得在应用中标为“已支持”。本文件只能根据 `hqp-probe` 报告或经用户同意的 Gate C 测试结果更新。
 
@@ -41,17 +41,19 @@
 | 电平表        | 独立 TCP 连接，端口 = 控制端口 + 1（二进制帧）                                                                                                                                                                                      | `clMeterInterface::setServer`            |
 | 状态枚举      | `state`: 0 stopped, 1 paused, 2 playing, 3 stop requested；`repeat`: 0 none, 1 single, 2 all                                                                                                                                        | `enum State/Repeat`                      |
 
-### 需要真机确认的假设
+### 需要真机确认的假设（2026-11-10 探测后的状态）
 
-1. `Status` 的 `position` / `length` 单位（推测为秒，double）。
-2. `track` / `SelectTrack index` / `PlaylistRemove index` 是 0 基还是 1 基。
-3. `Status subscribe="1"` 的推送频率（定时 vs 变化时），以及 `subscribe="0"` 是否会取消订阅。
-4. `Pause` 是切换还是幂等暂停。
-5. `PlaylistAdd` 的 `queued` / `clear` / `start` 语义；中文/日文/空格路径应传原生路径还是 `file:///` URI，是否需要百分号编码。
-6. 未认证连接下 `Status` 的 `<metadata>` 是给出 `uri` 还是 `secure_uri`（后者需要会话密钥，Studio 拿不到 → 只能用曲名匹配）。
-7. Album / Playlist 模式：SDK 只在 `PlaylistGet` 响应里给出只读 `album="0|1"`，**没有切换命令**。
-8. 多个控制客户端（HQPlayer 原生 UI、Roon、其他遥控器）同时操作时的行为。
-9. 同一 TCP 连接上命令是否严格按序应答（Studio 已强制单飞串行，不依赖此假设）。
+| #   | 问题                                             | 状态                                                                                                                                                                                                         |
+| --- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `Status` 的 `position` / `length` 单位           | 部分：`PlaylistItem.length` 为整数秒（如 244）；`Status` 只在停止时观察到（0.0）→ 推测为秒，**待播放中确认**                                                                                                 |
+| 2   | 索引是 0 基还是 1 基                             | `PlaylistItem.index` **为 1 基**（1…52）；`Status track` 停止时为 0 → 推测同为 1 基、0 = 无当前曲目，**待播放中确认**；`SelectTrack`/`PlaylistRemove` 推测 1 基，**待 Gate C**                               |
+| 3   | 推送频率 / 取消订阅                              | `subscribe="1"` 有应答；停止状态 3 秒内仅 1 次推送 → 推测“变化时推送”，**待播放中确认**                                                                                                                      |
+| 4   | `Pause` 语义                                     | 待 Gate C                                                                                                                                                                                                    |
+| 5   | 本地路径形式                                     | `PlaylistGet` 的 `uri` 为 **`file:` + 原始 Windows 路径**（反斜杠、空格与中文/日文均未编码，无 `%XX`）。`file:` 后是否带 `//` 被 v0.1.0 的脱敏器隐藏，v0.1.1 会记录前缀。`PlaylistAdd` 应传什么形式待 Gate C |
+| 6   | 未认证时 `<metadata>` 是 `uri` 还是 `secure_uri` | 停止时 `Status` 没有 `<metadata>`；**待播放中确认**                                                                                                                                                          |
+| 7   | Album / Playlist 模式                            | 只能读取（`PlaylistGet album=`；v0.1.0 误将该标志脱敏，v0.1.1 已修复）；SDK 无切换命令 → `mode.album` = `unsupported`                                                                                        |
+| 8   | 多客户端并发                                     | 待观察                                                                                                                                                                                                       |
+| 9   | 同连接按序应答                                   | 19 条串行命令全部按序应答（0–2 ms）；Studio 仍强制单飞                                                                                                                                                       |
 
 ## 4. 命令清单（SDK 6.0.1）与副作用分级
 
@@ -71,22 +73,26 @@
 
 ## 5. 能力矩阵（Gate D）
 
-| Capability                       | 来源证据                                                                                | Desktop 6 实测 | 结果/限制                         | 实现决策                                  |
-| -------------------------------- | --------------------------------------------------------------------------------------- | -------------- | --------------------------------- | ----------------------------------------- |
-| Connect / Get status             | SDK `connectToHost`, `GetInfo`, `Status`, `State`                                       | pending        | 仅知道 TCP 4321 可达              | Live adapter 只读连接；Gate A/B 探测      |
-| Current title / elapsed          | SDK `Status` + `<metadata song/artist/album>`，`position`/`length`                      | pending        | 单位待确认；未认证时 URI 可能加密 | 按 URI 匹配库，失败时显示引擎报告的文本   |
-| Play / Pause / Stop              | SDK `Play last=`, `Pause`, `Stop`                                                       | pending        | Pause 语义待确认                  | 默认禁用（untested）；Gate C 后开启       |
-| Next / Previous / Seek           | SDK `Next`, `Previous`, `Seek position=<int>`                                           | pending        | Seek 单位待确认                   | 同上                                      |
-| Load local track / album         | SDK `PlaylistClear` + `PlaylistAdd uri=` + `SelectTrack`                                | pending        | CJK/空格路径编码待确认            | 同上；优先原生路径（与 CLI 一致）         |
-| Playlist read / load / save      | SDK `PlaylistGetList/Load/Save/Delete` + 社区帖                                         | pending        | —                                 | Studio 自建播放列表为准；服务端列表为可选 |
-| Queue edit / shuffle / repeat    | SDK `PlaylistRemove/MoveUp/MoveDown`, `SetRandom`, `SetRepeat`                          | pending        | “Play Next” 无直接命令            | Live adapter 暂不实现 Play Next           |
-| 1x / Nx filters / modulator      | SDK `GetFilters` (`arg` 区分 1x/Nx)、`SetFilter value value1x`、`GetShapers/SetShaping` | pending        | —                                 | Phase 0/1 只读展示；写入永不自动          |
-| PCM/SDM mode / output rate       | SDK `GetModes/SetMode`, `GetRates/SetRate`, `Status active_mode/active_rate`            | pending        | —                                 | 只读展示                                  |
-| Native device / ASIO / NAA setup | SDK 无对应命令（仅 `ConfigurationLoad` 整体切换配置，需会话）                           | pending        | 需原生 UI                         | 显示 “Requires native HQPlayer settings”  |
-| Convolution / Matrix / CUDA      | `SetConvolution`, `MatrixListProfiles/Get/SetProfile`；CUDA 无命令                      | pending        | —                                 | 不改配置文件；只读展示 Matrix profile     |
-| Album / Playlist mode            | `PlaylistGet album="0                                                                   | 1"`（只读）    | pending                           | **SDK 无切换命令** → `unsupported`        | “播放整张专辑”按碟/曲序装载，提示无法保证 Gapless |
+“Desktop 6 实测”列来自 `hqp-probe` v0.1.0 报告（2026-11-10，engine 6.1.0，19/19 只读命令成功）。
 
-运行时的同一矩阵见 `packages/hqplayer-adapter/src/live/capability-matrix.ts`（`DESKTOP6_EVIDENCE`），应用设置页 “播放与引擎能力” 会显示每项的等级。
+| Capability                       | 来源证据                     | Desktop 6 实测                        | 结果/限制                                                                                           | 实现决策                                                          |
+| -------------------------------- | ---------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Connect / Get status             | SDK + 探测                   | **confirmed**                         | TCP 2 ms；无需认证；`GetInfo` = Signalyst HQPlayer Desktop / version 6 / engine 6.1.0 / Windows     | Live adapter 只读连接                                             |
+| Current title / elapsed          | SDK `Status` + `PlaylistGet` | **confirmed（停止态）**               | 停止时 `Status` 无 `<metadata>`，`tracks_total` = 0 而播放列表实为 52 首                            | 当前曲目从 `PlaylistGet` 补全；不用 `tracks_total` 作播放列表长度 |
+| Play / Pause / Stop              | SDK                          | pending (Gate C)                      | —                                                                                                   | 禁用                                                              |
+| Next / Previous / Seek           | SDK                          | pending (Gate C)                      | Seek 单位推测为秒                                                                                   | 禁用                                                              |
+| Load local track / album         | SDK                          | pending (Gate C)                      | 观察到引擎内部存储为 `file:` + 原始路径                                                             | 禁用；Gate C 先试原生路径（与官方 CLI 一致）                      |
+| Playlist read / load / save      | SDK + 探测                   | **read confirmed**；load/save pending | `PlaylistGet` 52 项、1 基索引；`PlaylistGetList` 为空                                               | 只读展示（诊断页）；写入待 Gate C                                 |
+| Queue edit / shuffle / repeat    | SDK                          | pending (Gate C)                      | —                                                                                                   | 禁用                                                              |
+| 1x / Nx filters / modulator      | SDK + 探测                   | **read confirmed**                    | 77 个 filter（含 `arg`、描述）、36 个 shaper；`State` 中 filter/shaper/mode/rate 为**列表索引**     | 只读展示；写入永不自动                                            |
+| PCM/SDM mode / output rate       | SDK + 探测                   | **read confirmed**                    | 当前：`SDM (DSD)`、`sinc-Mx`、`ASDM7EC-super 512+fs`、24.576 MHz（DSD512 48k 族）；`GetRates` 21 项 | 只读展示                                                          |
+| Volume                           | SDK + 探测                   | **read confirmed**                    | −6.02 dB，`VolumeRange` −12…0，`enabled="0"`                                                        | 只读；设置待 Gate C（可能在 HQPlayer 中被禁用）                   |
+| Native device / ASIO / NAA setup | SDK 无命令                   | n/a                                   | `GetTransport value=240`（播放列表传输）                                                            | 显示 “Requires native HQPlayer settings”                          |
+| Convolution / Matrix / CUDA      | SDK + 探测                   | read observed                         | Matrix profile 为空；`SetConvolution` 未测；CUDA 无命令                                             | 不改配置文件                                                      |
+| Album / Playlist mode            | SDK + 探测                   | `unsupported`（切换）                 | 只读标志                                                                                            | “播放整张专辑”按碟/曲序装载并提示无法保证 Gapless                 |
+| Status push                      | SDK + 探测                   | observed                              | 停止时 3 秒 1 次                                                                                    | 订阅 + 序号变化时重读播放列表                                     |
+
+运行时矩阵：`packages/hqplayer-adapter/src/live/capability-matrix.ts`（`DESKTOP6_EVIDENCE`）。
 
 ## 6. 探测计划与工具
 
@@ -94,4 +100,18 @@
   - TCP 连接 → 被动监听 750 ms（看是否有欢迎报文）→ 依次发送 19 条只读命令 → `Status subscribe="1"` 观察 3 秒推送 → 断开。
   - 报告默认脱敏：曲名、路径、播放列表名、实例名、配置名等替换为结构描述（如 `[redacted path scheme=native-drive depth=4 ext=flac nonAscii=yes pct=no …]`），保留回答上面“假设 5”所需的信息。
 - **Gate C（有副作用）**：未实现开关。需要用户明确同意 + 指定测试专辑后，再以 `LiveHQPlayerAdapter({ policy: { allowUntestedWrites: true } })` 的方式逐项验证。
-- **fixtures**：`fixtures/hqplayer-protocol/` 目前为空；收到真实报告后，只提交脱敏后的请求/响应样本。
+- **fixtures**：用户的原始报告**不提交**到公开仓库。测试中的响应（`LiveHQPlayerAdapter.test.ts`）按真机报告的属性结构合成，媒体字段为虚构值。
+
+## 7. 真机记录
+
+| 日期       | 工具                               | 引擎                                                               | 结果                                                                                                                                                            |
+| ---------- | ---------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-11-10 | hqp-probe v0.1.0（Gate A/B，只读） | Signalyst HQPlayer Desktop 6，engine 6.1.0，Windows 10.0.26200 x64 | TCP 2 ms；19/19 只读命令成功（0–2 ms）；无欢迎报文；停止状态；输出 SDM (DSD) 24.576 MHz；播放列表 52 项（1 基）；`Status subscribe="1"` 有应答（3 秒 1 次推送） |
+
+### 由此修正的实现（2026-11-10）
+
+- `Status tracks_total` 不再当作播放列表长度（真机为 0，而播放列表有 52 首）。否则 Studio 会误报“HQPlayer 播放列表为空/不一致”。
+- 引擎索引按 1 基转换（Studio 内部 0 基）。
+- 停止时从 `PlaylistGet` 补全当前曲目信息；`track_serial`/`transport_serial` 变化时只读重读播放列表。
+- 解析 `file:` + 原始 Windows 路径（不做 URI 解码，`100% Pure.flac` 等文件名不被破坏），用于把引擎曲目匹配回音乐库。
+- 探测器 v0.1.1：数值属性不再脱敏（修复 `album` 标志被隐藏），并记录 `file:` 前缀的确切形式。

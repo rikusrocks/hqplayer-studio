@@ -4,6 +4,7 @@ import { metadataFromPath, repairMojibake } from './scanner/metadata';
 import {
   albumFolderOf,
   albumGroupKey,
+  engineUriToPath,
   normalizeText,
   pathKey,
   searchTokens,
@@ -146,5 +147,25 @@ describe('repairMojibake', () => {
     expect(repairMojibake('Café Noir')).toBe('Café Noir');
     expect(repairMojibake('夜の終わりに')).toBe('夜の終わりに');
     expect(repairMojibake('plain ascii')).toBe('plain ascii');
+  });
+});
+
+describe('engineUriToPath', () => {
+  it('handles the raw form observed on HQPlayer 6.1.0 ("file:" + Windows path, unencoded)', () => {
+    expect(engineUriToPath('file:D:\\音乐\\林夏 - 城市漫游者\\01 城市漫游者.flac')).toBe(
+      'D:\\音乐\\林夏 - 城市漫游者\\01 城市漫游者.flac',
+    );
+    expect(engineUriToPath('file:D:\\Music\\100% Pure.flac')).toBe('D:\\Music\\100% Pure.flac');
+    expect(engineUriToPath('file://D:\\Music\\a.flac')).toBe('D:\\Music\\a.flac');
+  });
+  it('decodes proper RFC 8089 file URIs', () => {
+    expect(engineUriToPath('file:///D:/a%20b/%E9%9F%B3.flac')).toBe('D:/a b/音.flac');
+    expect(engineUriToPath('file:///Users/me/a%20b.flac')).toBe('/Users/me/a b.flac');
+    expect(engineUriToPath('file://nas/music/x.flac')).toBe('\\\\nas\\music\\x.flac');
+  });
+  it('passes native paths through and rejects garbage', () => {
+    expect(engineUriToPath('D:\\x.flac')).toBe('D:\\x.flac');
+    expect(engineUriToPath('file:///D:/bad%E9')).toBeNull();
+    expect(engineUriToPath('')).toBeNull();
   });
 });

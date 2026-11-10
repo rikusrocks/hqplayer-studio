@@ -190,6 +190,44 @@ export const ApiErrorSchema = z.object({
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
+// --- engine settings ---------------------------------------------------------------------------
+
+/**
+ * Which engine adapter Studio uses. `live` is read-only until write commands are verified.
+ * `source`: `override` = forced by a launch flag/env var (the saved preference applies once the
+ * override is removed), `setting` = saved preference, `default` = nothing saved (mock).
+ */
+export const EngineSettingsSchema = z.object({
+  activeAdapter: AdapterKindSchema,
+  preferredAdapter: AdapterKindSchema,
+  source: z.enum(['default', 'setting', 'override']),
+  restartRequired: z.boolean(),
+  hqplayer: z.object({ host: z.string(), port: z.number().int() }),
+});
+export type EngineSettings = z.infer<typeof EngineSettingsSchema>;
+
+export const UpdateEngineSettingsRequestSchema = z.object({ adapter: AdapterKindSchema });
+export type UpdateEngineSettingsRequest = z.infer<typeof UpdateEngineSettingsRequestSchema>;
+
+/** HQPlayer's own current playlist, read-only. Local paths are deliberately not exposed. */
+export const EngineQueueEntrySchema = z.object({
+  index: z.number().int(),
+  title: z.string().nullable(),
+  artist: z.string().nullable(),
+  album: z.string().nullable(),
+  durationMs: z.number().int().nullable(),
+  /** Set when the engine's file could be matched to a Studio library track. */
+  studioTrackId: z.string().nullable(),
+});
+export type EngineQueueEntry = z.infer<typeof EngineQueueEntrySchema>;
+
+export const EngineQueueSchema = z.object({
+  albumMode: z.boolean().nullable(),
+  entries: z.array(EngineQueueEntrySchema),
+  observedAt: z.number(),
+});
+export type EngineQueue = z.infer<typeof EngineQueueSchema>;
+
 export const MockControlRequestSchema = z.object({
   action: z.enum(['disconnect', 'reconnect', 'external-change', 'fail-next-command']),
 });

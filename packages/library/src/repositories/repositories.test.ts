@@ -85,6 +85,8 @@ describe('demo seed + library queries', () => {
     const src = ctx.library.getTrackSources([t.id])[0]!;
     expect(ctx.library.findTrackIdBySource(src.sourcePath.toUpperCase())).toBe(t.id);
     expect(ctx.library.findTrackIdBySource('file:///D:/nope.flac')).toBeNull();
+    // HQPlayer 6.1.0 reports "file:" + raw Windows path (observed 2026-11-10)
+    expect(ctx.library.findTrackIdBySource(`file:${src.sourcePath}`)).toBe(t.id);
   });
 });
 

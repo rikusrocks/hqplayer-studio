@@ -79,3 +79,15 @@ Format: problem · options · choice · why · risk · cost of reversing.
 ## D-015 Licence & naming — 2026-11-10
 
 - Code under MIT. "HQPlayer" is Signalyst's product name; README and app state clearly that Studio is an unaffiliated third-party client. Revisit naming before any public release beyond personal use.
+
+## D-016 Trust probe evidence over SDK assumptions — 2026-11-10
+
+- **Evidence:** probe of the user's HQPlayer Desktop 6 / engine 6.1.0 (19/19 read-only commands).
+- **Changes:** playlist indexes are 1-based (converted at the adapter boundary); `Status tracks_total` is not the playlist length (0 vs 52) so the playlist length comes from `PlaylistGet`; stopped status has no metadata, so the current track is described from the cached playlist; engine URIs are `file:` + raw Windows path and are parsed without URI-decoding.
+- **Still assumed (to confirm while playing):** `Status track` uses the same 1-based numbering with 0 = none; position/length in seconds.
+
+## D-017 Engine choice is a saved preference applied on restart — 2026-11-10
+
+- **Options:** hot-swap adapters at runtime · preference + restart.
+- **Choice:** preference in `app_settings` (`engine.adapter`), applied at start; precedence launch flag/env > preference > mock. The desktop app relaunches itself (portable builds relaunch the original `.exe` via `PORTABLE_EXECUTABLE_FILE`, because the unpacked temp copy is deleted on exit).
+- **Why:** hot-swapping would have to re-plumb subscriptions, queue sync and capability caches mid-session for little benefit.

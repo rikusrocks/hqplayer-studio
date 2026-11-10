@@ -22,11 +22,19 @@ export interface StudioServerOptions {
   /** Built UI bundles to serve: desktop renderer at "/", web remote at "/remote/". */
   staticDirs?: { desktop?: string; remote?: string };
   demoMode?: boolean;
+  /** How the adapter was chosen + where HQPlayer is expected (for GET /settings/engine). */
+  engineInfo?: EngineInfo;
   logger?: boolean;
   engine?: EngineServiceOptions;
 }
 
+export interface EngineInfo {
+  source: 'default' | 'setting' | 'override';
+  hqplayer: { host: string; port: number };
+}
+
 export interface StudioServices {
+  engineInfo: EngineInfo;
   appVersion: string;
   demoMode: boolean;
   hub: EventHub;
@@ -59,6 +67,10 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   const services: StudioServices = {
     appVersion: opts.appVersion,
     demoMode: Boolean(opts.demoMode),
+    engineInfo: opts.engineInfo ?? {
+      source: 'default',
+      hqplayer: { host: '127.0.0.1', port: 4321 },
+    },
     hub,
     engine,
     queue,

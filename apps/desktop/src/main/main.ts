@@ -22,10 +22,14 @@ import { bootstrapStudio, type Bootstrapped } from '@hqps/core';
 import { loadWindowState, saveWindowState, validateBounds, type WindowState } from './window-state';
 
 const SMOKE = process.argv.includes('--smoke-test');
-const ADAPTER =
-  process.argv.includes('--adapter=live') || process.env.STUDIO_ADAPTER === 'live'
-    ? 'live'
-    : 'mock';
+/** Launch override (`--adapter=live|mock` or STUDIO_ADAPTER); otherwise the saved preference. */
+const ADAPTER: 'mock' | 'live' | undefined = process.argv.includes('--adapter=live')
+  ? 'live'
+  : process.argv.includes('--adapter=mock')
+    ? 'mock'
+    : process.env.STUDIO_ADAPTER === 'live' || process.env.STUDIO_ADAPTER === 'mock'
+      ? process.env.STUDIO_ADAPTER
+      : undefined;
 const distDir = join(import.meta.dirname, '..');
 
 let studio: Bootstrapped | null = null;
@@ -141,6 +145,13 @@ function registerIpc(): void {
       mainWindow?.minimize();
     }
   });
+  ipcMain.on('studio:relaunch', (event) => {
+    if (!fromStudio(event) || SMOKE) return;
+    // Portable builds run from a temp copy that is deleted on exit: relaunch the original .exe.
+    const portable = process.env.PORTABLE_EXECUTABLE_FILE;
+    app.relaunch(portable ? { execPath: portable, args: [] } : undefined);
+    app.quit();
+  });
   ipcMain.on('studio:show-main', (event) => {
     if (!fromStudio(event)) return;
     miniWindow?.close();
@@ -185,7 +196,7 @@ async function startCore(): Promise<Bootstrapped> {
   const opts = {
     dataDir: join(app.getPath('userData'), SMOKE ? 'smoke-data' : 'data'),
     appVersion: app.getVersion(),
-    adapter: ADAPTER as 'mock' | 'live',
+    adapter: SMOKE ? 'mock' : ADAPTER,
     staticDirs: { desktop: join(distDir, 'renderer'), remote: join(distDir, 'remote') },
     demo: true,
     resetData: SMOKE,

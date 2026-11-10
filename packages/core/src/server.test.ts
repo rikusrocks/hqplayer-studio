@@ -6,6 +6,7 @@ import { MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
+import { bootstrapStudio } from './bootstrap';
 import { createStudioServer, type StudioServer } from './server';
 
 let dir: string;
@@ -303,6 +304,63 @@ describe('Studio Core REST API', () => {
         host: '0.0.0.0',
       }),
     ).rejects.toThrow(/Phase 3/);
+  });
+});
+
+describe('engine settings and read-only engine queue', () => {
+  it('reports and saves the preferred adapter without switching the running one', async () => {
+    const initial = await api<Record<string, unknown>>('GET', '/settings/engine');
+    expect(initial.body).toMatchObject({
+      activeAdapter: 'mock',
+      preferredAdapter: 'mock',
+      source: 'default',
+      restartRequired: false,
+      hqplayer: { host: '127.0.0.1', port: 4321 },
+    });
+    const saved = await api<Record<string, unknown>>('POST', '/settings/engine', {
+      adapter: 'live',
+    });
+    expect(saved.body).toMatchObject({
+      activeAdapter: 'mock',
+      preferredAdapter: 'live',
+      restartRequired: true,
+    });
+    expect(ctx.settings.get('engine.adapter', null)).toBe('live');
+    expect((await api('POST', '/settings/engine', { adapter: 'nope' })).status).toBe(400);
+  });
+
+  it('lists the engine playlist read-only, matched to the library, without file paths', async () => {
+    await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {});
+    const q = await api<{ entries: { index: number; studioTrackId: string | null }[] }>(
+      'GET',
+      '/engine/queue',
+    );
+    expect(q.status).toBe(200);
+    expect(q.body.entries).toHaveLength(6);
+    expect(q.body.entries[0]).toMatchObject({ index: 0 });
+    expect(q.body.entries.every((e) => e.studioTrackId)).toBe(true);
+    expect(JSON.stringify(q.body)).not.toMatch(/uri|D:\\\\|Music/);
+  });
+});
+
+describe('bootstrap adapter precedence', () => {
+  it('uses the saved preference unless a launch override is given', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'hqps-boot-'));
+    const pre = openLibrary(dataDir);
+    pre.settings.set('engine.adapter', 'live');
+    pre.close();
+    const common = { dataDir, appVersion: 't', port: 0, demo: false, hqplayer: { port: 1 } };
+    const live = await bootstrapStudio(common);
+    expect(live.server.engine.adapter.kind).toBe('live');
+    expect(live.server.engineInfo.source).toBe('setting');
+    await live.server.close();
+    live.ctx.close();
+    const forced = await bootstrapStudio({ ...common, adapter: 'mock' });
+    expect(forced.server.engine.adapter.kind).toBe('mock');
+    expect(forced.server.engineInfo.source).toBe('override');
+    await forced.server.close();
+    forced.ctx.close();
+    rmSync(dataDir, { recursive: true, force: true });
   });
 });
 

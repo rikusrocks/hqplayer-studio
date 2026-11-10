@@ -286,6 +286,28 @@ export const en: Record<MessageKey, string> = {
   'realtime.connecting': 'Connecting',
   'realtime.closed': 'Disconnected',
 
+  'engine.mode.title': 'Engine connection',
+  'engine.mode.mock': 'Mock engine (demo, never touches HQPlayer)',
+  'engine.mode.live': 'Real HQPlayer (read-only, experimental)',
+  'engine.mode.liveHint':
+    'Connects to {host}:{port} on this PC and only reads playback state, the HQPlayer playlist and DSP info. Playback, queue, volume and DSP changes stay disabled until verified on the real engine.',
+  'engine.mode.active': 'Running now: {adapter}',
+  'engine.mode.restartRequired': 'Saved. Restart Studio to switch engines.',
+  'engine.mode.restart': 'Restart now',
+  'engine.mode.restartManual':
+    'Saved. Restart Studio Core (re-run pnpm dev in development) to apply.',
+  'engine.mode.override':
+    'The engine is forced by a launch option (--adapter / STUDIO_ADAPTER); this choice applies once that option is removed.',
+  'engine.mode.saved': 'Engine setting saved',
+  'engine.queue.title': 'Current HQPlayer playlist (read-only)',
+  'engine.queue.hint': 'Read directly from HQPlayer. Studio does not modify it.',
+  'engine.queue.load': 'Load',
+  'engine.queue.count': '{count} tracks',
+  'engine.queue.albumMode': 'Album mode',
+  'engine.queue.playlistMode': 'Playlist mode',
+  'engine.queue.empty': 'The HQPlayer playlist is empty',
+  'engine.queue.inLibrary': 'In library',
+
   'remote.title': 'Studio Remote',
   'remote.offline':
     'Cannot reach the Studio server. Make sure the Windows PC is on and HQPlayer Studio is running.',

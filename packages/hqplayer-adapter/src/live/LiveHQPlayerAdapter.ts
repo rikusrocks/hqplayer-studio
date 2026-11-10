@@ -17,7 +17,13 @@ import type {
 import { CapabilityUnavailableError, EngineUnavailableError } from '../errors';
 import { DEFAULT_CONTROL_PORT } from '../protocol/commands';
 import { HqpConnection, type TranscriptEntry } from '../protocol/connection';
-import { mapStateDocument, mapStatusDocument, repeatToSdk } from '../protocol/status';
+import {
+  mapStateDocument,
+  mapStatusDocument,
+  repeatToSdk,
+  toEngineIndex,
+  toStudioIndex,
+} from '../protocol/status';
 import {
   attrFloat,
   attrInt,
@@ -57,6 +63,11 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   private identity: EngineIdentity | null = null;
   private last: EngineStatus = disconnectedStatus();
   private serial = 0;
+  /** Cached HQPlayer playlist (PlaylistGet). Status carries no metadata while stopped. */
+  private playlist: EngineQueueSnapshot | null = null;
+  private volumeRange: { min: number; max: number } | null = null;
+  private serials: string | null = null;
+  private refreshing = false;
   private readonly listeners = new Set<StatusListener>();
   private readonly evidence: Record<EngineCapabilityKey, CapabilityEvidence>;
   private readonly host: string;
@@ -90,6 +101,8 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     }
     this.connection = conn;
     conn.onClose((_hadError, reason) => {
+      this.playlist = null;
+      this.serials = null;
       if (this.connection === conn) this.connection = null;
       this.publish(
         disconnectedStatus(0, reason ? `Connection closed: ${reason}` : 'Connection closed'),
@@ -106,6 +119,19 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       platform: attrStr(info, 'platform'),
       engine: attrStr(info, 'engine'),
     };
+    try {
+      const range = await conn.request('VolumeRange');
+      const min = attrFloat(range, 'min');
+      const max = attrFloat(range, 'max');
+      if (min !== null && max !== null) this.volumeRange = { min, max };
+    } catch {
+      // optional
+    }
+    try {
+      this.playlist = await this.readPlaylist(conn);
+    } catch {
+      this.playlist = null;
+    }
     const first = await conn.request('Status', { subscribe: 1 });
     this.applyStatus(first);
     try {
@@ -119,6 +145,8 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   async disconnect(): Promise<void> {
     this.connection?.close();
     this.connection = null;
+    this.playlist = null;
+    this.serials = null;
     this.publish(disconnectedStatus(0, null));
   }
 
@@ -176,7 +204,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     for (const item of items) {
       await conn.request('PlaylistAdd', { uri: item.uri, queued: 1, clear: 0 });
     }
-    await conn.request('SelectTrack', { index: options.startIndex });
+    await conn.request('SelectTrack', { index: toEngineIndex(options.startIndex) });
     if (options.autoplay) await conn.request('Play', { last: 0 });
   }
 
@@ -187,7 +215,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   }
 
   async removeFromQueue(engineIndex: number): Promise<void> {
-    await this.write('queue.replace', 'PlaylistRemove', { index: engineIndex });
+    await this.write('queue.replace', 'PlaylistRemove', { index: toEngineIndex(engineIndex) });
   }
 
   async clearQueue(): Promise<void> {
@@ -196,12 +224,22 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
 
   async selectIndex(index: number, autoplay: boolean): Promise<void> {
     const conn = this.requireWrite('queue.select');
-    await conn.request('SelectTrack', { index });
+    await conn.request('SelectTrack', { index: toEngineIndex(index) });
     if (autoplay) await conn.request('Play', { last: 0 });
   }
 
   async getEngineQueue(): Promise<EngineQueueSnapshot> {
     const conn = this.requireRead('queue.read');
+    this.playlist = await this.readPlaylist(conn);
+    this.publish({
+      ...this.last,
+      trackCount: this.playlist.entries.length,
+      albumMode: this.playlist.albumMode,
+    });
+    return this.playlist;
+  }
+
+  private async readPlaylist(conn: HqpConnection): Promise<EngineQueueSnapshot> {
     const doc = await conn.request('PlaylistGet', { picture: 0 });
     return {
       albumMode: doc.attributes.album === undefined ? null : doc.attributes.album === '1',
@@ -212,7 +250,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
           return v === null ? null : unescapeHqpText(v);
         };
         return {
-          index: attrInt(item, 'index') ?? i,
+          index: toStudioIndex(attrInt(item, 'index')) ?? i,
           uri: attrStr(item, 'uri'),
           title: s('song'),
           artist: s('artist'),
@@ -257,7 +295,53 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
 
   private applyStatus(doc: XmlElement): void {
     const mapped = mapStatusDocument(doc);
-    this.publish({ ...this.last, ...mapped, connection: 'connected', lastError: null });
+    const entry =
+      mapped.trackIndex !== null ? this.playlist?.entries[mapped.trackIndex] : undefined;
+    let track = mapped.track;
+    if (track && entry && !track.title) {
+      // Stopped/paused status has no <metadata>: describe the selected track from the playlist.
+      track = {
+        ...track,
+        uri: track.uri ?? entry.uri,
+        title: entry.title,
+        artist: entry.artist,
+        album: entry.album,
+        durationMs: track.durationMs ?? entry.durationMs,
+      };
+    }
+    this.publish({
+      ...this.last,
+      ...mapped,
+      track,
+      durationMs: mapped.durationMs ?? track?.durationMs ?? null,
+      trackCount: this.playlist?.entries.length ?? null,
+      albumMode: this.playlist?.albumMode ?? null,
+      volumeRange: this.volumeRange,
+      connection: 'connected',
+      lastError: null,
+    });
+    // Playlist/track changes bump these serials: re-read the playlist (cheap, read-only).
+    const serials = `${doc.attributes.track_serial ?? ''}|${doc.attributes.transport_serial ?? ''}`;
+    if (this.serials !== null && serials !== this.serials) void this.refreshPlaylist();
+    this.serials = serials;
+  }
+
+  private async refreshPlaylist(): Promise<void> {
+    const conn = this.connection;
+    if (!conn?.connected || this.refreshing) return;
+    this.refreshing = true;
+    try {
+      this.playlist = await this.readPlaylist(conn);
+      this.publish({
+        ...this.last,
+        trackCount: this.playlist.entries.length,
+        albumMode: this.playlist.albumMode,
+      });
+    } catch {
+      // keep the previous cache; the next status change retries
+    } finally {
+      this.refreshing = false;
+    }
   }
 
   private publish(status: Omit<EngineStatus, 'serial'> & { serial?: number }): void {

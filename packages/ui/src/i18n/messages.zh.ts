@@ -277,6 +277,27 @@ export const zh = {
   'diag.mock.failNext': '下一条命令失败',
   'diag.mockDone': '已执行：{action}',
 
+  'engine.mode.title': '引擎连接',
+  'engine.mode.mock': 'Mock 引擎（演示，不连接 HQPlayer）',
+  'engine.mode.live': '真实 HQPlayer（只读，实验）',
+  'engine.mode.liveHint':
+    '连接本机 {host}:{port}，只读取播放状态、HQPlayer 播放列表与 DSP 信息。播放、队列、音量、DSP 等写操作在真机验证前保持禁用。',
+  'engine.mode.active': '当前运行：{adapter}',
+  'engine.mode.restartRequired': '已保存。需要重启 Studio 才能切换引擎。',
+  'engine.mode.restart': '立即重启',
+  'engine.mode.restartManual': '已保存。请重启 Studio Core（开发模式下重新运行 pnpm dev）后生效。',
+  'engine.mode.override':
+    '当前引擎由启动参数指定（--adapter / STUDIO_ADAPTER）；去掉参数后才会使用这里的选择。',
+  'engine.mode.saved': '引擎设置已保存',
+  'engine.queue.title': 'HQPlayer 当前播放列表（只读）',
+  'engine.queue.hint': '直接从 HQPlayer 读取，Studio 不会修改它。',
+  'engine.queue.load': '读取',
+  'engine.queue.count': '{count} 首',
+  'engine.queue.albumMode': '专辑模式',
+  'engine.queue.playlistMode': '播放列表模式',
+  'engine.queue.empty': 'HQPlayer 播放列表为空',
+  'engine.queue.inLibrary': '已在音乐库中',
+
   'realtime.open': '已连接',
   'realtime.connecting': '连接中',
   'realtime.closed': '已断开',

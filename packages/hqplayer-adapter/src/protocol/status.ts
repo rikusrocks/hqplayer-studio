@@ -48,6 +48,23 @@ function text(el: XmlElement | undefined, name: string): string | null {
 
 export type MappedStatus = Omit<EngineStatus, 'serial' | 'connection' | 'lastError'>;
 
+/**
+ * HQPlayer playlist indexes are 1-based: PlaylistItem.index ran 1..52 on Desktop 6 / engine 6.1.0
+ * (probe 2026-11-10). Status `track` is assumed to use the same base, with 0 meaning "no current
+ * track" (it was 0 while stopped) — to be confirmed during playback. Studio uses 0-based indexes.
+ */
+export const ENGINE_INDEX_BASE = 1;
+
+export function toStudioIndex(engineIndex: number | null): number | null {
+  return engineIndex !== null && engineIndex >= ENGINE_INDEX_BASE
+    ? engineIndex - ENGINE_INDEX_BASE
+    : null;
+}
+
+export function toEngineIndex(studioIndex: number): number {
+  return studioIndex + ENGINE_INDEX_BASE;
+}
+
 export function mapStatusDocument(doc: XmlElement, now = Date.now()): MappedStatus {
   const meta = doc.children.find((c) => c.name === 'metadata');
 
@@ -93,7 +110,7 @@ export function mapStatusDocument(doc: XmlElement, now = Date.now()): MappedStat
     };
   }
 
-  const trackIndex = attrInt(doc, 'track');
+  const trackIndex = toStudioIndex(attrInt(doc, 'track'));
   const uri = meta ? attrStr(meta, 'uri') : null; // secure_uri requires a session key → null
   const randomRaw = attrInt(doc, 'random');
 
@@ -114,7 +131,9 @@ export function mapStatusDocument(doc: XmlElement, now = Date.now()): MappedStat
           }
         : null,
     trackIndex,
-    trackCount: attrInt(doc, 'tracks_total'),
+    // NOT tracks_total: it read 0 while the playlist held 52 items (probe 2026-11-10). The Live
+    // adapter fills trackCount from PlaylistGet instead.
+    trackCount: null,
     volumeDb: attrFloat(doc, 'volume'),
     volumeRange: null,
     input,

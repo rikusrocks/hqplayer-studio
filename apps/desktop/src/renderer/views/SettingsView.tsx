@@ -1,5 +1,9 @@
 import {
   ENGINE_CAPABILITY_KEYS,
+  canUse,
+  type AdapterKind,
+  type EngineQueue,
+  type EngineSettings,
   type LibraryRoot,
   type MockControlRequest,
   type ScanJob,
@@ -15,6 +19,7 @@ import {
   LoadingBlock,
   Spinner,
   formatDate,
+  formatDuration,
   formatNumber,
   useAsync,
   useI18n,
@@ -295,6 +300,7 @@ function PlaybackSettings() {
   if (!capabilities) return <LoadingBlock />;
   return (
     <div className="settings-stack">
+      <EngineModeCard />
       <p className="hint">{t('settings.capabilitiesHint')}</p>
       <div className="kv">
         <span>{t('diag.adapter')}</span>
@@ -478,6 +484,8 @@ function Diagnostics() {
         <span className="hq-mono">{status.lastError ?? '—'}</span>
       </div>
 
+      {canUse(capabilities, 'queue.read') && <EngineQueueCard />}
+
       {isMock && (
         <div className="settings-block">
           <h3>{t('diag.mockControls')}</h3>
@@ -501,6 +509,128 @@ function Diagnostics() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function EngineModeCard() {
+  const { t } = useI18n();
+  const { client, run } = useStudio();
+  const loaded = useAsync(() => client.settings.engine(), [client]);
+  const [settings, setSettings] = useState<EngineSettings | null>(null);
+  const current = settings ?? loaded.data ?? null;
+  const shell = getShell();
+  if (!current) return loaded.error ? <ErrorBlock error={loaded.error} /> : <LoadingBlock />;
+
+  const choose = async (adapter: AdapterKind) => {
+    const res = await run(() => client.settings.setEngine(adapter), {
+      success: t('engine.mode.saved'),
+    });
+    if (res) setSettings(res);
+  };
+  const option = (adapter: AdapterKind, label: string, hint?: string) => (
+    <label className="engine-option">
+      <input
+        type="radio"
+        name="engine-adapter"
+        value={adapter}
+        checked={current.preferredAdapter === adapter}
+        onChange={() => void choose(adapter)}
+      />
+      <span>
+        <strong>{label}</strong>
+        {hint && <span className="hint">{hint}</span>}
+      </span>
+    </label>
+  );
+  return (
+    <div className="settings-block">
+      <h3>{t('engine.mode.title')}</h3>
+      <div className="engine-options" role="radiogroup" aria-label={t('engine.mode.title')}>
+        {option('mock', t('engine.mode.mock'))}
+        {option(
+          'live',
+          t('engine.mode.live'),
+          t('engine.mode.liveHint', {
+            host: current.hqplayer.host,
+            port: String(current.hqplayer.port),
+          }),
+        )}
+      </div>
+      <p className="hint">{t('engine.mode.active', { adapter: current.activeAdapter })}</p>
+      {current.source === 'override' && (
+        <div className="hq-banner hq-banner--muted">
+          <Icon name="info" size={16} />
+          <span>{t('engine.mode.override')}</span>
+        </div>
+      )}
+      {current.restartRequired && (
+        <div className="hq-banner hq-banner--info">
+          <Icon name="refresh" size={16} />
+          <span>{shell ? t('engine.mode.restartRequired') : t('engine.mode.restartManual')}</span>
+          {shell && (
+            <button type="button" className="hq-btn hq-btn--sm" onClick={() => shell.relaunch()}>
+              {t('engine.mode.restart')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EngineQueueCard() {
+  const { t } = useI18n();
+  const { client, run } = useStudio();
+  const [queue, setQueue] = useState<EngineQueue | null>(null);
+  const [loading, setLoading] = useState(false);
+  const load = async () => {
+    setLoading(true);
+    const res = await run(() => client.engine.queue());
+    setLoading(false);
+    if (res) setQueue(res);
+  };
+  return (
+    <div className="settings-block">
+      <h3>{t('engine.queue.title')}</h3>
+      <p className="hint">{t('engine.queue.hint')}</p>
+      <div className="button-row">
+        <button type="button" className="hq-btn" onClick={() => void load()} disabled={loading}>
+          {loading ? <Spinner size={14} /> : <Icon name="refresh" size={14} />}
+          {t('engine.queue.load')}
+        </button>
+        {queue && (
+          <span className="hq-muted">
+            {t('engine.queue.count', { count: String(queue.entries.length) })}
+            {queue.albumMode !== null &&
+              ` · ${queue.albumMode ? t('engine.queue.albumMode') : t('engine.queue.playlistMode')}`}
+          </span>
+        )}
+      </div>
+      {queue &&
+        (queue.entries.length === 0 ? (
+          <p className="hint">{t('engine.queue.empty')}</p>
+        ) : (
+          <table className="hq-table engine-queue">
+            <tbody>
+              {queue.entries.map((e) => (
+                <tr key={e.index}>
+                  <td className="hq-mono hq-muted">{e.index + 1}</td>
+                  <td>
+                    <div>{e.title ?? '—'}</div>
+                    <div className="hq-muted">
+                      {[e.artist, e.album].filter(Boolean).join(' · ')}
+                      {e.studioTrackId && ` · ${t('engine.queue.inLibrary')}`}
+                    </div>
+                  </td>
+                  <td className="hq-mono hq-muted">
+                    {e.durationMs !== null ? formatDuration(e.durationMs) : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
     </div>
   );
 }

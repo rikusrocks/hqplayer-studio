@@ -95,3 +95,43 @@ export function splitArtists(artist: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+function safeDecode(s: string): string | null {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert a path/URI reported by HQPlayer back to a local path.
+ *
+ * Observed on HQPlayer Desktop 6.1.0 (probe 2026-11-10): PlaylistGet uri = "file:" followed by a
+ * raw Windows path — backslashes, spaces and non-ASCII characters NOT percent-encoded. Raw forms
+ * are therefore never URI-decoded ("100% Pure.flac" must survive). Proper RFC 8089 URIs
+ * (`file:///D:/a%20b.flac`, `file://server/share/x.flac`) are decoded.
+ */
+export function engineUriToPath(uriOrPath: string): string | null {
+  const s = uriOrPath.trim();
+  if (!s) return null;
+  if (!/^file:/i.test(s)) return s;
+  const rest = s.slice(5);
+  // Windows drive after any number of slashes/backslashes: file:D:\…, file://D:\…, file:///D:/…
+  const drive = /^[\\/]*([A-Za-z]:[\\/].*)$/.exec(rest);
+  if (drive) {
+    const path = drive[1] as string;
+    const encoded = !path.includes('\\') && /%[0-9A-Fa-f]{2}/.test(path) && !/\s/.test(path);
+    return encoded ? safeDecode(path) : path;
+  }
+  // UNC written raw: file:\\server\share\…
+  if (/^\\\\[^\\]/.test(rest)) return rest;
+  // RFC 8089 local absolute path: file:///Users/…
+  if (rest.startsWith('///')) return safeDecode(rest.slice(2));
+  // RFC 8089 with authority: file://server/share/… → UNC
+  if (rest.startsWith('//')) {
+    const decoded = safeDecode(rest.slice(2));
+    return decoded ? `\\\\${decoded.replace(/\//g, '\\')}` : null;
+  }
+  return safeDecode(rest);
+}

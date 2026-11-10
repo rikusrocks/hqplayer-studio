@@ -14,28 +14,30 @@ export interface CapabilityEvidence {
 }
 
 /**
- * Evidence for HQPlayer Desktop 6 as of 2026-11-10: everything is derived from the official SDK
- * 6.0.1 source; nothing has been exercised against a real Desktop 6 yet, so nothing is
- * `confirmed`. Update this table (and docs/protocol-capabilities.md) from probe reports only.
+ * Evidence for the user's HQPlayer Desktop 6 (engine 6.1.0, Windows).
+ * - Read paths: exercised by hqp-probe v0.1.0 on 2026-11-10 (Gate A/B, 19/19 commands answered).
+ * - Write paths: still SDK-only (`untested`) — they stay disabled until Gate C with consent.
+ * Update this table (and docs/protocol-capabilities.md) from probe reports / Gate C records only.
  */
 export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> = {
   connect: {
-    status: 'untested',
+    status: 'confirmed',
     readOnly: true,
-    evidence: 'SDK 6.0.1 connectToHost (TCP 4321)',
-    note: 'TCP reachability on 127.0.0.1:4321 was seen with Test-NetConnection only.',
-  },
-  'status.read': {
-    status: 'untested',
-    readOnly: true,
-    evidence: 'SDK Status subscribe="0" / State',
+    evidence: 'GetInfo over 127.0.0.1:4321 (probe 2026-11-10, engine 6.1.0), no auth required',
     note: null,
   },
-  'status.subscribe': {
-    status: 'untested',
+  'status.read': {
+    status: 'confirmed',
     readOnly: true,
-    evidence: 'SDK Status subscribe="1"',
-    note: 'Push cadence unknown.',
+    evidence: 'Status subscribe="0" + State (probe 2026-11-10, engine 6.1.0)',
+    note: 'Only observed while stopped: position units and track index base during playback still to confirm.',
+  },
+  'status.subscribe': {
+    status: 'observed',
+    readOnly: true,
+    evidence:
+      'Status subscribe="1" acknowledged, 1 push in 3 s while stopped (probe 2026-11-10, engine 6.1.0)',
+    note: 'Push cadence during playback not yet observed.',
   },
   'transport.play': {
     status: 'untested',
@@ -64,16 +66,16 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     note: 'Unit assumed seconds.',
   },
   'volume.read': {
-    status: 'untested',
+    status: 'confirmed',
     readOnly: true,
-    evidence: 'SDK Status volume / VolumeRange',
+    evidence: 'Status volume + VolumeRange min=-12 max=0 (probe 2026-11-10, engine 6.1.0)',
     note: null,
   },
   'volume.set': {
     status: 'untested',
     readOnly: false,
     evidence: 'SDK Volume value=<double>',
-    note: 'Never changed automatically.',
+    note: 'VolumeRange reported enabled="0" on this install — remote volume may be disabled in HQPlayer. Never changed automatically.',
   },
   'queue.replace': {
     status: 'untested',
@@ -88,16 +90,16 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     note: null,
   },
   'queue.read': {
-    status: 'untested',
+    status: 'confirmed',
     readOnly: true,
-    evidence: 'SDK PlaylistGet picture="0"',
-    note: null,
+    evidence: 'PlaylistGet returned the current playlist (probe 2026-11-10, engine 6.1.0)',
+    note: 'PlaylistItem index is 1-based; uri is "file:" + raw Windows path (backslashes, unencoded non-ASCII).',
   },
   'queue.select': {
     status: 'untested',
     readOnly: false,
     evidence: 'SDK SelectTrack index=',
-    note: 'Index base (0/1) unverified.',
+    note: 'Presumed 1-based like PlaylistItem.index; confirm in Gate C.',
   },
   'mode.album': {
     status: 'unsupported',
@@ -120,14 +122,16 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
   'playlist.server': {
     status: 'untested',
     readOnly: false,
-    evidence: 'SDK PlaylistGetList/Load/Save/Delete',
+    evidence:
+      'PlaylistGetList answered (no saved playlists) (probe 2026-11-10, engine 6.1.0); Load/Save/Delete SDK-only',
     note: 'Studio owns saved playlists; server playlists are optional.',
   },
   'dsp.read': {
-    status: 'untested',
+    status: 'confirmed',
     readOnly: true,
-    evidence: 'SDK GetModes/GetFilters/GetShapers/GetRates + State',
-    note: null,
+    evidence:
+      'GetModes 3 / GetFilters 77 / GetShapers 36 / GetRates 21 + Status active_* (probe 2026-11-10, engine 6.1.0)',
+    note: 'State mode/filter/shaper/rate are list indexes, not values.',
   },
   'dsp.write': {
     status: 'untested',
@@ -136,9 +140,9 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     note: 'Disabled until verified and explicitly enabled by the user.',
   },
   'library.native': {
-    status: 'untested',
+    status: 'observed',
     readOnly: true,
-    evidence: 'SDK LibraryGet / LibraryGetHash',
+    evidence: 'LibraryGetHash answered (probe 2026-11-10, engine 6.1.0); LibraryGet not run',
     note: 'Optional; Studio keeps its own library.',
   },
 };

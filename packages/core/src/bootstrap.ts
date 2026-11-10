@@ -6,11 +6,15 @@ import {
   type HQPlayerAdapter,
 } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
+import { ENGINE_ADAPTER_SETTING } from './settings-keys';
 import { createStudioServer, DEFAULT_PORT, type StudioServer } from './server';
+
+export { ENGINE_ADAPTER_SETTING };
 
 export interface BootstrapOptions {
   dataDir: string;
   appVersion: string;
+  /** Force an adapter (launch flag / env). Omit to use the saved preference. */
   adapter?: 'mock' | 'live';
   port?: number;
   hqplayer?: { host?: string; port?: number };
@@ -39,13 +43,13 @@ export async function bootstrapStudio(opts: BootstrapOptions): Promise<Bootstrap
   if (demo && ctx.library.listRoots().length === 0) {
     seedDemoLibrary(ctx.library, ctx.playlists, ctx.artwork);
   }
+  // Precedence: explicit override (CLI flag / env) > saved preference > mock.
+  const saved = ctx.settings.get<'mock' | 'live' | null>(ENGINE_ADAPTER_SETTING, null);
+  const kind = opts.adapter ?? saved ?? 'mock';
+  const source = opts.adapter ? 'override' : saved ? 'setting' : 'default';
+  const hqplayer = { host: opts.hqplayer?.host ?? '127.0.0.1', port: opts.hqplayer?.port ?? 4321 };
   const adapter: HQPlayerAdapter =
-    opts.adapter === 'live'
-      ? new LiveHQPlayerAdapter({
-          host: opts.hqplayer?.host ?? '127.0.0.1',
-          port: opts.hqplayer?.port ?? 4321,
-        })
-      : new MockHQPlayerAdapter();
+    kind === 'live' ? new LiveHQPlayerAdapter(hqplayer) : new MockHQPlayerAdapter();
   const server = await createStudioServer({
     adapter,
     ctx,
@@ -53,6 +57,7 @@ export async function bootstrapStudio(opts: BootstrapOptions): Promise<Bootstrap
     port: opts.port ?? DEFAULT_PORT,
     staticDirs: opts.staticDirs,
     demoMode: demo,
+    engineInfo: { source, hqplayer },
     logger: opts.logger,
   });
   const { url, port } = await server.listen();

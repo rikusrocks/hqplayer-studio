@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('studioShell', {
   platform: process.platform,
   toggleMiniPlayer: (): void => ipcRenderer.send('studio:toggle-mini'),
   showMainWindow: (): void => ipcRenderer.send('studio:show-main'),
+  relaunch: (): void => ipcRenderer.send('studio:relaunch'),
   setAlwaysOnTop: (on: boolean): Promise<boolean> =>
     ipcRenderer.invoke('studio:set-always-on-top', on === true) as Promise<boolean>,
   pickFolder: (): Promise<string | null> =>

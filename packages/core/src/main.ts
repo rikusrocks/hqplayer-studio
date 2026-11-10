@@ -20,7 +20,8 @@ const desktopDist = resolve(repoRoot, 'apps/desktop/dist/renderer');
 const { server, url } = await bootstrapStudio({
   dataDir,
   appVersion: env.npm_package_version ?? '0.1.0-dev',
-  adapter: env.STUDIO_ADAPTER === 'live' ? 'live' : 'mock',
+  adapter:
+    env.STUDIO_ADAPTER === 'live' || env.STUDIO_ADAPTER === 'mock' ? env.STUDIO_ADAPTER : undefined,
   port: env.STUDIO_PORT ? Number(env.STUDIO_PORT) : undefined,
   hqplayer: { host: env.HQP_HOST, port: env.HQP_PORT ? Number(env.HQP_PORT) : undefined },
   staticDirs: {
