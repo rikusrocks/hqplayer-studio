@@ -61,25 +61,29 @@ describe('HQPlayer program detection', () => {
 });
 
 // Real Win32 calls on the Windows CI runner, with Notepad standing in for HQPlayer.
+// Shared runners can be very slow to start PowerShell: generous timeouts and two retries.
+const SLOW = 60_000;
 describe.runIf(process.platform === 'win32')('window control (Windows)', () => {
-  it('hides and shows a program window', async () => {
+  it('hides and shows a program window', { timeout: 240_000, retry: 2 }, async () => {
     const child = spawn('notepad.exe', [], { stdio: 'ignore' });
+    const anyVisible = async () =>
+      (await windowControl('notepad', 'list', undefined, SLOW)).windows.some((w) => w.visible);
     try {
       let visible = false;
       for (let i = 0; i < 40 && !visible; i += 1) {
         await new Promise((r) => setTimeout(r, 250));
-        visible = (await windowControl('notepad', 'list')).windows.some((w) => w.visible);
+        visible = await anyVisible();
       }
       if (!visible) {
         console.warn('notepad window never appeared (no interactive desktop?) — skipped');
         return;
       }
-      await windowControl('notepad', 'hide');
-      expect((await windowControl('notepad', 'list')).windows.some((w) => w.visible)).toBe(false);
-      await windowControl('notepad', 'show', 'Notepad');
-      expect((await windowControl('notepad', 'list')).windows.some((w) => w.visible)).toBe(true);
+      await windowControl('notepad', 'hide', undefined, SLOW);
+      expect(await anyVisible()).toBe(false);
+      await windowControl('notepad', 'show', 'Notepad', SLOW);
+      expect(await anyVisible()).toBe(true);
     } finally {
       child.kill();
     }
-  }, 60_000);
+  });
 });

@@ -210,18 +210,29 @@ export async function windowControl(
   processName: string,
   action: HqpWindowAction,
   showMatch = 'QWindowIcon|HQPlayer',
+  timeoutMs = 30_000,
 ): Promise<{ pids: number[]; windows: HqpWindowInfo[] }> {
   if (process.platform !== 'win32') return { pids: [], windows: [] };
   const encoded = Buffer.from(WINDOW_SCRIPT, 'utf16le').toString('base64');
-  const { stdout } = await execFileP(
-    'powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
-    {
-      windowsHide: true,
-      timeout: 20_000,
-      env: { ...process.env, HQPS_PROC: processName, HQPS_ACTION: action, HQPS_SHOW: showMatch },
-    },
-  );
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileP(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
+      {
+        windowsHide: true,
+        timeout: timeoutMs,
+        env: { ...process.env, HQPS_PROC: processName, HQPS_ACTION: action, HQPS_SHOW: showMatch },
+      },
+    ));
+  } catch (err) {
+    // keep the (huge) encoded command out of error messages and toasts
+    const e = err as { killed?: boolean; stderr?: string; message: string };
+    const detail = e.killed
+      ? `timed out after ${Math.round(timeoutMs / 1000)} s`
+      : (e.stderr?.trim().split(/\r?\n/)[0] ?? 'failed');
+    throw new Error(`Window control (${action}) failed: ${detail}`, { cause: err });
+  }
   const parsed = JSON.parse(stdout.trim() || '{}') as {
     pids?: number[] | number;
     windows?: HqpWindowInfo[] | HqpWindowInfo;
