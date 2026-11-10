@@ -201,6 +201,7 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       jump: (index: number) => post(QueueStateSchema, '/queue/jump', { index }),
       clear: () => post(QueueStateSchema, '/queue/clear'),
       takeover: () => post(QueueStateSchema, '/queue/takeover'),
+      follow: () => post(QueueStateSchema, '/queue/follow'),
     },
 
     playback: {

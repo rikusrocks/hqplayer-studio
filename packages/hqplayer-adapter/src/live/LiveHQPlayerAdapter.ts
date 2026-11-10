@@ -15,7 +15,7 @@ import type {
   ReplaceQueueOptions,
   StatusListener,
 } from '../adapter';
-import { CapabilityUnavailableError, EngineUnavailableError } from '../errors';
+import { CapabilityUnavailableError, EngineCommandError, EngineUnavailableError } from '../errors';
 import { DEFAULT_CONTROL_PORT } from '../protocol/commands';
 import { HqpConnection, type TranscriptEntry } from '../protocol/connection';
 import {
@@ -249,13 +249,23 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     if (options.albumMode) {
       // Album Mode cannot be selected via the SDK API; the queue is still loaded in order.
     }
-    await conn.request('PlaylistClear');
+    await this.clearPlaylistVerified(conn);
     for (const item of items) {
       await conn.request('PlaylistAdd', { uri: item.uri, queued: 1, clear: 0 });
     }
+    // Verify before selecting: SelectTrack on a playlist that is not exactly ours would start
+    // the wrong song.
+    const loaded = await this.readPlaylist(conn);
+    this.playlist = loaded;
+    this.publishPlaylistCount();
+    if (loaded.entries.length !== items.length) {
+      throw new EngineCommandError(
+        'PlaylistAdd',
+        `HQPlayer's playlist has ${loaded.entries.length} item(s) after loading ${items.length}`,
+      );
+    }
     await conn.request('SelectTrack', { index: toEngineIndex(options.startIndex) });
     if (options.autoplay) await conn.request('Play', { last: 0 });
-    await this.refreshAfterEdit(conn);
   }
 
   async appendToQueue(items: PlayableTrack[]): Promise<void> {
@@ -273,8 +283,47 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
 
   async clearQueue(): Promise<void> {
     const conn = this.requireWrite('queue.replace');
+    await this.clearPlaylistVerified(conn);
+  }
+
+  /**
+   * Empty HQPlayer's playlist for real.
+   *
+   * Observed on HQPlayer Desktop 6 (user report, Studio v0.1.4): `PlaylistClear` while a track
+   * is playing leaves that track in the playlist and it keeps playing — so a following
+   * `SelectTrack 1` + `Play` resumed the old song instead of the new album. Gate C only ever
+   * cleared a stopped engine. So: always Stop first (confirmed in Gate C; ~3.8 s while playing,
+   * 0 ms when already stopped — and Studio's last pushed Status may lag behind a Play it just
+   * sent), clear, then read the playlist back; leftovers are removed one by one
+   * (`PlaylistRemove`, confirmed) and anything still left is reported as an error.
+   */
+  private async clearPlaylistVerified(conn: HqpConnection): Promise<void> {
+    await conn.request('Stop');
     await conn.request('PlaylistClear');
-    await this.refreshAfterEdit(conn);
+    let playlist = await this.readPlaylist(conn);
+    if (playlist.entries.length > 0) {
+      for (let n = playlist.entries.length; n > 0; n -= 1) {
+        await conn.request('PlaylistRemove', { index: toEngineIndex(n - 1) });
+      }
+      playlist = await this.readPlaylist(conn);
+    }
+    this.playlist = playlist;
+    this.publishPlaylistCount();
+    if (playlist.entries.length > 0) {
+      throw new EngineCommandError(
+        'PlaylistClear',
+        `HQPlayer kept ${playlist.entries.length} item(s) in its playlist`,
+      );
+    }
+  }
+
+  private publishPlaylistCount(): void {
+    if (!this.playlist) return;
+    this.publish({
+      ...this.last,
+      trackCount: this.playlist.entries.length,
+      albumMode: this.playlist.albumMode,
+    });
   }
 
   /**
@@ -284,11 +333,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   private async refreshAfterEdit(conn: HqpConnection): Promise<void> {
     try {
       this.playlist = await this.readPlaylist(conn);
-      this.publish({
-        ...this.last,
-        trackCount: this.playlist.entries.length,
-        albumMode: this.playlist.albumMode,
-      });
+      this.publishPlaylistCount();
     } catch {
       // the serial-change refresh will catch up
     }
@@ -303,11 +348,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
   async getEngineQueue(): Promise<EngineQueueSnapshot> {
     const conn = this.requireRead('queue.read');
     this.playlist = await this.readPlaylist(conn);
-    this.publish({
-      ...this.last,
-      trackCount: this.playlist.entries.length,
-      albumMode: this.playlist.albumMode,
-    });
+    this.publishPlaylistCount();
     return {
       ...this.playlist,
       currentIndex: this.last.trackIndex,
@@ -425,11 +466,7 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     this.refreshing = true;
     try {
       this.playlist = await this.readPlaylist(conn);
-      this.publish({
-        ...this.last,
-        trackCount: this.playlist.entries.length,
-        albumMode: this.playlist.albumMode,
-      });
+      this.publishPlaylistCount();
     } catch {
       // keep the previous cache; the next status change retries
     } finally {

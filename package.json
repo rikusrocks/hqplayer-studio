@@ -1,6 +1,6 @@
 {
   "name": "hqplayer-studio",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "HQPlayer Studio — a third-party modern music library, playlist manager and web remote for HQPlayer Desktop 6. Not affiliated with Signalyst.",
   "license": "MIT",

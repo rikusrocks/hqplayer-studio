@@ -303,6 +303,7 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
       api.post('/queue/jump', async (req) => queue.jump(body(QueueJumpRequestSchema, req).index));
       api.post('/queue/clear', async () => queue.clear());
       api.post('/queue/takeover', async () => queue.takeover());
+      api.post('/queue/follow', async () => queue.follow());
       api.post('/playback/album/:id', async (req) =>
         queue.playAlbum(
           IdParams.parse(req.params).id,

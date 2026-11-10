@@ -9,11 +9,14 @@ import { Artwork, EmptyState, Spinner } from './basics';
 
 /**
  * Shown when Studio's planned queue and what HQPlayer actually plays disagree.
- * Studio never silently overwrites the engine; the user decides.
+ * Studio never silently overwrites the engine; the user decides which side wins:
+ * - "Follow HQPlayer" sends nothing to HQPlayer (always safe, works without control rights);
+ * - "Replace HQPlayer's queue" stops HQPlayer and loads Studio's queue (needs control, confirmed).
  */
 export function QueueSyncBanner() {
-  const { queue, queueTakeover, pending, serverReachable } = useStudio();
+  const { queue, queueTakeover, queueFollow, pending, serverReachable } = useStudio();
   const gate = useCapabilityGate();
+  const { confirm } = useDialogs();
   const t = useT();
   if (!serverReachable) return null;
   if (queue.sync.state === 'engine_offline' && queue.items.length > 0) {
@@ -25,24 +28,47 @@ export function QueueSyncBanner() {
     );
   }
   if (queue.sync.state !== 'out_of_sync') return null;
-  const reason = gate('queue.replace');
+  const takeoverReason = gate('queue.replace');
+  const busy = pending.has('takeover') || pending.has('follow');
+  const detail = queue.sync.code
+    ? t(`queue.sync.${queue.sync.code}`)
+    : (queue.sync.reason ?? t('queue.outOfSyncHint'));
   return (
-    <div className="hq-banner hq-banner--warn" role="alert">
+    <div className="hq-banner hq-banner--warn hq-banner--stacked" role="alert">
       <Icon name="warning" size={18} />
       <div className="hq-banner__body">
         <strong>{t('queue.outOfSync')}</strong>
-        <span>{queue.sync.reason ?? t('queue.outOfSyncHint')}</span>
+        <span>{detail}</span>
       </div>
-      <button
-        type="button"
-        className="hq-btn hq-btn--sm"
-        onClick={() => void queueTakeover()}
-        disabled={!!reason || pending.has('takeover')}
-        title={reason ?? t('queue.takeoverHint')}
-      >
-        {pending.has('takeover') ? <Spinner size={14} /> : <Icon name="refresh" size={14} />}
-        {t('queue.takeover')}
-      </button>
+      <div className="hq-banner__actions">
+        <button
+          type="button"
+          className="hq-btn hq-btn--primary hq-btn--sm"
+          onClick={() => void queueFollow()}
+          disabled={busy}
+          title={t('queue.followHint')}
+        >
+          {pending.has('follow') ? <Spinner size={14} /> : <Icon name="check" size={14} />}
+          {t('queue.follow')}
+        </button>
+        <button
+          type="button"
+          className="hq-btn hq-btn--sm"
+          onClick={async () => {
+            const ok = await confirm({
+              title: t('queue.takeover'),
+              message: t('queue.takeoverConfirm', { count: queue.items.length }),
+              confirmLabel: t('queue.takeover'),
+            });
+            if (ok) await queueTakeover();
+          }}
+          disabled={!!takeoverReason || busy}
+          title={takeoverReason ?? t('queue.takeoverHint')}
+        >
+          {pending.has('takeover') ? <Spinner size={14} /> : <Icon name="refresh" size={14} />}
+          {t('queue.takeover')}
+        </button>
+      </div>
     </div>
   );
 }

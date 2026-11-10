@@ -676,6 +676,17 @@
 .hq-banner__body span {
   color: var(--text-2);
 }
+.hq-banner--stacked {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.hq-banner__actions {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 28px;
+}
 
 /* ---- album grid --------------------------------------------------------------------------- */
 .hq-album-grid {

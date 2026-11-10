@@ -1,16 +1,14 @@
 import net from 'node:net';
-import {
-  escapeXml,
-  parseXmlDocument,
-  XmlDocumentFramer,
-  type XmlElement,
-} from '@hqps/hqplayer-adapter';
+import { XmlDocumentFramer } from '../protocol/framer';
+import { escapeXml, parseXmlDocument, type XmlElement } from '../protocol/xml';
 
 /**
- * A stateful, SYNTHETIC stand-in for HQPlayer used only by Gate C tests. Attribute names/shapes
- * follow what HQPlayer Desktop 6 / engine 6.1.0 returned to hqp-probe (1-based indexes,
- * "file://" + raw path URIs, output_delay in µs, tracks_total 0 while stopped). The *behaviour*
- * (Pause toggles, clear/queued semantics…) is invented for testing and is not evidence.
+ * A stateful, SYNTHETIC stand-in for HQPlayer used by tests (Gate C tool, live adapter, Core).
+ * Attribute names/shapes follow what HQPlayer Desktop 6 / engine 6.1.0 returned to hqp-probe
+ * (1-based indexes, "file://" + raw path URIs, output_delay in µs, tracks_total 0 while stopped).
+ * Behaviour that matches real observations: Pause toggles (Gate C), PlaylistClear while a track
+ * is playing leaves that track behind and it keeps playing (user report on Studio v0.1.4), Play
+ * while playing changes nothing. Everything else is invented for testing and is not evidence.
  */
 export interface FakeTrack {
   uri: string;
@@ -26,6 +24,13 @@ export interface FakeEngineOptions {
   /** Make the engine reject PlaylistAdd for native paths (to test the restore fallback). */
   rejectNativePaths?: boolean;
   volume?: string;
+  /**
+   * Real HQPlayer (observed 2026-11-10): PlaylistClear while playing/paused keeps the active
+   * track in the playlist and keeps playing it. Default true; false = an idealised clear.
+   */
+  clearKeepsActiveTrack?: boolean;
+  /** Start with the first playlist entry playing (HQPlayer already busy when Studio connects). */
+  startPlaying?: boolean;
 }
 
 export interface FakeEngine {
@@ -33,6 +38,8 @@ export interface FakeEngine {
   received: XmlElement[];
   playlist(): FakeTrack[];
   state(): { transport: number; current: number; repeat: number; random: number; volume: string };
+  /** Someone used the native HQPlayer UI: load this playlist and play its first entry. */
+  external(playlist: FakeTrack[]): void;
   close(): Promise<void>;
 }
 
@@ -42,7 +49,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
   const speed = opts.speed ?? 1;
   let playlist = [...opts.playlist];
   let current = playlist.length ? 1 : 0; // 1-based
-  let transport = 0; // 0 stopped, 1 paused, 2 playing
+  let transport = opts.startPlaying && playlist.length ? 2 : 0; // 0 stopped, 1 paused, 2 playing
   let basePos = 0;
   let anchor = Date.now();
   let repeat = 0;
@@ -151,11 +158,18 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         setPos(0);
         return ok;
       }
-      case 'PlaylistClear':
+      case 'PlaylistClear': {
+        const active = transport !== 0 ? playlist[current - 1] : undefined;
+        if (active && opts.clearKeepsActiveTrack !== false) {
+          playlist = [active];
+          current = 1;
+          return ok;
+        }
         playlist = [];
         current = 0;
         transport = 0;
         return ok;
+      }
       case 'PlaylistAdd': {
         const uri = a.uri ?? '';
         if (opts.rejectNativePaths && isNative(uri))
@@ -222,6 +236,12 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
     received,
     playlist: () => [...playlist],
     state: () => ({ transport, current, repeat, random, volume }),
+    external: (next) => {
+      playlist = [...next];
+      current = playlist.length ? 1 : 0;
+      transport = playlist.length ? 2 : 0;
+      setPos(0);
+    },
     close: () =>
       new Promise<void>((r) => {
         for (const s of sockets) s.destroy();

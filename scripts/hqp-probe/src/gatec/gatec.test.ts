@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { GATE_C_ALLOWED, GateCSession, GateGuardError } from './session';
 import { runGateC, scrub, type GateIO, type StepAnswer } from './run';
-import { startFakeEngine, type FakeEngine } from './testing/fake-engine';
+import {
+  startFakeEngine,
+  type FakeEngine,
+} from '../../../../packages/hqplayer-adapter/src/testing/fake-engine';
 import { storedForm, toM3u8 } from './files';
 
 const ORIGINAL = Array.from({ length: 5 }, (_, i) => ({

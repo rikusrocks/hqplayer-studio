@@ -4,10 +4,15 @@ import {
   type QueueMode,
   type QueueSource,
   type QueueState,
+  type QueueSyncCode,
   type QueueSyncState,
   type Track,
 } from '@hqps/contracts';
-import { CapabilityUnavailableError, type PlayableTrack } from '@hqps/hqplayer-adapter';
+import {
+  CapabilityUnavailableError,
+  type EngineQueueSnapshot,
+  type PlayableTrack,
+} from '@hqps/hqplayer-adapter';
 import { ConflictError, NotFoundError, newId, type LibraryContext } from '@hqps/library';
 import type { EventHub } from '../event-hub';
 import type { EngineService } from './engine-service';
@@ -15,6 +20,14 @@ import type { EngineService } from './engine-service';
 interface PlannedItem {
   itemId: string;
   track: Track;
+}
+
+export interface QueueServiceOptions {
+  /**
+   * After Studio itself changed HQPlayer's queue, mismatches are not flagged for this long:
+   * HQPlayer acknowledges before its pushed Status catches up (Stop ~3.8 s, Play ~3 s buffering).
+   */
+  settleMs?: number;
 }
 
 export interface ReplaceInput {
@@ -31,8 +44,11 @@ export interface ReplaceInput {
  * - Every change goes to the engine first; the plan is only updated (and persisted) once the
  *   engine accepted the command. A failed or timed-out command leaves the plan untouched.
  * - When HQPlayer's current track stops matching the plan (someone used the native UI or another
- *   remote), the queue is flagged `out_of_sync` — it is never silently overwritten. The user can
- *   explicitly "take over", which re-sends the plan without starting playback.
+ *   remote), the queue is flagged `out_of_sync` — it is never silently overwritten. The user
+ *   decides: "follow HQPlayer" (read-only: adopt HQPlayer's playlist or drop Studio's plan) or
+ *   "take over" (re-send Studio's plan; stops HQPlayer, does not start playback).
+ * - A plan restored from the last session is only a guess: if HQPlayer has its own playlist
+ *   when Studio connects, Studio follows HQPlayer instead of raising an alarm.
  * - Saved playlists are never modified by queue operations.
  */
 export class QueueService {
@@ -42,31 +58,69 @@ export class QueueService {
   private mode: QueueMode = 'playlist';
   private source: QueueSource | null = null;
   private currentIndex: number | null = null;
-  private sync: QueueState['sync'] = { state: 'unknown', reason: null, detectedAt: null };
+  private sync: QueueState['sync'] = {
+    state: 'unknown',
+    code: null,
+    reason: null,
+    detectedAt: null,
+  };
   private updatedAt = Date.now();
   /** >0 while Studio itself is changing the engine queue; sync checks wait until it settles. */
   private busy = 0;
+  /** The plan came from the last session and has not been compared with HQPlayer yet. */
+  private restored = false;
+  private settleUntil = 0;
+  /** When Studio's own last queue change finished; older engine statuses cannot judge it. */
+  private lastChangeAt = 0;
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly settleMs: number;
 
   constructor(
     private readonly engine: EngineService,
     private readonly ctx: LibraryContext,
     private readonly hub: EventHub,
-  ) {}
+    options: QueueServiceOptions = {},
+  ) {
+    this.settleMs = options.settleMs ?? 4000;
+  }
 
   /** Restore the last persisted plan. Never starts playback. */
   init(): void {
-    const snap = this.ctx.queue.load();
-    if (snap && snap.items.length) {
-      const tracks = this.ctx.library.getTracks(snap.items.map((i) => i.trackId));
-      this.items = snap.items.map((i, idx) => ({ itemId: i.itemId, track: tracks[idx] as Track }));
-      this.sessionId = snap.sessionId;
-      this.version = snap.version;
-      this.mode = snap.mode;
-      this.source = snap.source;
-      this.currentIndex = snap.currentIndex;
-      this.updatedAt = snap.updatedAt;
-    }
+    this.restore();
     this.engine.onStatus((s) => this.onEngineStatus(s));
+  }
+
+  dispose(): void {
+    if (this.settleTimer) clearTimeout(this.settleTimer);
+    this.settleTimer = null;
+  }
+
+  private restore(): void {
+    const snap = this.ctx.queue.load();
+    if (!snap || snap.items.length === 0) return;
+    const ids = snap.items.map((i) => i.trackId);
+    let tracks: Track[];
+    try {
+      tracks = this.ctx.library.getTracks(ids);
+    } catch {
+      return; // tracks were removed from the library since — the old plan is meaningless
+    }
+    // A queue of fictional demo tracks (left over from mock mode) means nothing to a real
+    // HQPlayer and could never be sent to it.
+    if (
+      this.engine.adapter.kind !== 'mock' &&
+      this.ctx.library.getTrackSources([...new Set(ids)]).some((s) => s.isFixture)
+    ) {
+      return;
+    }
+    this.items = snap.items.map((i, idx) => ({ itemId: i.itemId, track: tracks[idx] as Track }));
+    this.sessionId = snap.sessionId;
+    this.version = snap.version;
+    this.mode = snap.mode;
+    this.source = snap.source;
+    this.currentIndex = snap.currentIndex;
+    this.updatedAt = snap.updatedAt;
+    this.restored = true;
   }
 
   get(): QueueState {
@@ -105,6 +159,7 @@ export class QueueService {
         'warning',
         'tracks_unavailable',
         `${all.length - tracks.length} unavailable track(s) were skipped.`,
+        { count: all.length - tracks.length },
       );
     }
     let startIndex = startTrack ? tracks.findIndex((t) => t.id === startTrack.id) : 0;
@@ -134,7 +189,7 @@ export class QueueService {
       label: tracks.length === 1 ? (tracks[0] as Track).title : `${tracks.length} tracks`,
     };
     this.currentIndex = startIndex;
-    this.setSync('in_sync', null);
+    this.setSync('in_sync');
     return this.commit();
   }
 
@@ -267,11 +322,80 @@ export class QueueService {
     this.items = [];
     this.currentIndex = null;
     this.source = null;
-    this.setSync('in_sync', null);
+    this.setSync('in_sync');
     return this.commit();
   }
 
-  /** Explicit user decision: push Studio's plan back to HQPlayer. Does not start playback. */
+  /**
+   * Explicit user decision: make Studio follow HQPlayer. Sends no write command — HQPlayer keeps
+   * playing exactly what it plays. If every entry of HQPlayer's playlist is in the library, that
+   * playlist becomes Studio's queue; otherwise Studio drops its plan and the queue panel shows
+   * HQPlayer's own playlist (read-only).
+   */
+  follow(): Promise<QueueState> {
+    return this.exclusive(() => this.followImpl());
+  }
+
+  private async followImpl(): Promise<QueueState> {
+    const adopted = await this.readEnginePlaylist();
+    this.items = adopted ? adopted.tracks.map((track) => ({ itemId: newId('qi'), track })) : [];
+    this.currentIndex = adopted ? adopted.currentIndex : null;
+    this.mode = 'playlist';
+    this.source = adopted ? { kind: 'manual', id: null, label: 'HQPlayer' } : null;
+    this.sessionId = newId('qs');
+    this.restored = false;
+    this.setSync('in_sync'); // re-checked against HQPlayer as soon as this settles
+    if (adopted) {
+      this.hub.notice(
+        'info',
+        'queue_followed_engine',
+        `Studio now follows HQPlayer's playlist (${adopted.tracks.length} tracks).`,
+        { count: adopted.tracks.length },
+      );
+    } else {
+      this.hub.notice(
+        'info',
+        'queue_released',
+        "Studio dropped its queue; the queue panel shows HQPlayer's own playlist.",
+      );
+    }
+    return this.commit();
+  }
+
+  /** HQPlayer's playlist as library tracks — null unless *every* entry is in the library. */
+  private async readEnginePlaylist(): Promise<{
+    tracks: Track[];
+    currentIndex: number | null;
+  } | null> {
+    if (!this.engine.can('queue.read')) return null;
+    let snap: EngineQueueSnapshot;
+    try {
+      snap = await this.engine.run('getEngineQueue', (a) => {
+        if (!a.getEngineQueue)
+          throw new CapabilityUnavailableError('queue.read', 'adapter cannot read the queue');
+        return a.getEngineQueue();
+      });
+    } catch {
+      return null;
+    }
+    if (snap.entries.length === 0) return null;
+    const ids: string[] = [];
+    for (const entry of snap.entries) {
+      const id = entry.uri ? this.ctx.library.findTrackIdBySource(entry.uri) : null;
+      if (!id) return null;
+      ids.push(id);
+    }
+    const current = snap.currentIndex ?? null;
+    return {
+      tracks: this.ctx.library.getTracks(ids),
+      currentIndex: current !== null && current >= 0 && current < ids.length ? current : null,
+    };
+  }
+
+  /**
+   * Explicit user decision: push Studio's plan back to HQPlayer. Stops HQPlayer first (its
+   * playlist cannot be replaced under a playing track) and does not start playback.
+   */
   takeover(): Promise<QueueState> {
     return this.exclusive(() => this.takeoverImpl());
   }
@@ -290,7 +414,8 @@ export class QueueService {
         albumMode: this.mode === 'album',
       });
     });
-    this.setSync('in_sync', null);
+    this.restored = false;
+    this.setSync('in_sync');
     return this.commit();
   }
 
@@ -299,11 +424,26 @@ export class QueueService {
   private async exclusive(fn: () => Promise<QueueState>): Promise<QueueState> {
     this.busy += 1;
     try {
-      return await fn();
+      const state = await fn();
+      this.lastChangeAt = Date.now();
+      this.startSettling();
+      return state;
     } finally {
       this.busy -= 1;
       if (this.busy === 0) this.onEngineStatus(this.engine.getStatus());
     }
+  }
+
+  /** Give HQPlayer's pushed Status time to catch up with a change Studio just made. */
+  private startSettling(): void {
+    if (this.settleMs <= 0) return;
+    this.settleUntil = Date.now() + this.settleMs;
+    if (this.settleTimer) clearTimeout(this.settleTimer);
+    this.settleTimer = setTimeout(() => {
+      this.settleTimer = null;
+      this.onEngineStatus(this.engine.getStatus());
+    }, this.settleMs + 50);
+    this.settleTimer.unref?.();
   }
 
   private playables(tracks: Track[]): PlayableTrack[] {
@@ -333,52 +473,72 @@ export class QueueService {
 
   private onEngineStatus(status: EngineStatus): void {
     if (this.busy > 0) return;
-    let next: QueueSyncState;
-    let reason: string | null = null;
-    let index = this.currentIndex;
-    if (status.connection !== 'connected') {
-      next = 'engine_offline';
-    } else if (this.items.length === 0) {
-      next = status.track ? 'unknown' : 'in_sync';
-      if (status.track) reason = 'HQPlayer is playing something that Studio did not queue.';
-    } else if (!status.track) {
-      next =
-        status.trackCount === 0
-          ? 'out_of_sync'
-          : this.sync.state === 'out_of_sync'
-            ? 'out_of_sync'
-            : 'in_sync';
-      if (next === 'out_of_sync')
-        reason =
-          status.trackCount === 0
-            ? "HQPlayer's playlist is empty, so it no longer matches Studio's queue (HQPlayer restarted, or the playlist was cleared elsewhere)."
-            : this.sync.reason;
-    } else {
-      const engineIdx = status.trackIndex;
-      const planned = engineIdx !== null ? this.items[engineIdx] : undefined;
-      const matches = planned && status.track.studioTrackId === planned.track.id;
-      const countOk = status.trackCount === null || status.trackCount === this.items.length;
-      if (matches && countOk) {
-        next = 'in_sync';
-        index = engineIdx;
-      } else {
-        next = 'out_of_sync';
-        reason = matches
-          ? "HQPlayer's playlist length differs from Studio's queue (changed outside Studio)."
-          : 'HQPlayer is playing a track that is not in Studio’s queue (changed outside Studio).';
+    const verdict = this.evaluate(status);
+    if (verdict.state !== 'engine_offline' && this.restored) {
+      // First look at HQPlayer since the plan was restored from the last session.
+      this.restored = false;
+      if (verdict.state === 'out_of_sync' && verdict.code !== 'engine_playlist_empty') {
+        // HQPlayer has its own playlist: follow it rather than alarm about a stale plan.
+        // (An empty HQPlayer playlist keeps the plan + banner, so it can be pushed back.)
+        void this.follow().catch(() => undefined);
+        return;
       }
     }
+    if (
+      verdict.state === 'out_of_sync' &&
+      // HQPlayer has not reported since Studio's own change (its last Status predates it), or
+      // is still catching up with it: not a verdict yet.
+      (status.observedAt <= this.lastChangeAt || Date.now() < this.settleUntil)
+    ) {
+      return;
+    }
     const changed =
-      next !== this.sync.state || index !== this.currentIndex || reason !== this.sync.reason;
+      verdict.state !== this.sync.state ||
+      verdict.index !== this.currentIndex ||
+      verdict.code !== this.sync.code;
     if (!changed) return;
-    this.currentIndex = index;
-    this.setSync(next, reason);
-    this.commit(next === 'engine_offline' || next === 'out_of_sync' ? false : true);
+    this.currentIndex = verdict.index;
+    this.setSync(verdict.state, verdict.code);
+    this.commit(verdict.state !== 'engine_offline' && verdict.state !== 'out_of_sync');
   }
 
-  private setSync(state: QueueSyncState, reason: string | null): void {
-    if (state !== this.sync.state || reason !== this.sync.reason) {
-      this.sync = { state, reason, detectedAt: Date.now() };
+  private evaluate(status: EngineStatus): {
+    state: QueueSyncState;
+    code: QueueSyncCode | null;
+    index: number | null;
+  } {
+    const index = this.currentIndex;
+    if (status.connection !== 'connected') return { state: 'engine_offline', code: null, index };
+    if (this.items.length === 0) {
+      return status.track
+        ? { state: 'unknown', code: 'engine_unqueued', index }
+        : { state: 'in_sync', code: null, index };
+    }
+    if (!status.track) {
+      if (status.trackCount === 0)
+        return { state: 'out_of_sync', code: 'engine_playlist_empty', index };
+      if (status.trackCount !== null && status.trackCount !== this.items.length)
+        return { state: 'out_of_sync', code: 'engine_length_differs', index };
+      // Stopped with a playlist of the right length: nothing new to learn — keep the verdict.
+      return this.sync.state === 'out_of_sync'
+        ? { state: 'out_of_sync', code: this.sync.code, index }
+        : { state: 'in_sync', code: null, index };
+    }
+    const engineIdx = status.trackIndex;
+    const planned = engineIdx !== null ? this.items[engineIdx] : undefined;
+    const matches = planned !== undefined && status.track.studioTrackId === planned.track.id;
+    const countOk = status.trackCount === null || status.trackCount === this.items.length;
+    if (matches && countOk) return { state: 'in_sync', code: null, index: engineIdx };
+    return {
+      state: 'out_of_sync',
+      code: matches ? 'engine_length_differs' : 'engine_track_differs',
+      index,
+    };
+  }
+
+  private setSync(state: QueueSyncState, code: QueueSyncCode | null = null): void {
+    if (state !== this.sync.state || code !== this.sync.code) {
+      this.sync = { state, code, reason: code ? SYNC_REASONS[code] : null, detectedAt: Date.now() };
     }
   }
 
@@ -401,3 +561,14 @@ export class QueueService {
     return state;
   }
 }
+
+/** English fallbacks for clients that do not translate `sync.code`. */
+const SYNC_REASONS: Record<QueueSyncCode, string> = {
+  engine_unqueued: 'HQPlayer is playing something that Studio did not queue.',
+  engine_playlist_empty:
+    "HQPlayer's playlist is empty, so it no longer matches Studio's queue (HQPlayer restarted, or the playlist was cleared elsewhere).",
+  engine_track_differs:
+    'HQPlayer is playing a track that is not in Studio’s queue (changed outside Studio).',
+  engine_length_differs:
+    "HQPlayer's playlist length differs from Studio's queue (changed outside Studio).",
+};

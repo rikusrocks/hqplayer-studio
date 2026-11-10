@@ -6,6 +6,7 @@ import {
   ProtocolError,
 } from '../errors';
 import { HqpConnection } from '../protocol/connection';
+import { startFakeEngine } from '../testing/fake-engine';
 import { startFakeHqpServer, xmlDoc, type FakeHqpServer } from '../testing/fake-hqp-server';
 import { LiveHQPlayerAdapter } from './LiveHQPlayerAdapter';
 
@@ -174,48 +175,137 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     await adapter.disconnect();
   });
 
-  it('with explicit Gate C consent, loads a queue via PlaylistClear/PlaylistAdd/SelectTrack/Play', async () => {
+  it('loads a queue on a PLAYING engine: Stop → Clear → verify → Add → verify → Select → Play', async () => {
+    // Regression (user report on v0.1.4): HQPlayer keeps the playing track when its playlist is
+    // cleared, so "play album" used to resume the old song. The stand-in reproduces that.
+    const engine = await startFakeEngine({
+      playlist: [{ uri: 'file://E:\\Other\\old.flac', song: 'old', lengthSec: 300 }],
+      startPlaying: true,
+    });
+    const adapter = new LiveHQPlayerAdapter({
+      port: engine.port,
+      policy: { controlEnabled: true },
+    });
+    try {
+      await adapter.connect();
+      await vi.waitFor(async () => expect((await adapter.getStatus()).transport).toBe('playing'));
+      const before = engine.received.length;
+      await adapter.replaceQueue(
+        [
+          {
+            studioTrackId: 'a',
+            uri: 'D:\\音乐\\01 「光」.flac',
+            title: 'a',
+            artist: 'x',
+            album: 'y',
+            durationMs: 1,
+          },
+          {
+            studioTrackId: 'b',
+            uri: 'D:\\音乐\\02.dsf',
+            title: 'b',
+            artist: 'x',
+            album: 'y',
+            durationMs: 1,
+          },
+        ],
+        { startIndex: 1, autoplay: true, albumMode: true },
+      );
+      const sent = engine.received.slice(before).map((r) => [r.name, r.attributes]);
+      expect(sent).toEqual([
+        ['Stop', {}],
+        ['PlaylistClear', {}],
+        ['PlaylistGet', { picture: '0' }], // verify it is really empty
+        ['PlaylistAdd', { uri: 'D:\\音乐\\01 「光」.flac', queued: '1', clear: '0' }],
+        ['PlaylistAdd', { uri: 'D:\\音乐\\02.dsf', queued: '1', clear: '0' }],
+        ['PlaylistGet', { picture: '0' }], // verify it holds exactly our items
+        ['SelectTrack', { index: '2' }], // Studio index 1 → engine index 2 (1-based)
+        ['Play', { last: '0' }],
+      ]);
+      expect(engine.playlist().map((t) => t.uri)).toEqual([
+        'file://D:\\音乐\\01 「光」.flac',
+        'file://D:\\音乐\\02.dsf',
+      ]);
+      expect(engine.state()).toMatchObject({ transport: 2, current: 2 });
+    } finally {
+      await adapter.disconnect();
+      await engine.close();
+    }
+  });
+
+  it('clearQueue stops and empties HQPlayer', async () => {
+    const engine = await startFakeEngine({
+      playlist: [{ uri: 'file://E:\\a.flac', song: 'a', lengthSec: 300 }],
+    });
+    const adapter = new LiveHQPlayerAdapter({
+      port: engine.port,
+      policy: { controlEnabled: true },
+    });
+    try {
+      await adapter.connect();
+      const before = engine.received.length;
+      await adapter.clearQueue();
+      expect(engine.received.slice(before).map((r) => r.name)).toEqual([
+        'Stop',
+        'PlaylistClear',
+        'PlaylistGet',
+      ]);
+      expect(engine.playlist()).toEqual([]);
+      expect((await adapter.getStatus()).trackCount).toBe(0);
+    } finally {
+      await adapter.disconnect();
+      await engine.close();
+    }
+  });
+
+  it('removes leftovers after PlaylistClear, and errors if HQPlayer still keeps them', async () => {
+    const item = (i: number) =>
+      `<PlaylistItem index="${i}" uri="file:D:\\x${i}.flac" song="x" length="10"/>`;
+    let left = 2;
+    let removable = true;
     server = await startFakeHqpServer({
       GetInfo: () => INFO,
       VolumeRange: () => VOLUME_RANGE,
-      PlaylistGet: () => playlistGet(),
-      Status: () => STATUS,
+      Status: () => STOPPED,
+      PlaylistGet: () =>
+        xmlDoc(
+          `<PlaylistGet album="0">${Array.from({ length: left }, (_, i) => item(i + 1)).join('')}</PlaylistGet>`,
+        ),
+      PlaylistRemove: () => {
+        if (removable) left -= 1;
+        return xmlDoc('<PlaylistRemove result="OK"/>');
+      },
     });
     const adapter = new LiveHQPlayerAdapter({
       port: server.port,
-      policy: { allowUntestedWrites: true },
+      policy: { controlEnabled: true },
     });
     await adapter.connect();
-    await adapter.replaceQueue(
-      [
-        {
-          studioTrackId: 'a',
-          uri: 'D:\\音乐\\01 「光」.flac',
-          title: 'a',
-          artist: 'x',
-          album: 'y',
-          durationMs: 1,
-        },
-        {
-          studioTrackId: 'b',
-          uri: 'D:\\音乐\\02.dsf',
-          title: 'b',
-          artist: 'x',
-          album: 'y',
-          durationMs: 1,
-        },
-      ],
-      { startIndex: 1, autoplay: true, albumMode: true },
-    );
-    const sent = server.received.slice(5).map((r) => [r.name, r.attributes]);
-    expect(sent).toEqual([
-      ['PlaylistClear', {}],
-      ['PlaylistAdd', { uri: 'D:\\音乐\\01 「光」.flac', queued: '1', clear: '0' }],
-      ['PlaylistAdd', { uri: 'D:\\音乐\\02.dsf', queued: '1', clear: '0' }],
-      ['SelectTrack', { index: '2' }], // Studio index 1 → engine index 2 (1-based)
-      ['Play', { last: '0' }],
-      ['PlaylistGet', { picture: '0' }], // re-read so queue sync sees the new length
-    ]);
+    await adapter.clearQueue();
+    expect(left).toBe(0);
+    expect(
+      server.received.filter((r) => r.name === 'PlaylistRemove').map((r) => r.attributes.index),
+    ).toEqual(['2', '1']);
+
+    left = 1;
+    removable = false;
+    await expect(adapter.clearQueue()).rejects.toBeInstanceOf(EngineCommandError);
+    await expect(
+      adapter.replaceQueue(
+        [
+          {
+            studioTrackId: 'a',
+            uri: 'D:\\a.flac',
+            title: 'a',
+            artist: 'x',
+            album: 'y',
+            durationMs: 1,
+          },
+        ],
+        { startIndex: 0, autoplay: true, albumMode: false },
+      ),
+    ).rejects.toThrow(/kept 1 item/);
+    expect(server.received.map((r) => r.name)).not.toContain('PlaylistAdd');
     await adapter.disconnect();
   });
 

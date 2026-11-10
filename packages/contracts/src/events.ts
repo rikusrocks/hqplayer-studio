@@ -24,7 +24,9 @@ export const StudioEventSchema = z.discriminatedUnion('type', [
     type: z.literal('notice'),
     level: z.enum(['info', 'warning', 'error']),
     code: z.string(),
+    /** English fallback; clients translate `code` (+ `params`) when they know it. */
     message: z.string(),
+    params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
   }),
 ]);
 export type StudioEvent = z.infer<typeof StudioEventSchema>;

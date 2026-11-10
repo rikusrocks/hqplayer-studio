@@ -125,15 +125,37 @@ export const en: Record<MessageKey, string> = {
   'queue.outOfSync': 'Queue differs from what HQPlayer is actually playing',
   'queue.outOfSyncHint':
     'Someone may have changed playback in the native HQPlayer UI or another remote. Studio will not overwrite it automatically.',
-  'queue.takeover': 'Take over',
+  'queue.sync.engine_unqueued': 'HQPlayer is playing something Studio did not queue.',
+  'queue.sync.engine_playlist_empty':
+    "HQPlayer's playlist is empty (restarted, or cleared elsewhere), so it no longer matches Studio's queue.",
+  'queue.sync.engine_track_differs':
+    "HQPlayer is playing a track that is not in Studio's queue (changed outside Studio).",
+  'queue.sync.engine_length_differs':
+    "HQPlayer's playlist length differs from Studio's queue (changed outside Studio).",
+  'queue.follow': 'Follow HQPlayer',
+  'queue.followHint':
+    "Leaves HQPlayer untouched: if every track in its playlist is in your library, that becomes Studio's queue; otherwise Studio drops its old queue and shows HQPlayer's own playlist.",
+  'queue.takeover': "Replace HQPlayer's queue",
   'queue.takeoverHint':
-    "Replace HQPlayer's current queue with Studio's queue (does not start playback)",
+    "Stops HQPlayer and replaces its playlist with Studio's queue (does not start playback)",
+  'queue.takeoverConfirm':
+    "HQPlayer will stop, and its playlist will be replaced by Studio's queue ({count} tracks). Playback does not start automatically.",
+  'queue.clearConfirm':
+    'Clear the current queue? HQPlayer stops and its playlist is emptied. Saved playlists are not affected.',
   'queue.engineOffline': 'HQPlayer offline — queue state unknown',
   'queue.clear': 'Clear queue',
-  'queue.clearConfirm': 'Clear the current play queue? Saved playlists are not affected.',
   'queue.nowPlaying': 'Now playing',
   'queue.upNext': 'Up next',
   'queue.jump': 'Jump to this track',
+
+  'notice.queue_followed_engine': "Studio now follows HQPlayer's playlist ({count} tracks)",
+  'notice.queue_released':
+    "Studio dropped its old queue; the queue panel shows HQPlayer's own playlist",
+  'notice.tracks_unavailable': 'Skipped {count} unavailable track(s)',
+  'notice.album_mode_unavailable':
+    'Album Mode cannot be selected through the HQPlayer API; tracks are queued in album order but gapless playback is not guaranteed.',
+  'notice.control_enabled': 'Studio may now control HQPlayer (confirmed commands only)',
+  'notice.control_disabled': 'Studio is read-only again',
 
   'home.recentlyAdded': 'Recently added',
   'home.playlists': 'Playlists',

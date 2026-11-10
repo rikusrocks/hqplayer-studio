@@ -30,6 +30,11 @@ export function interpolate(template: string, params?: TranslateParams): string 
   );
 }
 
+/** True for keys that exist in the dictionaries (e.g. `notice.<code>` sent by Core). */
+export function hasMessage(key: string): key is MessageKey {
+  return Object.prototype.hasOwnProperty.call(zh, key);
+}
+
 export function translate(locale: Locale, key: MessageKey, params?: TranslateParams): string {
   const dict = MESSAGES[locale] ?? zh;
   return interpolate(dict[key] ?? zh[key] ?? key, params);

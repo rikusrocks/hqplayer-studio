@@ -97,4 +97,4 @@ export function splitArtists(artist: string): string[] {
 }
 
 // Moved to @hqps/contracts so the Gate C tool can share it; re-exported for existing imports.
-export { engineUriToPath } from '@hqps/contracts';
+export { engineUriToPath, sameEnginePath } from '@hqps/contracts';

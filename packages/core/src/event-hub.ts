@@ -25,7 +25,12 @@ export class EventHub {
     return this.listeners.size;
   }
 
-  notice(level: 'info' | 'warning' | 'error', code: string, message: string): void {
-    this.publish({ type: 'notice', level, code, message });
+  notice(
+    level: 'info' | 'warning' | 'error',
+    code: string,
+    message: string,
+    params?: Record<string, string | number>,
+  ): void {
+    this.publish({ type: 'notice', level, code, message, ...(params ? { params } : {}) });
   }
 }

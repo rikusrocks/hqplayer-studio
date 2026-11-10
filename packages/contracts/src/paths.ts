@@ -28,8 +28,10 @@ export function engineUriToPath(uriOrPath: string): string | null {
     const encoded = !path.includes('\\') && /%[0-9A-Fa-f]{2}/.test(path) && !/\s/.test(path);
     return encoded ? safeDecode(path) : path;
   }
-  // UNC written raw: file:\\server\share\…
-  if (/^\\\\[^\\]/.test(rest)) return rest;
+  // Any other raw Windows path (it contains backslashes) is never URI-decoded. This covers a
+  // network share in HQPlayer's "file://" + path form — file://\\nas\music\100% Pure.flac —
+  // which RFC 8089 decoding would otherwise turn into null ("% P") or a wrong path.
+  if (rest.includes('\\')) return rest.replace(/^\/+/, '');
   // RFC 8089 local absolute path: file:///Users/…
   if (rest.startsWith('///')) return safeDecode(rest.slice(2));
   // RFC 8089 with authority: file://server/share/… → UNC

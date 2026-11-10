@@ -123,14 +123,35 @@ export const zh = {
   'queue.outOfSync': '队列与 HQPlayer 实际播放内容不一致',
   'queue.outOfSyncHint':
     '可能有人在 HQPlayer 原生界面或其他遥控器中更改了播放内容。Studio 不会自动覆盖。',
-  'queue.takeover': '接管',
-  'queue.takeoverHint': '用 Studio 的队列覆盖 HQPlayer 当前队列（不会自动开始播放）',
+  'queue.sync.engine_unqueued': 'HQPlayer 正在播放的内容不是 Studio 安排的。',
+  'queue.sync.engine_playlist_empty':
+    'HQPlayer 的播放列表是空的（可能重启过，或在别处被清空），与 Studio 的队列不一致。',
+  'queue.sync.engine_track_differs':
+    'HQPlayer 正在播放的曲目不在 Studio 的队列里（在 Studio 之外被更改）。',
+  'queue.sync.engine_length_differs':
+    'HQPlayer 播放列表的曲目数与 Studio 的队列不同（在 Studio 之外被更改）。',
+  'queue.follow': '以 HQPlayer 为准',
+  'queue.followHint':
+    '不改动 HQPlayer：若它播放列表里的曲目都在音乐库中，就作为 Studio 的队列；否则丢弃 Studio 的旧队列，改为显示 HQPlayer 自己的播放列表。',
+  'queue.takeover': '用 Studio 队列替换 HQPlayer',
+  'queue.takeoverHint': '停止 HQPlayer，并用 Studio 的队列替换它的播放列表（不会自动开始播放）',
+  'queue.takeoverConfirm':
+    'HQPlayer 会停止播放，它的播放列表会被 Studio 的队列（{count} 首）替换。不会自动开始播放。',
+  'queue.clearConfirm':
+    '确定清空当前播放队列？HQPlayer 会停止播放并清空它的播放列表。已保存的播放列表不受影响。',
   'queue.engineOffline': 'HQPlayer 离线，队列状态未知',
   'queue.clear': '清空队列',
-  'queue.clearConfirm': '确定清空当前播放队列？已保存的播放列表不受影响。',
   'queue.nowPlaying': '正在播放',
   'queue.upNext': '接下来',
   'queue.jump': '跳到这首',
+
+  'notice.queue_followed_engine': 'Studio 已改为跟随 HQPlayer 的播放列表（{count} 首）',
+  'notice.queue_released': 'Studio 已放弃旧队列，队列面板显示 HQPlayer 自己的播放列表',
+  'notice.tracks_unavailable': '已跳过 {count} 首当前不可用的曲目',
+  'notice.album_mode_unavailable':
+    '无法通过 HQPlayer API 切换专辑模式；曲目已按专辑顺序排队，但不保证无缝衔接。',
+  'notice.control_enabled': 'Studio 现在可以控制 HQPlayer（仅限已确认的命令）',
+  'notice.control_disabled': 'Studio 已恢复为只读',
 
   'home.recentlyAdded': '最近添加',
   'home.playlists': '播放列表',

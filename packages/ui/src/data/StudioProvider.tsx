@@ -33,10 +33,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useT, type Translate } from '../i18n/I18nProvider';
+import { hasMessage, useT, type Translate } from '../i18n/I18nProvider';
 import { useToasts } from './toasts';
 
-export type PendingKey = 'transport' | 'seek' | 'volume' | 'queue' | 'playlist' | 'takeover';
+export type PendingKey =
+  'transport' | 'seek' | 'volume' | 'queue' | 'playlist' | 'takeover' | 'follow';
 
 export interface StudioContextValue {
   client: StudioClient;
@@ -78,6 +79,8 @@ export interface StudioContextValue {
   queueJump: (index: number) => Promise<void>;
   queueClear: () => Promise<void>;
   queueTakeover: () => Promise<void>;
+  /** Make Studio follow HQPlayer (read-only towards the engine). */
+  queueFollow: () => Promise<void>;
   addToPlaylist: (
     playlist: Pick<PlaylistSummary, 'id' | 'name'>,
     trackIds: string[],
@@ -123,6 +126,11 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
   // Keep monotonic serial/version checks against the latest value, not a stale closure.
   const statusRef = useRef(status);
   const queueRef = useRef(queue);
+  // Notices are translated with the current locale without reconnecting the event stream.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   const applyStatus = useCallback((next: EngineStatus, reset = false) => {
     if (!reset && next.serial < statusRef.current.serial) return;
@@ -193,12 +201,14 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
         case 'library.scan':
           setScanJobsById((jobs) => ({ ...jobs, [event.job.id]: event.job }));
           break;
-        case 'notice':
+        case 'notice': {
+          const key = `notice.${event.code}`;
           toasts.push(
             event.level === 'error' ? 'error' : event.level === 'warning' ? 'warning' : 'info',
-            event.message,
+            hasMessage(key) ? tRef.current(key, event.params) : event.message,
           );
           break;
+        }
       }
     });
     rt.start();
@@ -293,6 +303,10 @@ export function StudioProvider({ children, baseUrl = '' }: StudioProviderProps) 
       queueClear: () => queueCmd(() => client.queue.clear()),
       queueTakeover: async () => {
         const res = await run(() => client.queue.takeover(), { pending: 'takeover' });
+        if (res) applyQueue(res);
+      },
+      queueFollow: async () => {
+        const res = await run(() => client.queue.follow(), { pending: 'follow' });
         if (res) applyQueue(res);
       },
       addToPlaylist: async (playlist, trackIds) => {

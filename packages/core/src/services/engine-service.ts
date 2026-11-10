@@ -50,7 +50,25 @@ export class EngineService {
     private readonly hub: EventHub,
     private readonly library: LibraryRepository,
     private readonly options: EngineServiceOptions = {},
-  ) {}
+  ) {
+    // A scan can add the file HQPlayer is playing: re-resolve it instead of keeping a stale
+    // "not in library" answer (which made the queue look permanently out of sync).
+    hub.subscribe((event) => {
+      if (event.type === 'library.changed') this.remapCurrentTrack();
+    });
+  }
+
+  private remapCurrentTrack(): void {
+    this.lastUri = null;
+    this.lastUriTrackId = null;
+    const track = this.status.track;
+    if (!track?.uri) return;
+    const id = this.library.findTrackIdBySource(track.uri);
+    this.lastUri = track.uri;
+    this.lastUriTrackId = id;
+    if (id !== track.studioTrackId)
+      this.publish({ ...this.status, track: { ...track, studioTrackId: id } });
+  }
 
   async start(): Promise<void> {
     this.stopped = false;

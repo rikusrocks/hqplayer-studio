@@ -5,6 +5,7 @@ import {
   albumFolderOf,
   albumGroupKey,
   engineUriToPath,
+  sameEnginePath,
   normalizeText,
   pathKey,
   searchTokens,
@@ -162,6 +163,17 @@ describe('engineUriToPath', () => {
     expect(engineUriToPath('file:///D:/a%20b/%E9%9F%B3.flac')).toBe('D:/a b/音.flac');
     expect(engineUriToPath('file:///Users/me/a%20b.flac')).toBe('/Users/me/a b.flac');
     expect(engineUriToPath('file://nas/music/x.flac')).toBe('\\\\nas\\music\\x.flac');
+  });
+  it('keeps network-share paths raw (HQPlayer "file://" + UNC path)', () => {
+    expect(engineUriToPath('file://\\\\nas\\music\\100% Pure.flac')).toBe(
+      '\\\\nas\\music\\100% Pure.flac',
+    );
+    expect(engineUriToPath('file:\\\\nas\\music\\a%20b.flac')).toBe('\\\\nas\\music\\a%20b.flac');
+    expect(engineUriToPath('file:////nas/music/a%20b.flac')).toBe('//nas/music/a b.flac');
+  });
+  it('matches a raw UNC engine URI against the scanned library path', () => {
+    expect(sameEnginePath('file://\\\\NAS\\Music\\光.flac', '\\\\nas\\music\\光.flac')).toBe(true);
+    expect(sameEnginePath('file://\\\\nas\\music\\a.flac', '\\\\nas\\other\\a.flac')).toBe(false);
   });
   it('passes native paths through and rejects garbage', () => {
     expect(engineUriToPath('D:\\x.flac')).toBe('D:\\x.flac');

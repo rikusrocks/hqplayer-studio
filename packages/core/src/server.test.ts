@@ -3,8 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { QueueState, StudioEvent } from '@hqps/contracts';
 import { LiveHQPlayerAdapter, MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
+import { startFakeEngine, type FakeEngine } from '../../hqplayer-adapter/src/testing/fake-engine';
 import { startFakeHqpServer } from '../../hqplayer-adapter/src/testing/fake-hqp-server';
-import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
+import { openLibrary, pathKey, seedDemoLibrary, type LibraryContext } from '@hqps/library';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { bootstrapStudio } from './bootstrap';
@@ -53,6 +54,7 @@ beforeEach(async () => {
     port: 0,
     demoMode: true,
     engine: { commandTimeoutMs: 500, reconnectMinMs: 20, reconnectMaxMs: 50 },
+    queue: { settleMs: 0 },
   });
   await server.engine.start();
 });
@@ -170,12 +172,91 @@ describe('Studio Core REST API', () => {
       expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('out_of_sync'),
     );
     const q = (await api<QueueState>('GET', '/queue')).body;
+    expect(q.sync.code).toBe('engine_track_differs');
     expect(q.sync.reason).toMatch(/outside Studio/);
     expect(q.items).toHaveLength(6); // plan preserved, not overwritten
 
     const t = await api<QueueState>('POST', '/queue/takeover', {});
     expect(t.body.sync.state).toBe('in_sync');
     expect((await adapter.getStatus()).transport).toBe('stopped');
+  });
+
+  it('"follow HQPlayer" drops a plan HQPlayer cannot match, without touching HQPlayer', async () => {
+    await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {});
+    adapter.simulateExternalChange(); // a file that is not in the library
+    await vi.waitFor(async () =>
+      expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('out_of_sync'),
+    );
+    const engineBefore = await adapter.getEngineQueue();
+    const f = await api<QueueState>('POST', '/queue/follow', {});
+    expect(f.status).toBe(200);
+    expect(f.body.items).toEqual([]);
+    expect(f.body.sync.state).not.toBe('out_of_sync');
+    await vi.waitFor(async () =>
+      expect((await api<QueueState>('GET', '/queue')).body.sync).toMatchObject({
+        state: 'unknown',
+        code: 'engine_unqueued',
+      }),
+    );
+    expect(await adapter.getEngineQueue()).toEqual(engineBefore);
+    expect((await adapter.getStatus()).transport).toBe('playing');
+  });
+
+  it('"follow HQPlayer" adopts HQPlayer\'s playlist when every entry is in the library', async () => {
+    await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {});
+    const other = await firstAlbumId('glass architecture');
+    const tracks = (await api<{ tracks: { id: string }[] }>('GET', `/library/albums/${other}`)).body
+      .tracks;
+    const sources = ctx.library.getTrackSources(tracks.map((t) => t.id));
+    // someone loads another album in the native HQPlayer UI
+    await adapter.replaceQueue(
+      sources.map((s) => ({
+        studioTrackId: s.id,
+        uri: s.sourcePath,
+        title: s.title,
+        artist: s.artist,
+        album: s.album,
+        durationMs: s.durationMs,
+      })),
+      { startIndex: 1, autoplay: true, albumMode: false },
+    );
+    await vi.waitFor(async () =>
+      expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('out_of_sync'),
+    );
+    const f = await api<QueueState>('POST', '/queue/follow', {});
+    expect(f.body.items.map((i) => i.track.id)).toEqual(tracks.map((t) => t.id));
+    expect(f.body.source).toMatchObject({ kind: 'manual', label: 'HQPlayer' });
+    await vi.waitFor(async () => {
+      const q = (await api<QueueState>('GET', '/queue')).body;
+      expect(q.sync.state).toBe('in_sync');
+      expect(q.currentIndex).toBe(1);
+    });
+  });
+
+  it("does not flag a mismatch while HQPlayer catches up with Studio's own change", async () => {
+    const slowAdapter = new MockHQPlayerAdapter({ latencyMs: 2, tickMs: 50 });
+    const slow = await createStudioServer({
+      adapter: slowAdapter,
+      ctx,
+      appVersion: 'test',
+      port: 0,
+      queue: { settleMs: 400 },
+    });
+    await slow.engine.start();
+    try {
+      const album = (await api<{ items: { id: string }[] }>('GET', '/library/albums?q=blue%20hour'))
+        .body.items[0]!.id;
+      await slow.queue.playAlbum(album);
+      slowAdapter.simulateExternalChange();
+      await new Promise((r) => setTimeout(r, 150));
+      expect(slow.queue.get().sync.state).toBe('in_sync');
+      await vi.waitFor(() => expect(slow.queue.get().sync.state).toBe('out_of_sync'), {
+        timeout: 2000,
+      });
+    } finally {
+      await slow.close();
+      slowAdapter.dispose();
+    }
   });
 
   it('reports engine outages honestly and recovers without auto-playing', async () => {
@@ -494,5 +575,236 @@ describe('WebSocket events', () => {
     await expect(open({ origin: 'https://evil.example' })).rejects.toThrow(/403/);
     desktop.ws.close();
     remote.ws.close();
+  });
+});
+
+/** A "real" (non-demo) album on a network share, as a library scan on Windows would record it. */
+function addShareAlbum(lib: LibraryContext['library'], title: string, count: number) {
+  const folder = `\\\\nas\\music\\${title}`;
+  const root = lib.addRoot(folder);
+  const now = Date.now();
+  const albumId = lib.ensureAlbum({
+    title,
+    albumArtist: 'Test Artist',
+    year: 2024,
+    releaseId: null,
+    rootId: root.id,
+    folder: '',
+    now,
+  });
+  const ids: string[] = [];
+  const paths: string[] = [];
+  for (let i = 1; i <= count; i += 1) {
+    const fileName = `0${i} Song ${i} 100% live.flac`;
+    const sourcePath = `${folder}\\${fileName}`;
+    const { id } = lib.upsertTrack({
+      rootId: root.id,
+      sourcePath,
+      pathKey: pathKey(sourcePath, 'win32'),
+      relativeDir: '',
+      fileName,
+      fileIdentity: null,
+      title: `Song ${i}`,
+      artist: 'Test Artist',
+      albumArtist: 'Test Artist',
+      album: title,
+      albumId,
+      genre: null,
+      year: 2024,
+      discNumber: 1,
+      discTotal: 1,
+      trackNumber: i,
+      trackTotal: count,
+      durationMs: 200_000,
+      sampleRate: 96_000,
+      bitDepth: 24,
+      channels: 2,
+      codec: 'FLAC',
+      container: 'FLAC',
+      lossless: true,
+      isDsd: false,
+      bitrate: null,
+      mtimeMs: now,
+      sizeBytes: 1,
+      metadataSource: 'tags',
+      scanError: null,
+      seenAt: now,
+    });
+    ids.push(id);
+    paths.push(sourcePath);
+  }
+  return { albumId, ids, paths, uris: paths.map((p) => `file://${p}`) };
+}
+
+describe('queue control against a busy HQPlayer (stateful stand-in engine)', () => {
+  const OTHER = { uri: 'file://E:\\Other\\not in library.flac', song: 'other', lengthSec: 300 };
+  let engine: FakeEngine | null = null;
+  let liveDir: string;
+  let liveCtx: LibraryContext;
+  const studios: StudioServer[] = [];
+
+  beforeEach(() => {
+    liveDir = mkdtempSync(join(tmpdir(), 'hqps-busy-'));
+    liveCtx = openLibrary(liveDir);
+  });
+  afterEach(async () => {
+    for (const st of studios.splice(0)) await st.close();
+    await engine?.close();
+    engine = null;
+    liveCtx.close();
+    rmSync(liveDir, { recursive: true, force: true });
+  });
+
+  async function startStudio(onCtx: LibraryContext = liveCtx) {
+    const studio = await createStudioServer({
+      adapter: new LiveHQPlayerAdapter({ port: engine!.port, policy: { controlEnabled: true } }),
+      ctx: onCtx,
+      appVersion: 't',
+      port: 0,
+      queue: { settleMs: 0 },
+    });
+    studios.push(studio);
+    await studio.engine.start();
+    const call = async <T>(method: 'GET' | 'POST', url: string, payload?: unknown) => {
+      const res = await studio.app.inject({
+        method,
+        url: `/api/v1${url}`,
+        headers:
+          method === 'GET'
+            ? { host: '127.0.0.1' }
+            : { host: '127.0.0.1', 'content-type': 'application/json' },
+        payload: method === 'GET' ? undefined : JSON.stringify(payload ?? {}),
+        remoteAddress: '127.0.0.1',
+      });
+      return { status: res.statusCode, body: res.json() as T };
+    };
+    return { studio, call };
+  }
+
+  it('playing an album while HQPlayer plays something else really switches to that album', async () => {
+    engine = await startFakeEngine({ playlist: [OTHER], startPlaying: true });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const { studio, call } = await startStudio();
+    await vi.waitFor(() => expect(studio.engine.getStatus().transport).toBe('playing'));
+
+    const res = await call<QueueState>('POST', `/playback/album/${a.albumId}`, {});
+    expect(res.status).toBe(200);
+    expect(engine.playlist().map((t) => t.uri)).toEqual(a.uris); // nothing left behind
+    expect(engine.state()).toMatchObject({ transport: 2, current: 1 });
+    await vi.waitFor(() => {
+      expect(studio.engine.getStatus().track?.studioTrackId).toBe(a.ids[0]);
+      expect(studio.queue.get().sync.state).toBe('in_sync');
+    });
+  });
+
+  it('clearing the queue stops HQPlayer and leaves no track behind', async () => {
+    engine = await startFakeEngine({ playlist: [OTHER] });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const { studio, call } = await startStudio();
+    await call('POST', `/playback/album/${a.albumId}`, {});
+    expect(engine.state().transport).toBe(2);
+
+    const res = await call<QueueState>('POST', '/queue/clear', {});
+    expect(res.status).toBe(200);
+    expect(engine.playlist()).toEqual([]);
+    expect(engine.state().transport).toBe(0);
+    await vi.waitFor(() => expect(studio.queue.get().sync.state).toBe('in_sync'));
+    expect(studio.queue.get().items).toEqual([]);
+  });
+
+  it("take over after a change in the native UI: HQPlayer stopped, holds exactly Studio's queue, stays in sync", async () => {
+    engine = await startFakeEngine({ playlist: [] });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const { studio, call } = await startStudio();
+    await call('POST', `/playback/album/${a.albumId}`, {});
+    engine.external([OTHER]);
+    await vi.waitFor(() =>
+      expect(studio.queue.get().sync).toMatchObject({
+        state: 'out_of_sync',
+        code: 'engine_track_differs',
+      }),
+    );
+
+    const res = await call<QueueState>('POST', '/queue/takeover', {});
+    expect(res.status).toBe(200);
+    expect(engine.playlist().map((t) => t.uri)).toEqual(a.uris);
+    expect(engine.state().transport).toBe(0); // takeover never starts playback
+    await new Promise((r) => setTimeout(r, 300)); // several Status pushes later…
+    expect(studio.queue.get().sync.state).toBe('in_sync');
+  });
+
+  it('"follow HQPlayer" adopts its playlist and sends HQPlayer no write command', async () => {
+    engine = await startFakeEngine({ playlist: [] });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const b = addShareAlbum(liveCtx.library, 'Album B', 2);
+    const { studio, call } = await startStudio();
+    await call('POST', `/playback/album/${a.albumId}`, {});
+    engine.external(b.uris.map((uri) => ({ uri, song: 'b', lengthSec: 300 })));
+    await vi.waitFor(() => expect(studio.queue.get().sync.state).toBe('out_of_sync'));
+
+    const sentBefore = engine.received.length;
+    const res = await call<QueueState>('POST', '/queue/follow', {});
+    expect(res.body.items.map((i) => i.track.id)).toEqual(b.ids);
+    expect(engine.received.slice(sentBefore).map((r) => r.name)).toEqual(['PlaylistGet']);
+    expect(engine.state()).toMatchObject({ transport: 2, current: 1 }); // still playing
+    await vi.waitFor(() => expect(studio.queue.get().sync.state).toBe('in_sync'));
+  });
+
+  it('after a restart, a stale plan does not raise an alarm: Studio follows HQPlayer', async () => {
+    engine = await startFakeEngine({ playlist: [] });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const first = await startStudio();
+    await first.call('POST', `/playback/album/${a.albumId}`, {});
+    await first.studio.close();
+    studios.splice(studios.indexOf(first.studio), 1);
+    engine.external([OTHER]); // meanwhile someone played other music in HQPlayer
+
+    const { studio } = await startStudio();
+    await vi.waitFor(() =>
+      expect(studio.queue.get().sync).toMatchObject({ state: 'unknown', code: 'engine_unqueued' }),
+    );
+    expect(studio.queue.get().items).toEqual([]);
+    expect(engine.playlist().map((t) => t.uri)).toEqual([OTHER.uri]); // HQPlayer untouched
+  });
+
+  it('after a restart, a plan that still matches HQPlayer is kept', async () => {
+    engine = await startFakeEngine({ playlist: [] });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const first = await startStudio();
+    const played = await first.call<QueueState>('POST', `/playback/album/${a.albumId}`, {});
+    await first.studio.close();
+    studios.splice(studios.indexOf(first.studio), 1);
+
+    const { studio } = await startStudio();
+    await vi.waitFor(() => expect(studio.queue.get().sync.state).toBe('in_sync'));
+    expect(studio.queue.get().sessionId).toBe(played.body.sessionId);
+    expect(studio.queue.get().items).toHaveLength(3);
+  });
+
+  it('after a restart with an empty HQPlayer playlist, the plan is kept and can be pushed back', async () => {
+    engine = await startFakeEngine({ playlist: [] });
+    const a = addShareAlbum(liveCtx.library, 'Album A', 3);
+    const first = await startStudio();
+    await first.call('POST', `/playback/album/${a.albumId}`, {});
+    await first.studio.close();
+    studios.splice(studios.indexOf(first.studio), 1);
+    engine.external([]); // HQPlayer restarted with nothing loaded
+
+    const { studio } = await startStudio();
+    await vi.waitFor(() =>
+      expect(studio.queue.get().sync).toMatchObject({
+        state: 'out_of_sync',
+        code: 'engine_playlist_empty',
+      }),
+    );
+    expect(studio.queue.get().items).toHaveLength(3);
+  });
+
+  it('never restores a queue of demo tracks when connected to a real HQPlayer', async () => {
+    await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {}); // mock mode, demo
+    expect(ctx.queue.load()?.items.length).toBe(6);
+    engine = await startFakeEngine({ playlist: [] });
+    const { studio } = await startStudio(ctx);
+    expect(studio.queue.get().items).toEqual([]);
   });
 });

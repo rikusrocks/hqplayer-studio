@@ -1,5 +1,42 @@
 # PROGRESS
 
+## 2026-11-10 — v0.1.5：队列同步与“清空不干净”修复（用户反馈）
+
+```text
+Implemented:
+- 根因（你的反馈 + 替身复现）：HQPlayer 在播放中执行 PlaylistClear 会保留正在播放的那首并继续播放。
+  因此“清空队列”留下一首；播放新专辑时列表变成 [旧曲, 新专辑…]，SelectTrack 1 又选中旧曲 → 一直播放同一首；
+  “接管”同理，结束后立刻再次不一致，横幅消不掉。Gate C 只在停止状态下清空过，所以没测出来。
+- 装载/清空 HQPlayer 播放列表现在：Stop（已验证；已停止时 0 ms）→ PlaylistClear → 回读确认为空
+  （残留用已验证的 PlaylistRemove 逐条删除，仍有残留则报错）→ PlaylistAdd → 回读确认条数 → SelectTrack → Play。
+- 队列横幅新增“以 HQPlayer 为准”（只读：HQPlayer 播放列表全在音乐库 → 作为 Studio 队列；否则丢弃旧队列，
+  显示 HQPlayer 自己的播放列表）；“接管”改名“用 Studio 队列替换 HQPlayer”，并先确认（会停止播放）。
+- 启动时：上次保存的队列若与 HQPlayer 正在播放的不一致，自动以 HQPlayer 为准，不再报警；
+  HQPlayer 播放列表为空时保留队列并提示，可一键推回；连接真实 HQPlayer 时不再恢复演示曲目队列。
+- 不一致原因改为代码 + 中英文翻译（之前横幅显示英文）；通知也按代码翻译。
+- 不用比 Studio 最后一次操作更早的 HQPlayer 状态做判断（加上 4 s 缓冲），避免操作后误报。
+- 扫描音乐库后重新匹配 HQPlayer 正在播放的文件（之前“不在音乐库”的结果会一直缓存）。
+- 网络共享路径：HQPlayer 的 file:// + \\NAS\share\… 形式不再被 URI 解码（含 % 的文件名不再匹配失败）。
+
+Verified:
+- 自动化测试 142 项全部通过；新增有状态替身引擎回归测试：播放中换专辑真的换、清空不留残留且停止、
+  外部更改后接管保持同步、以 HQPlayer 为准不发送任何写命令、重启后过期队列自动跟随/匹配时保留/HQPlayer 为空时保留。
+  去掉 Stop 后“清空”和“接管”测试会失败（证明测试能抓到这个 bug）。
+- Mac 端到端彩排（替身引擎模拟“清空保留正在播放曲目”）：播放中换专辑 → 列表恰好为新专辑；外部更改 → 中文横幅；
+  替换 → 确认 → HQPlayer 停止且列表一致、6 s 后仍同步；以 HQPlayer 为准 → HQPlayer 继续播放、面板显示其列表；
+  播放中清空 → HQPlayer 空且停止；重启 Studio → 过期队列被静默替换为跟随 HQPlayer。
+
+Known limitations:
+- “跳到这首”/“上一首”在播放中用 SelectTrack(+Play)，真机上播放中切换是否立即生效尚未验证。
+- 播放新专辑会先 Stop：从播放中切换会多约 4 s（HQPlayer 的 Stop 确认时间）+ 约 3 s 缓冲。
+- 映射盘符（Z:\）与 UNC（\\NAS\…）指向同一文件时无法自动对应，请让 HQPlayer 与 Studio 用同一种路径。
+- DSF/DFF 播放仍未在真机验证。
+
+Next:
+- 你：用 v0.1.5 重试——播放中换专辑、清空队列、在 HQPlayer 里改播放后用两个横幅按钮；顺便试“跳到这首”。
+- Phase 2 / Phase 3 同上。
+```
+
 ## 2026-11-10 — Phase 1 完成：Gate C 结果 + “允许 Studio 控制 HQPlayer”
 
 ```text

@@ -11,7 +11,7 @@ import { registerApiRoutes, serverInfo } from './http/routes';
 import { HTML_CSP, isLoopbackHost, registerSecurity } from './http/security';
 import { EngineService, type EngineServiceOptions } from './services/engine-service';
 import { LibraryService } from './services/library-service';
-import { QueueService } from './services/queue-service';
+import { QueueService, type QueueServiceOptions } from './services/queue-service';
 
 export interface StudioServerOptions {
   adapter: HQPlayerAdapter;
@@ -26,6 +26,7 @@ export interface StudioServerOptions {
   engineInfo?: EngineInfo;
   logger?: boolean;
   engine?: EngineServiceOptions;
+  queue?: QueueServiceOptions;
 }
 
 export interface EngineInfo {
@@ -62,7 +63,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   }
   const hub = new EventHub();
   const engine = new EngineService(opts.adapter, hub, opts.ctx.library, opts.engine);
-  const queue = new QueueService(engine, opts.ctx, hub);
+  const queue = new QueueService(engine, opts.ctx, hub, opts.queue);
   const library = new LibraryService(opts.ctx, hub);
   const services: StudioServices = {
     appVersion: opts.appVersion,
@@ -153,6 +154,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
       };
     },
     async close() {
+      queue.dispose();
       await library.stop();
       await engine.stop();
       await app.close();
