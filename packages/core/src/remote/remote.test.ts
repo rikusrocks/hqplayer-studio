@@ -385,18 +385,49 @@ describe('Web Remote LAN listener', () => {
       ['POST', '/remote/pairing-code'],
       ['POST', '/remote/pairing-code/cancel'],
       ['POST', '/remote/devices/x/revoke'],
+      ['GET', '/settings/lyrics'],
+      ['POST', '/settings/lyrics'],
+      ['POST', '/settings/lyrics/clear-cache'],
+      ['GET', '/tracks/x/lyrics/search'],
+      ['POST', '/tracks/x/lyrics/select'],
+      ['POST', '/tracks/x/lyrics/reset'],
     ] as const) {
       const r = await lan(method, url, {
         token,
-        payload: { enabled: true, allowControl: true, path: 'C:\\', action: 'disconnect' },
+        payload: {
+          enabled: true,
+          allowControl: true,
+          online: true,
+          lrclibId: 1,
+          path: 'C:\\',
+          action: 'disconnect',
+        },
       });
       expect(r.status, `${method} ${url}`).toBe(404);
     }
     expect(ctx.settings.get('engine.allowControl', false)).toBe(false);
+    expect(ctx.settings.get('lyrics.online', false)).toBe(false);
     // ... and no desktop UI either
     expect((await lan('GET', '/index.html', { raw: true, token })).status).toBe(404);
     const info = (await lan<{ trustedClient: boolean }>('GET', '/server-info', { token })).body;
     expect(info.trustedClient).toBe(false);
+  });
+
+  it('lets paired phones read lyrics and calibrate the offset', async () => {
+    await enableLan();
+    const { token } = await pairPhone();
+    const track = ctx.library.listTracks({ limit: 1 }).items[0]!;
+    const got = await lan<{ state: string; source: string }>('GET', `/tracks/${track.id}/lyrics`, {
+      token,
+    });
+    expect(got.status).toBe(200);
+    expect(got.body).toMatchObject({ state: 'found', source: 'demo' });
+    const cal = await lan<{ offsetMs: number }>('POST', `/tracks/${track.id}/lyrics/offset`, {
+      token,
+      payload: { offsetMs: 400 },
+    });
+    expect(cal.body.offsetMs).toBe(400);
+    expect((await lan('GET', `/tracks/${track.id}/lyrics`)).status).toBe(401); // unpaired
   });
 
   it('never sends absolute paths to LAN clients', async () => {

@@ -21,6 +21,7 @@ import { sanitizeForLan } from './remote/sanitize';
 import { EngineService, type EngineServiceOptions } from './services/engine-service';
 import { LibraryService, type LibraryServiceOptions } from './services/library-service';
 import { MusicBrainzClient, OnlineAlbumChecker } from './services/online-albums';
+import { LyricsService, type LyricsServiceOptions } from './services/lyrics-service';
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
 
 export interface StudioServerOptions {
@@ -38,6 +39,8 @@ export interface StudioServerOptions {
   engine?: EngineServiceOptions;
   queue?: QueueServiceOptions;
   library?: LibraryServiceOptions;
+  /** Lyrics (LRCLIB client, file readers) — tests inject fakes. */
+  lyrics?: Omit<LyricsServiceOptions, 'appVersion'>;
   /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
   scanPaceWhilePlayingMs?: number;
   /** Web Remote LAN listener (off unless enabled in Settings → 网页遥控). */
@@ -64,6 +67,7 @@ export interface StudioServices {
   queue: QueueService;
   library: LibraryService;
   remote: RemoteAccessService;
+  lyrics: LyricsService;
   ctx: LibraryContext;
 }
 
@@ -107,6 +111,17 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     },
     ...opts.library,
   });
+  // Online lyrics only for what is playing right now (never bulk lookups).
+  const lyrics = new LyricsService(
+    opts.ctx,
+    hub,
+    (trackId) => {
+      if (engine.getStatus().track?.studioTrackId === trackId) return true;
+      const q = queue.get();
+      return q.currentIndex !== null && q.items[q.currentIndex]?.track.id === trackId;
+    },
+    { appVersion: opts.appVersion, ...opts.lyrics },
+  );
   // The LAN app is built only when the user turns LAN access on (after `services` exists).
   const remote: RemoteAccessService = new RemoteAccessService(
     opts.ctx,
@@ -131,6 +146,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     queue,
     library,
     remote,
+    lyrics,
     ctx: opts.ctx,
   };
 

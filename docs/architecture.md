@@ -13,9 +13,11 @@
  │   │    ├─ EngineService ── HQPlayerAdapter (Mock | Live TCP/XML)      │
  │   │    ├─ QueueService  (planned queue, sync detection)               │
  │   │    ├─ LibraryService (scan jobs)                                  │
+ │   │    ├─ LyricsService (.lrc / tags / lyrics_cache / LRCLIB opt-in)  │
+ │   │    ├─ media keys (globalShortcut) + tray icon → same EngineService │
  │   │    └─ SQLite via node:sqlite (WAL)  %APPDATA%/HQPlayer Studio/data │
  │   ├─ renderer (React, sandboxed, no Node) ── window.studioShell       │
- │   └─ mini player window (#/mini)                                     │
+ │   └─ mini player window (#/mini, always on top, bounds re-validated)  │
  │                         │ 127.0.0.1:4321 (TCP, XML docs + "\n")       │
  │                         ▼                                            │
  │              HQPlayer Desktop 6 (unchanged, licensed)                │
@@ -38,7 +40,7 @@ On the Mac the same Core runs standalone (`pnpm dev:core`) with `MockHQPlayerAda
 | `packages/core`             | Fastify server, security hooks, `EngineService`, `QueueService`, `LibraryService`, event hub, bootstrap.                                                                                                                                               |
 | `packages/api-client`       | Typed fetch client (responses validated against contracts) + reconnecting WS client.                                                                                                                                                                   |
 | `packages/ui`               | Shared React components, tokens, i18n (zh-CN/en), `StudioProvider` data layer.                                                                                                                                                                         |
-| `packages/lyrics`           | LRC parsing + active-line lookup (LRCLIB client in P1).                                                                                                                                                                                                |
+| `packages/lyrics`           | LRC parsing + active-line lookup; LRCLIB client (User-Agent, one request at a time, 429/Retry-After back-off). No Node-only APIs.                                                                                                                      |
 | `apps/desktop`              | Electron main/preload + desktop renderer.                                                                                                                                                                                                              |
 | `apps/remote`               | Mobile-first web remote (served by Core at `/remote/`).                                                                                                                                                                                                |
 | `scripts/hqp-probe`         | Read-only Gate A/B probe, built to a single Windows `.exe` (Node SEA).                                                                                                                                                                                 |
@@ -75,3 +77,11 @@ On the Mac the same Core runs standalone (`pnpm dev:core`) with `MockHQPlayerAda
 | Mac dev  | `<repo>/.data/dev/studio.sqlite` (+ `artwork/`) — `pnpm demo:reset` wipes and reseeds |
 | Electron | `app.getPath('userData')/data` (Windows: `%APPDATA%\HQPlayer Studio\data`)            |
 | Probe    | report JSON next to `hqp-probe.exe` (fallback: Desktop, then temp)                    |
+
+## Lyrics (Phase 4)
+
+Order: hand-picked LRCLIB match > `<same name>.lrc` next to the audio file > lyrics in the file's tags > stored LRCLIB result > LRCLIB online. Online lookups are off by default (`lyrics.online`), only for the track HQPlayer is playing (or Studio's current queue item), serialised with a minimum interval, and paused after 429/outages (D-028). The association, the per-track offset and LRCLIB's "not found" answer live in `lyrics_cache`. Clients receive parsed lines; synced lines follow `EngineStatus.positionMs` (already the audible position, D-018) minus the user offset. Phones may read lyrics and change the offset; LRCLIB search/selection and lyrics settings exist only on the loopback app.
+
+## Desktop shell (Phase 4)
+
+`apps/desktop/src/main/desktop-shell.ts` holds the testable parts (prefs, media-key bookkeeping, tray menu model); `main.ts` wires them to Electron. Media keys (Windows) and the tray menu call `EngineService.transport` — the same capability-checked path as the UI buttons. Window bounds are restored with `restoreBounds` and re-validated on `display-added/removed/metrics-changed` (`fitToDisplays`).

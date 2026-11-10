@@ -19,3 +19,5 @@ export * from './components/trackActions';
 export * from './components/TrackList';
 export * from './components/albums';
 export * from './components/queue';
+export * from './hooks/useLyrics';
+export * from './components/lyrics';

@@ -7,6 +7,16 @@ export interface StudioShell {
   platform: string;
   toggleMiniPlayer(): void;
   showMainWindow(): void;
+  closeMiniPlayer(): void;
+  /** Saved “always on top” of the Mini Player. */
+  getAlwaysOnTop(): Promise<boolean>;
+  /** Tray menu labels follow the UI language. */
+  setLocale(locale: string): void;
+  /** Media keys & tray icon (Settings → 常规). */
+  desktop: {
+    get(): Promise<DesktopShellState | null>;
+    set(patch: Partial<DesktopShellPrefs>): Promise<DesktopShellState | null>;
+  };
   /** Restart the app (used after changing the engine adapter). */
   relaunch(): void;
   setAlwaysOnTop(on: boolean): Promise<boolean>;
@@ -19,6 +29,18 @@ export interface StudioShell {
     window(action: 'show' | 'hide' | 'minimize'): Promise<HqpAppState | null>;
     pickExe(): Promise<HqpAppState | null>;
   };
+}
+
+export interface DesktopShellPrefs {
+  mediaKeys: boolean;
+  tray: boolean;
+  closeToTray: boolean;
+}
+
+export interface DesktopShellState {
+  prefs: DesktopShellPrefs;
+  mediaKeys: { supported: boolean; enabled: boolean; registered: string[]; unavailable: string[] };
+  tray: { supported: boolean; active: boolean };
 }
 
 export interface HqpAppPrefs {

@@ -178,6 +178,33 @@ body {
   border-radius: var(--radius-xl);
   box-shadow: 0 24px 48px rgb(0 0 0 / 0.45);
 }
+.rm-now__lyrics {
+  width: 100%;
+  height: min(52vh, 460px);
+  height: min(52dvh, 460px);
+  display: flex;
+  flex-direction: column;
+}
+.rm-now__lyrics .hq-lyrics__line {
+  font-size: var(--fs-xl);
+}
+.rm-now__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.rm-now__toggle.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 .rm-now__meta {
   display: flex;
   flex-direction: column;

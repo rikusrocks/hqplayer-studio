@@ -8,6 +8,9 @@ export * from './repositories/playlist-repo';
 export * from './repositories/queue-repo';
 export * from './repositories/settings-repo';
 export * from './repositories/remote-device-repo';
+export * from './repositories/lyrics-repo';
+export * from './lyrics/local-lyrics';
+export * from './seed/demo-lyrics';
 export * from './artwork/artwork-store';
 export * from './artwork/generated-cover';
 export * from './scanner/metadata';
@@ -24,6 +27,7 @@ import { PlaylistRepository } from './repositories/playlist-repo';
 import { QueueRepository } from './repositories/queue-repo';
 import { SettingsRepository } from './repositories/settings-repo';
 import { RemoteDeviceRepository } from './repositories/remote-device-repo';
+import { LyricsRepository } from './repositories/lyrics-repo';
 
 export interface LibraryContext {
   db: Database;
@@ -32,6 +36,7 @@ export interface LibraryContext {
   queue: QueueRepository;
   settings: SettingsRepository;
   remoteDevices: RemoteDeviceRepository;
+  lyrics: LyricsRepository;
   artwork: ArtworkStore;
   close(): void;
 }
@@ -44,6 +49,7 @@ export function openLibrary(dataDir: string | ':memory:', artworkDir?: string): 
   const queue = new QueueRepository(db);
   const settings = new SettingsRepository(db);
   const remoteDevices = new RemoteDeviceRepository(db);
+  const lyrics = new LyricsRepository(db);
   const artwork = new ArtworkStore(
     artworkDir ??
       (dataDir === ':memory:'
@@ -58,6 +64,7 @@ export function openLibrary(dataDir: string | ':memory:', artworkDir?: string): 
     queue,
     settings,
     remoteDevices,
+    lyrics,
     artwork,
     close: () => db.close(),
   };

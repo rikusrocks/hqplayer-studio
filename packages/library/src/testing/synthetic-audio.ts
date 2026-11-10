@@ -131,3 +131,44 @@ export function encodeLegacy(text: string, enc: 'gbk' | 'shift_jis'): Buffer {
   }
   return Buffer.from(out);
 }
+
+/**
+ * Minimal FLAC file (STREAMINFO + VORBIS_COMMENT, no audio frames) with invented tags — enough
+ * for tag readers, e.g. to test embedded `LYRICS`.
+ */
+export function makeFlac(comments: Record<string, string>, ms = 1000): Buffer {
+  const sampleRate = 44100;
+  const samples = BigInt(Math.floor((sampleRate * ms) / 1000));
+  const info = Buffer.alloc(34);
+  info.writeUInt16BE(4096, 0);
+  info.writeUInt16BE(4096, 2);
+  // bytes 10..17: sample rate (20 bits) | channels-1 (3) | bits-1 (5) | total samples (36)
+  let packed = BigInt(sampleRate) << 44n;
+  packed |= 1n << 41n; // 2 channels
+  packed |= 15n << 36n; // 16 bits
+  packed |= samples;
+  info.writeBigUInt64BE(packed, 10);
+  const block = (type: number, body: Buffer, last: boolean) => {
+    const h = Buffer.alloc(4);
+    h.writeUInt8((last ? 0x80 : 0) | type, 0);
+    h.writeUIntBE(body.length, 1, 3);
+    return Buffer.concat([h, body]);
+  };
+  const vendor = Buffer.from('hqps-synthetic', 'utf8');
+  const parts: Buffer[] = [];
+  const u32 = (n: number) => {
+    const b = Buffer.alloc(4);
+    b.writeUInt32LE(n, 0);
+    return b;
+  };
+  parts.push(u32(vendor.length), vendor, u32(Object.keys(comments).length));
+  for (const [k, v] of Object.entries(comments)) {
+    const c = Buffer.from(`${k}=${v}`, 'utf8');
+    parts.push(u32(c.length), c);
+  }
+  return Buffer.concat([
+    Buffer.from('fLaC', 'ascii'),
+    block(0, info, false),
+    block(4, Buffer.concat(parts), true),
+  ]);
+}

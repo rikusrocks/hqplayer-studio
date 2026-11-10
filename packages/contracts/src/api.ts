@@ -181,6 +181,8 @@ export const ApiErrorCodeSchema = z.enum([
   'unauthorized',
   /** Too many requests / pairing attempts from this address; retry later. */
   'rate_limited',
+  /** A third-party service Studio relies on (LRCLIB) is not reachable right now. */
+  'upstream_unavailable',
   'internal_error',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;

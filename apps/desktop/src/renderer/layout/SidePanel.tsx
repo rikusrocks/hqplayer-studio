@@ -2,6 +2,7 @@ import {
   Artwork,
   FormatBadge,
   Icon,
+  LyricsPanel,
   QueueList,
   QueueSyncBanner,
   buildHref,
@@ -12,33 +13,48 @@ import {
 } from '@hqps/ui';
 import { useState } from 'react';
 
-type Tab = 'now' | 'queue';
+type Tab = 'now' | 'lyrics' | 'queue';
+const TABS: Tab[] = ['now', 'lyrics', 'queue'];
+const TAB_KEY = 'hqps.desktop.panelTab';
+
+function readTab(): Tab {
+  try {
+    const v = globalThis.localStorage?.getItem(TAB_KEY);
+    return TABS.includes(v as Tab) ? (v as Tab) : 'queue';
+  } catch {
+    return 'queue';
+  }
+}
+
+const TAB_LABEL = { now: 'nav.nowPlaying', lyrics: 'nav.lyrics', queue: 'nav.queue' } as const;
 
 export function SidePanel({ onClose }: { onClose: () => void }) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>('queue');
+  const [tab, setTabState] = useState<Tab>(readTab);
+  const setTab = (next: Tab) => {
+    setTabState(next);
+    try {
+      globalThis.localStorage?.setItem(TAB_KEY, next);
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <aside className="sidepanel" aria-label={t('queue.title')}>
       <div className="sidepanel__tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'now'}
-          className={`sidepanel__tab${tab === 'now' ? ' is-active' : ''}`}
-          onClick={() => setTab('now')}
-        >
-          {t('nav.nowPlaying')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'queue'}
-          className={`sidepanel__tab${tab === 'queue' ? ' is-active' : ''}`}
-          onClick={() => setTab('queue')}
-        >
-          {t('nav.queue')}
-        </button>
+        {TABS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={`sidepanel__tab${tab === id ? ' is-active' : ''}`}
+            onClick={() => setTab(id)}
+          >
+            {t(TAB_LABEL[id])}
+          </button>
+        ))}
         <span className="sidepanel__spacer" />
         <button
           type="button"
@@ -50,8 +66,13 @@ export function SidePanel({ onClose }: { onClose: () => void }) {
           <Icon name="close" size={16} />
         </button>
       </div>
-      <div className="sidepanel__body" role="tabpanel">
-        {tab === 'now' ? <NowPlayingPanel /> : <QueueList />}
+      <div
+        className={`sidepanel__body${tab === 'lyrics' ? ' sidepanel__body--lyrics' : ''}`}
+        role="tabpanel"
+      >
+        {tab === 'now' && <NowPlayingPanel />}
+        {tab === 'lyrics' && <LyricsPanel manage settingsHref="#/settings/lyrics" />}
+        {tab === 'queue' && <QueueList />}
       </div>
     </aside>
   );
