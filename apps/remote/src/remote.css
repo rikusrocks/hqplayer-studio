@@ -220,31 +220,39 @@ body {
   padding: 16px 24px;
   margin: auto 0;
 }
-.rm-now__foot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
+/* tap the artwork → lyrics, tap the lyrics → artwork (no separate button) */
+button.rm-now__art {
+  display: block;
+  border-radius: var(--radius-xl);
 }
-.rm-now__toggle {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 1px solid var(--border-strong);
+.rm-now__lyrics {
+  position: relative;
+  cursor: pointer;
+}
+.rm-now__lyrics .hq-lyrics__footer {
+  cursor: auto;
+}
+/* only shown to keyboard users (on focus); screen readers always find it */
+.rm-now__back-to-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
   border-radius: 999px;
-  background: transparent;
-  color: var(--text-2);
-  font: inherit;
+  background: var(--bg);
+  color: var(--accent);
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
-.rm-now__toggle.is-active {
-  color: var(--accent);
-  border-color: var(--accent);
+.rm-now__back-to-art:not(:focus-visible) {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .rm-now__meta {
   display: flex;
@@ -305,8 +313,7 @@ a.rm-now__album {
   margin-top: -6px;
 }
 .rm-now__volume {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   max-width: 360px;
 }
 .rm-now__volume .hq-range {
@@ -326,6 +333,10 @@ a.rm-now__album {
   .rm-now .hq-transport--lg .hq-transport__main {
     width: 58px;
     height: 58px;
+  }
+  /* the output-buffer explanation costs two lyric lines here */
+  .rm-now__lyrics .hq-lyrics__footer .hq-lyrics__note {
+    display: none;
   }
 }
 
@@ -675,9 +686,8 @@ a.rm-now__album {
     grid-area: transport;
     justify-content: flex-start;
   }
-  .rm-now__foot {
+  .rm-now__volume {
     grid-area: volume;
-    justify-content: flex-start;
   }
 }
 
