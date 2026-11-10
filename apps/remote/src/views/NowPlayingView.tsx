@@ -42,26 +42,20 @@ export function NowPlayingView() {
     : null;
 
   return (
-    <div className="rm-now">
+    <div className={`rm-now${showLyrics ? ' rm-now--lyrics' : ''}`}>
       <QueueSyncBanner />
-      {showLyrics ? (
-        <div className="rm-now__lyrics">
-          <LyricsPanel />
-        </div>
-      ) : (
-        <div className="rm-now__art">
-          <Artwork artworkId={now.artworkId} size="full" alt={now.album ?? ''} />
-        </div>
-      )}
-      <button
-        type="button"
-        className={`rm-now__toggle${showLyrics ? ' is-active' : ''}`}
-        onClick={() => setShowLyrics(!showLyrics)}
-        aria-pressed={showLyrics}
-      >
-        <Icon name={showLyrics ? 'album' : 'lyrics'} size={16} />
-        {showLyrics ? t('lyrics.showArtwork') : t('lyrics.showLyrics')}
-      </button>
+      {/* The stage takes whatever height is left, so the controls below never leave the screen. */}
+      <div className="rm-now__stage">
+        {showLyrics ? (
+          <div className="rm-now__lyrics">
+            <LyricsPanel />
+          </div>
+        ) : (
+          <div className="rm-now__art">
+            <Artwork artworkId={now.artworkId} size="full" alt={now.album ?? ''} />
+          </div>
+        )}
+      </div>
       <div className="rm-now__meta">
         <h1 className="rm-now__title">{now.hasTrack ? now.title : t('player.nothingPlaying')}</h1>
         {now.hasTrack && <div className="rm-now__artist">{now.artist}</div>}
@@ -78,7 +72,18 @@ export function NowPlayingView() {
       </div>
       <ProgressBar className="rm-now__progress" />
       <TransportControls size="lg" />
-      <VolumeControl className="rm-now__volume" />
+      <div className="rm-now__foot">
+        <VolumeControl className="rm-now__volume" />
+        <button
+          type="button"
+          className={`rm-now__toggle${showLyrics ? ' is-active' : ''}`}
+          onClick={() => setShowLyrics(!showLyrics)}
+          aria-pressed={showLyrics}
+        >
+          <Icon name={showLyrics ? 'album' : 'lyrics'} size={16} />
+          {showLyrics ? t('lyrics.showArtwork') : t('lyrics.showLyrics')}
+        </button>
+      </div>
     </div>
   );
 }

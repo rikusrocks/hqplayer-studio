@@ -156,39 +156,79 @@ body {
   }
 }
 
-/* now playing */
+/* now playing — the page fits the screen: the stage (artwork or lyrics) flexes, the controls
+   under it keep their size, so play/pause is always reachable without scrolling. Only when the
+   screen is too short for the stage's minimum does the page scroll. */
 .rm-now {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 16px 20px 24px;
+  gap: 14px;
+  padding: 14px 20px 18px;
   max-width: 560px;
   margin: 0 auto;
   min-height: 100%;
 }
+.rm-now > * {
+  flex: none;
+}
 .rm-now .hq-banner {
   align-self: stretch;
+}
+.rm-now > .rm-now__stage {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+.rm-now--lyrics > .rm-now__stage {
+  min-height: 200px;
 }
 .rm-now__art {
   width: min(100%, 40vh, 420px);
   width: min(100%, 40dvh, 420px);
+  /* the largest square the stage can hold */
+  width: min(100cqw, 100cqh, 420px);
 }
 .rm-now__art .hq-artwork {
   border-radius: var(--radius-xl);
   box-shadow: 0 24px 48px rgb(0 0 0 / 0.45);
 }
 .rm-now__lyrics {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: min(52vh, 460px);
-  height: min(52dvh, 460px);
   display: flex;
   flex-direction: column;
+}
+.rm-now__lyrics .hq-lyrics__scroll {
+  min-height: 0;
+}
+/* The shared 35% padding is width-based and would not shrink with a short stage; size it from
+   the stage's height instead (still enough for the first/last line to reach the middle). */
+.rm-now__lyrics .hq-lyrics__scroll:not(.hq-lyrics__scroll--plain) {
+  padding-block: 35cqh;
 }
 .rm-now__lyrics .hq-lyrics__line {
   font-size: var(--fs-xl);
 }
+.rm-now__lyrics .hq-empty {
+  padding: 16px 24px;
+  margin: auto 0;
+}
+.rm-now__foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
 .rm-now__toggle {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -200,6 +240,7 @@ body {
   color: var(--text-2);
   font: inherit;
   font-size: var(--fs-sm);
+  white-space: nowrap;
 }
 .rm-now__toggle.is-active {
   color: var(--accent);
@@ -230,6 +271,27 @@ body {
 a.rm-now__album {
   color: var(--accent);
 }
+/* lyrics showing: one-line title + artist, so the lyrics get the room */
+.rm-now--lyrics .rm-now__meta {
+  gap: 2px;
+}
+.rm-now--lyrics .rm-now__title {
+  font-size: var(--fs-lg);
+}
+.rm-now--lyrics .rm-now__title,
+.rm-now--lyrics .rm-now__artist {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rm-now--lyrics .rm-now__artist {
+  font-size: var(--fs-md);
+}
+.rm-now--lyrics .rm-now__album,
+.rm-now--lyrics .rm-now__meta .hq-format {
+  display: none;
+}
 .rm-now__progress {
   width: 100%;
 }
@@ -243,12 +305,28 @@ a.rm-now__album {
   margin-top: -6px;
 }
 .rm-now__volume {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   max-width: 360px;
 }
 .rm-now__volume .hq-range {
   max-width: none;
   height: 28px;
+}
+/* short phones (iPhone SE, Safari with both toolbars showing): tighten the controls */
+@media (max-height: 620px) {
+  .rm-now {
+    gap: 10px;
+    padding: 10px 20px 12px;
+  }
+  .rm-now .hq-transport--lg .hq-icon-btn {
+    width: 46px;
+    height: 46px;
+  }
+  .rm-now .hq-transport--lg .hq-transport__main {
+    width: 58px;
+    height: 58px;
+  }
 }
 
 /* album hero */
@@ -567,11 +645,23 @@ a.rm-now__album {
   .rm-now .hq-banner {
     grid-area: banner;
   }
-  .rm-now__art {
+  .rm-now > .rm-now__stage {
     grid-area: art;
-    width: 100%;
+    container-type: normal;
+    min-height: 0;
     max-width: 440px;
     justify-self: end;
+  }
+  .rm-now__art {
+    width: 100%;
+  }
+  .rm-now__lyrics {
+    flex: none;
+    height: min(60vh, 520px);
+    height: min(60dvh, 520px);
+  }
+  .rm-now__lyrics .hq-lyrics__scroll:not(.hq-lyrics__scroll--plain) {
+    padding-block: min(22vh, 190px);
   }
   .rm-now__meta {
     grid-area: meta;
@@ -585,8 +675,9 @@ a.rm-now__album {
     grid-area: transport;
     justify-content: flex-start;
   }
-  .rm-now__volume {
+  .rm-now__foot {
     grid-area: volume;
+    justify-content: flex-start;
   }
 }
 

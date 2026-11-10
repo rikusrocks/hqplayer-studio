@@ -4,12 +4,13 @@ import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createStudioClient, StudioApiError } from '@hqps/api-client';
-import type {
-  PairingCode,
-  PairResponse,
-  QueueState,
-  RemoteSettings,
-  StudioEvent,
+import {
+  TrackLyricsSchema,
+  type PairingCode,
+  type PairResponse,
+  type QueueState,
+  type RemoteSettings,
+  type StudioEvent,
 } from '@hqps/contracts';
 import { MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
@@ -422,6 +423,11 @@ describe('Web Remote LAN listener', () => {
     });
     expect(got.status).toBe(200);
     expect(got.body).toMatchObject({ state: 'found', source: 'demo' });
+    // lyric text and timing only — no .lrc or track path, nothing from the settings
+    expect(Object.keys(got.body).sort()).toEqual(Object.keys(TrackLyricsSchema.shape).sort());
+    expect(JSON.stringify(got.body)).not.toMatch(
+      /[A-Z]:\\\\|\\\\\\\\|file:|\.lrc|\/Users\/|\/home\//,
+    );
     const cal = await lan<{ offsetMs: number }>('POST', `/tracks/${track.id}/lyrics/offset`, {
       token,
       payload: { offsetMs: 400 },
