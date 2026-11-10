@@ -25,11 +25,12 @@ Implemented:
   默认值仍是“不自动启动、窗口正常显示”，需要你在设置里开启。
 
 Verified:
-- Mac 上 format:check 与 check（lint、类型检查、测试、构建）通过：自动化测试 281 项通过（另有 2 项仅在 Windows 运行）；
+- Mac 上 format:check 与 check（lint、类型检查、测试、构建）通过：自动化测试 301 项通过（合并 main 之后；另有 2 项仅在 Windows 运行）；
   新增 33 项（注入假的进程/窗口调用）：窗口步骤抛错时 HQPlayer 仍被启动；启动画面之后才出现的主窗口仍被隐藏；
   不会把不可见的辅助窗口当成“已隐藏”；“未找到 / 启动失败 / 窗口步骤失败”的文字；进程列表读不到时的处理；不会启动第二个 HQPlayer；
   注册表 / 快捷方式 / 文件夹查找；诊断信息不含文件夹名和窗口标题。
-- Windows CI（用记事本代替 HQPlayer）：原有“隐藏 → 显示”测试，以及新增的“窗口被隐藏后再次出现 → 仍被隐藏”测试——结果见该 PR 的 CI。
+- Windows CI（用记事本代替 HQPlayer）：原有“隐藏 → 显示”测试，以及新增的“窗口被隐藏后再次出现 → 仍被隐藏”测试，
+  两项都在 PR 的 Windows CI 上真实运行并通过（没有被跳过）。这只说明窗口脚本在 Windows 上可用，不代表对 HQPlayer 有效。
 - 未验证：一切与真实 HQPlayer 6 有关的部分——能否找到你的安装位置、能否启动、HQPlayer 是否有启动画面、主窗口多久出现、
   隐藏后“显示 HQPlayer”能否正确恢复。Mac 上没有 HQPlayer 也没有 Windows 窗口，无法重现你遇到的失败。
 
@@ -54,6 +55,35 @@ Windows action needed:
 6. 设置 → 诊断 → “复制诊断信息”，把内容粘贴发给我（其中 hqplayerApp 一段就是这次要看的；不含文件夹路径和曲名）。
 7. 再试：点“显示 HQPlayer”窗口应回来，点“隐藏 HQPlayer”应消失；HQPlayer 运行时先开着 Studio，再手动退出并重新打开 HQPlayer，
    看它的窗口是否在几秒内被自动隐藏。
+```
+
+## 2026-11-10 — DSP 设置测试工具（hqp-dspgate.exe）
+
+```text
+Implemented:
+- 新的独立工具 hqp-dspgate.exe（与 hqp-probe / hqp-gatec 一起打包在 hqp-probe-windows-x64.zip）：
+  逐步临时更改 调制器 / 滤波器（Nx+1x、单值）/ 采样率（只调低、同系列）/ 模式（并重读列表）/
+  反相·卷积·自适应音量 / 矩阵配置，每步用 State 回读确认、立即改回，最后与开始时的快照整体核对；
+  再在播放中各切换一次调制器和滤波器，记录状态推送并询问听感。
+- 要回答的问题：Set* 命令用列表的 index 还是 value；列表是否随模式变化；单值 SetFilter 是否同时改 1x 和 Nx；
+  播放中更改是无缝、短暂中断、重新播放还是被拒绝。
+- 守卫：只发送本次连接刚读到的列表里的 index/value；白名单之外的命令（Reset、ConfigurationLoad、
+  SetTransport*、Volume、播放列表编辑等）在本地拒绝；改不回去就停止后续步骤并提示手动恢复
+  （原设置同时写入 hqp-dspgate-original-*.txt）；断线会重连后恢复。
+- Gate C 工具的白名单没有改动；Studio 应用本身没有改动，dsp.write 仍然禁用。
+
+Verified:
+- 自动化测试：新增 20 项（对可配置的模拟引擎：index 语义、value 语义、index=value 无法区分、
+  单值滤波器只改 Nx、播放中重新开始、改不回去、中途断线、用户中止/拒绝开始/开始时正在播放、无法连接）。
+- 模拟引擎的行为是假设，不是证据；真实行为只能由你电脑上的报告确定。
+
+Known limitations:
+- 不测试“重启 HQPlayer 后设置是否保留”（工具会把一切改回）。
+- 尚未在你的电脑上运行。
+
+Next:
+- 你：下载新的 hqp-probe-windows-x64，运行 hqp-dspgate.exe（约 10 分钟），发回 hqp-dspgate-report-*.json。
+- 之后：按报告实现 Studio 里的 DSP 面板（单独的开关、列表校验、State 回读、预设）。
 ```
 
 ## 2026-11-10 — 网页遥控：手机上“正在播放”页不再把播放按钮挤出屏幕
