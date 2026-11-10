@@ -16,22 +16,30 @@ import {
   LibraryRootSchema,
   RemovedRootSchema,
   LibraryStatsSchema,
+  PairResponseSchema,
+  PairingCodeSchema,
+  PairingStatusSchema,
   PlaylistDetailSchema,
   PlaylistSummarySchema,
   QueueStateSchema,
+  RemoteSettingsSchema,
   ScanJobSchema,
   ServerInfoSchema,
   TrackPageSchema,
+  WS_AUTH_PROTOCOL_PREFIX,
+  WS_PROTOCOL,
   type AddPlaylistItemsRequest,
   type ApiErrorCode,
   type CreatePlaylistRequest,
   type FolderQuery,
   type LibraryQuery,
   type MockControlRequest,
+  type PairRequest,
   type QueueAddRequest,
   type QueueReplaceRequest,
   type TransportAction,
   type UpdatePlaylistRequest,
+  type UpdateRemoteSettingsRequest,
 } from '@hqps/contracts';
 import { z } from 'zod';
 
@@ -51,6 +59,13 @@ export interface StudioClientOptions {
   /** Origin of the Studio Core server. Empty string = same origin (default). */
   baseUrl?: string;
   fetch?: typeof fetch;
+  /**
+   * Web Remote on the LAN: the paired device token, sent as `Authorization: Bearer` (never in a
+   * query string). Clients on the Studio computer itself need none.
+   */
+  getAuthToken?: () => string | null;
+  /** Called when the server says this device is not (or no longer) paired. */
+  onUnauthorized?: () => void;
 }
 
 /** Plain object of query parameters; undefined/null/empty values are omitted. */
@@ -58,9 +73,15 @@ type Query = object;
 
 const OkSchema = z.object({ ok: z.literal(true) });
 
+/** Page origin in a browser; undefined in Node (tests, tools). */
+const pageOrigin = (): string | undefined =>
+  (globalThis as { location?: { origin: string } }).location?.origin;
+
 export function createStudioClient(options: StudioClientOptions = {}) {
   const baseUrl = (options.baseUrl ?? '').replace(/\/$/, '');
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+
+  const authToken = () => options.getAuthToken?.() ?? null;
 
   async function request<T extends z.ZodType>(
     schema: T,
@@ -69,17 +90,21 @@ export function createStudioClient(options: StudioClientOptions = {}) {
     body?: unknown,
     query?: Query,
   ): Promise<z.infer<T>> {
-    const url = new URL(`${baseUrl}${API_PREFIX}${path}`, baseUrl || globalThis.location?.origin);
+    const url = new URL(`${baseUrl}${API_PREFIX}${path}`, baseUrl || pageOrigin());
     if (query) {
       for (const [k, v] of Object.entries(query) as [string, unknown][]) {
         if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
       }
     }
+    const headers: Record<string, string> = {};
+    if (body !== undefined) headers['content-type'] = 'application/json';
+    const token = authToken();
+    if (token) headers.authorization = `Bearer ${token}`;
     let res: Response;
     try {
       res = await doFetch(url, {
         method,
-        headers: body !== undefined ? { 'content-type': 'application/json' } : undefined,
+        headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });
     } catch (err) {
@@ -98,6 +123,9 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       const parsed = ApiErrorSchema.safeParse(json);
       if (parsed.success) {
         const e = parsed.data.error;
+        if (res.status === 401 && e.code === 'unauthorized' && path !== '/remote/pair') {
+          options.onUnauthorized?.();
+        }
         throw new StudioApiError(res.status, e.code, e.message, e.details);
       }
       throw new StudioApiError(res.status, 'internal_error', `HTTP ${res.status}`);
@@ -120,7 +148,8 @@ export function createStudioClient(options: StudioClientOptions = {}) {
     request(schema, 'POST', path, body);
   const patch = <T extends z.ZodType>(schema: T, path: string, body: unknown) =>
     request(schema, 'PATCH', path, body);
-  const del = <T extends z.ZodType>(schema: T, path: string) => request(schema, 'DELETE', path);
+  // Writes are JSON-only on the server (CSRF defence), so DELETE sends an empty JSON object too.
+  const del = <T extends z.ZodType>(schema: T, path: string) => request(schema, 'DELETE', path, {});
   const enc = encodeURIComponent;
 
   return {
@@ -131,8 +160,13 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       return `${baseUrl}${API_PREFIX}/artwork/${enc(artworkId)}${q}`;
     },
     eventsUrl(): string {
-      const origin = baseUrl || globalThis.location?.origin || 'http://127.0.0.1';
+      const origin = baseUrl || pageOrigin() || 'http://127.0.0.1';
       return `${origin.replace(/^http/, 'ws')}${API_PREFIX}/events`;
+    },
+    /** WebSocket subprotocols: `hqps.v1`, plus the device token on the LAN. */
+    eventsProtocols(): string[] {
+      const token = authToken();
+      return token ? [WS_PROTOCOL, `${WS_AUTH_PROTOCOL_PREFIX}${token}`] : [WS_PROTOCOL];
     },
 
     health: () => get(HealthResponseSchema, '/health'),
@@ -162,6 +196,22 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       /** “允许 Studio 控制 HQPlayer” — applies immediately, no restart. */
       setControl: (allowControl: boolean) =>
         post(EngineSettingsSchema, '/settings/engine', { allowControl }),
+    },
+
+    remote: {
+      /** Is this client on the Studio computer, or a paired device? (no token needed to ask) */
+      pairingStatus: () => get(PairingStatusSchema, '/remote/pairing-status'),
+      /** LAN only: exchange a one-time code for this device's token. */
+      pair: (req: PairRequest) => post(PairResponseSchema, '/remote/pair', req),
+      /** LAN only: forget this device. */
+      unpair: () => post(OkSchema, '/remote/unpair'),
+      // --- Settings → 网页遥控 (this computer only)
+      settings: () => get(RemoteSettingsSchema, '/remote/settings'),
+      setSettings: (req: UpdateRemoteSettingsRequest) =>
+        post(RemoteSettingsSchema, '/remote/settings', req),
+      createPairingCode: () => post(PairingCodeSchema, '/remote/pairing-code'),
+      cancelPairingCode: () => post(OkSchema, '/remote/pairing-code/cancel'),
+      revokeDevice: (id: string) => post(OkSchema, `/remote/devices/${enc(id)}/revoke`),
     },
 
     library: {

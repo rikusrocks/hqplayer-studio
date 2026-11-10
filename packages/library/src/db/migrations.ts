@@ -182,6 +182,22 @@ CREATE TABLE engine_observations (
     name: 'track identity index (move detection)',
     sql: `CREATE INDEX IF NOT EXISTS idx_tracks_identity ON tracks(file_identity, file_name);`,
   },
+  {
+    id: 3,
+    name: 'paired web remote devices',
+    // Tokens are never stored: only SHA-256 hashes of the device token and of the artwork-only
+    // media key (see packages/core/src/remote/pairing.ts).
+    sql: `
+CREATE TABLE remote_devices (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  media_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL,
+  last_seen_at INTEGER,
+  last_address TEXT
+);`,
+  },
 ];
 
 export function migrate(db: DatabaseSync): number[] {

@@ -562,3 +562,109 @@ a.rm-now__album {
     grid-area: volume;
   }
 }
+
+/* pairing (first visit on a phone) */
+.rm-pair {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+}
+.rm-pair__card {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 20px;
+  border-radius: var(--radius-xl);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+.rm-pair__card--center {
+  align-items: center;
+  color: var(--text-2);
+}
+.rm-pair__card h1 {
+  font-size: var(--fs-xl, 22px);
+  line-height: 1.25;
+}
+.rm-pair__logo {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-strong),
+    color-mix(in srgb, var(--accent) 55%, #3a2a12)
+  );
+  color: var(--accent-contrast);
+}
+.rm-pair__intro {
+  color: var(--text-2);
+}
+.rm-pair__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rm-pair__field > span {
+  font-weight: 600;
+}
+/* ≥ 16px: iOS Safari does not zoom into the field */
+.rm-pair__field .hq-input {
+  height: 48px;
+  font-size: 17px;
+}
+.rm-pair__field .rm-pair__code {
+  font-size: 28px;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+.rm-pair__submit {
+  height: 48px;
+  justify-content: center;
+  font-size: 17px;
+}
+.rm-pair__error,
+.rm-pair__notice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-size: var(--fs);
+}
+.rm-pair__error {
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+.rm-pair__notice {
+  background: var(--accent-soft);
+}
+.rm-pair__error > .hq-icon,
+.rm-pair__notice > .hq-icon {
+  flex: none;
+  margin-top: 2px;
+}
+.rm-pair__hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.rm-pair__hint > .hq-icon {
+  flex: none;
+  margin-top: 2px;
+}
+.rm-sheet__danger {
+  margin: 8px 0;
+  height: 44px;
+  justify-content: center;
+  color: var(--danger);
+}

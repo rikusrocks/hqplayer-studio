@@ -11,6 +11,7 @@ import {
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { RemoteAuthGate } from './auth';
 
 applyTheme(readStoredTheme());
 
@@ -22,9 +23,13 @@ createRoot(root).render(
     <I18nProvider>
       <ToastProvider>
         <DialogProvider>
-          <StudioProvider>
-            <App />
-          </StudioProvider>
+          <RemoteAuthGate>
+            {(auth) => (
+              <StudioProvider authToken={auth.token} onUnauthorized={auth.lost}>
+                <App />
+              </StudioProvider>
+            )}
+          </RemoteAuthGate>
         </DialogProvider>
       </ToastProvider>
     </I18nProvider>

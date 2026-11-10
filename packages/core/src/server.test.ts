@@ -6,6 +6,7 @@ import { LiveHQPlayerAdapter, MockHQPlayerAdapter } from '@hqps/hqplayer-adapter
 import { startFakeEngine, type FakeEngine } from '../../hqplayer-adapter/src/testing/fake-engine';
 import { startFakeHqpServer } from '../../hqplayer-adapter/src/testing/fake-hqp-server';
 import { openLibrary, pathKey, seedDemoLibrary, type LibraryContext } from '@hqps/library';
+import { createStudioClient } from '@hqps/api-client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { bootstrapStudio } from './bootstrap';
@@ -377,15 +378,20 @@ describe('Studio Core REST API', () => {
     expect(bad.statusCode).toBe(404);
   });
 
-  it('refuses to bind to a non-loopback interface in Phase 0', async () => {
-    await expect(
-      createStudioServer({
-        adapter: new MockHQPlayerAdapter(),
-        ctx,
-        appVersion: 't',
-        host: '0.0.0.0',
-      }),
-    ).rejects.toThrow(/Phase 3/);
+  it('keeps the main listener loopback-only (LAN access is a separate, opt-in listener)', async () => {
+    for (const host of ['0.0.0.0', '192.168.1.20', '::']) {
+      await expect(
+        createStudioServer({ adapter: new MockHQPlayerAdapter(), ctx, appVersion: 't', host }),
+      ).rejects.toThrow(/loopback-only/);
+    }
+  });
+
+  it('deletes a playlist through the typed client (DELETE carries a JSON body)', async () => {
+    const { url } = await server.listen();
+    const client = createStudioClient({ baseUrl: url });
+    const pl = (await client.playlists.list())[0]!;
+    await expect(client.playlists.remove(pl.id)).resolves.toEqual({ ok: true });
+    await expect(client.playlists.get(pl.id)).rejects.toMatchObject({ status: 404 });
   });
 });
 

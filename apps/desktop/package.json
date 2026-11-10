@@ -1,6 +1,6 @@
 {
   "name": "@hqps/desktop",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "productName": "HQPlayer Studio",
@@ -33,6 +33,7 @@
     "esbuild": "^0.28.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "uqr": "0.1.3",
     "vite": "^8.3.7"
   }
 }

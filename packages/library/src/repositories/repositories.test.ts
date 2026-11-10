@@ -173,3 +173,39 @@ describe('data safety', () => {
     );
   });
 });
+
+describe('RemoteDeviceRepository', () => {
+  it('stores paired devices by hash and survives reopening the database', () => {
+    const now = 1_700_000_000_000;
+    ctx.remoteDevices.create({
+      id: 'dev_1',
+      name: 'iPhone',
+      tokenHash: 'a'.repeat(64),
+      mediaHash: 'b'.repeat(64),
+      createdAt: now,
+    });
+    expect(() =>
+      ctx.remoteDevices.create({
+        id: 'dev_2',
+        name: 'dup',
+        tokenHash: 'a'.repeat(64),
+        mediaHash: 'c'.repeat(64),
+        createdAt: now,
+      }),
+    ).toThrow(/UNIQUE/);
+    ctx.remoteDevices.touch('dev_1', now + 5, '192.168.1.50');
+    ctx.close();
+    ctx = openLibrary(dir);
+    expect(ctx.remoteDevices.findByTokenHash('a'.repeat(64))).toMatchObject({
+      id: 'dev_1',
+      name: 'iPhone',
+      lastSeenAt: now + 5,
+      lastAddress: '192.168.1.50',
+    });
+    expect(ctx.remoteDevices.findByMediaHash('b'.repeat(64))?.id).toBe('dev_1');
+    expect(ctx.remoteDevices.count()).toBe(1);
+    expect(ctx.remoteDevices.delete('dev_1')).toBe(true);
+    expect(ctx.remoteDevices.delete('dev_1')).toBe(false);
+    expect(ctx.remoteDevices.list()).toEqual([]);
+  });
+});

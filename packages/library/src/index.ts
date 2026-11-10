@@ -7,6 +7,7 @@ export * from './repositories/library-repo';
 export * from './repositories/playlist-repo';
 export * from './repositories/queue-repo';
 export * from './repositories/settings-repo';
+export * from './repositories/remote-device-repo';
 export * from './artwork/artwork-store';
 export * from './artwork/generated-cover';
 export * from './scanner/metadata';
@@ -22,6 +23,7 @@ import { LibraryRepository } from './repositories/library-repo';
 import { PlaylistRepository } from './repositories/playlist-repo';
 import { QueueRepository } from './repositories/queue-repo';
 import { SettingsRepository } from './repositories/settings-repo';
+import { RemoteDeviceRepository } from './repositories/remote-device-repo';
 
 export interface LibraryContext {
   db: Database;
@@ -29,6 +31,7 @@ export interface LibraryContext {
   playlists: PlaylistRepository;
   queue: QueueRepository;
   settings: SettingsRepository;
+  remoteDevices: RemoteDeviceRepository;
   artwork: ArtworkStore;
   close(): void;
 }
@@ -40,6 +43,7 @@ export function openLibrary(dataDir: string | ':memory:', artworkDir?: string): 
   const playlists = new PlaylistRepository(db, library);
   const queue = new QueueRepository(db);
   const settings = new SettingsRepository(db);
+  const remoteDevices = new RemoteDeviceRepository(db);
   const artwork = new ArtworkStore(
     artworkDir ??
       (dataDir === ':memory:'
@@ -47,5 +51,14 @@ export function openLibrary(dataDir: string | ':memory:', artworkDir?: string): 
         : join(dataDir, 'artwork')),
     library,
   );
-  return { db, library, playlists, queue, settings, artwork, close: () => db.close() };
+  return {
+    db,
+    library,
+    playlists,
+    queue,
+    settings,
+    remoteDevices,
+    artwork,
+    close: () => db.close(),
+  };
 }

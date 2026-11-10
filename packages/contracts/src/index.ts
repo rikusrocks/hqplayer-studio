@@ -5,4 +5,5 @@ export * from './playlist';
 export * from './queue';
 export * from './api';
 export * from './events';
+export * from './remote';
 export * from './paths';

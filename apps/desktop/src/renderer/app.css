@@ -1283,3 +1283,33 @@ body.is-mini {
     display: none;
   }
 }
+
+/* Settings → 网页遥控 */
+.pairing {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.pairing__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.pairing__code {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+}
+.qr-code {
+  flex: none;
+  border-radius: var(--radius);
+  background: #fff;
+}
+.remote-url {
+  user-select: all;
+  word-break: break-all;
+}

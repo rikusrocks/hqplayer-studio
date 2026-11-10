@@ -4,6 +4,8 @@ export type RealtimeState = 'connecting' | 'open' | 'closed';
 
 export interface RealtimeOptions {
   url: string;
+  /** WebSocket subprotocols, read on every (re)connect (they carry the LAN device token). */
+  protocols?: () => string[];
   /** Injected for tests; defaults to the global WebSocket. */
   WebSocketImpl?: typeof WebSocket;
   minBackoffMs?: number;
@@ -12,6 +14,7 @@ export interface RealtimeOptions {
 
 type EventListener = (event: StudioEvent) => void;
 type StateListener = (state: RealtimeState) => void;
+type CloseListener = (code: number) => void;
 
 /**
  * Reconnecting subscription to `WS /api/v1/events`. Every message is validated against the
@@ -25,6 +28,7 @@ export class StudioRealtime {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly eventListeners = new Set<EventListener>();
   private readonly stateListeners = new Set<StateListener>();
+  private readonly closeListeners = new Set<CloseListener>();
 
   constructor(private readonly options: RealtimeOptions) {}
 
@@ -52,6 +56,12 @@ export class StudioRealtime {
     return () => this.eventListeners.delete(listener);
   }
 
+  /** Close code of every dropped connection (e.g. 4401 = this device's pairing was revoked). */
+  onClose(listener: CloseListener): () => void {
+    this.closeListeners.add(listener);
+    return () => this.closeListeners.delete(listener);
+  }
+
   onState(listener: StateListener): () => void {
     this.stateListeners.add(listener);
     listener(this.state);
@@ -63,7 +73,8 @@ export class StudioRealtime {
     this.setState('connecting');
     let ws: WebSocket;
     try {
-      ws = new Impl(this.options.url);
+      const protocols = this.options.protocols?.();
+      ws = protocols?.length ? new Impl(this.options.url, protocols) : new Impl(this.options.url);
     } catch {
       this.scheduleReconnect();
       return;
@@ -87,8 +98,9 @@ export class StudioRealtime {
       }
       for (const l of this.eventListeners) l(parsed.data);
     };
-    ws.onclose = () => {
+    ws.onclose = (ev: CloseEvent) => {
       if (this.ws === ws) this.ws = null;
+      for (const l of this.closeListeners) l(ev.code);
       if (!this.stopped) this.scheduleReconnect();
     };
     ws.onerror = () => {

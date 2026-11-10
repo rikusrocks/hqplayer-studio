@@ -36,6 +36,7 @@ import {
 import { useEffect, useState } from 'react';
 import { getShell, type HqpAppState } from '../shell';
 import { ViewHeader } from './common';
+import { RemoteSettings } from './RemoteSettings';
 
 const SECTIONS: Array<{ id: string; label: MessageKey; icon: IconName }> = [
   { id: 'general', label: 'settings.general', icon: 'settings' },
@@ -436,48 +437,6 @@ function DspSettings() {
       ) : (
         <EmptyState icon="wave" title={t('settings.dspUnavailable')} hint={t('cap.native')} />
       )}
-    </div>
-  );
-}
-
-function RemoteSettings() {
-  const { t } = useI18n();
-  const { server } = useStudio();
-  const localUrl = `${window.location.origin}/remote/`;
-  return (
-    <div className="settings-stack">
-      <div className="hq-banner hq-banner--muted">
-        <Icon name="remote" size={16} />
-        <div className="hq-banner__body">
-          <strong>
-            {server?.remote.lanEnabled ? t('settings.remoteLanUrls') : t('settings.remoteDisabled')}
-          </strong>
-          <span>{server?.remote.note ?? t('settings.remoteHint')}</span>
-        </div>
-      </div>
-      <div className="kv">
-        <span>{t('settings.remoteLocalUrl')}</span>
-        <span className="kv__row">
-          <code className="hq-mono">{localUrl}</code>
-          <a className="hq-btn hq-btn--sm" href={localUrl} target="_blank" rel="noreferrer">
-            <Icon name="external" size={14} />
-            {t('settings.remoteOpen')}
-          </a>
-        </span>
-        {server?.remote.lanEnabled && server.remote.urls.length > 0 && (
-          <>
-            <span>{t('settings.remoteLanUrls')}</span>
-            <span className="kv__list">
-              {server.remote.urls.map((u) => (
-                <code key={u} className="hq-mono">
-                  {u}
-                </code>
-              ))}
-            </span>
-          </>
-        )}
-      </div>
-      <p className="hint">{t('remote.noAudio')}</p>
     </div>
   );
 }
