@@ -56,11 +56,22 @@ jobs:
           if ($json.summary.reachable -ne $false) { throw 'expected unreachable target' }
           Write-Host "probe report OK: $($report.Name)"
 
+      - name: Smoke-test hqp-gatec (no HQPlayer on the runner -> must refuse cleanly, write nothing)
+        shell: pwsh
+        working-directory: scripts/hqp-probe/dist
+        run: |
+          New-Item -ItemType Directory -Force gatec-smoke | Out-Null
+          $p = Start-Process -FilePath '.\hqp-gatec.exe' -ArgumentList '--no-pause','--port','1','--out','gatec-smoke' -Wait -PassThru -NoNewWindow
+          if ($p.ExitCode -ne 3) { throw "expected exit code 3 (unreachable), got $($p.ExitCode)" }
+          if ((Get-ChildItem gatec-smoke | Measure-Object).Count -ne 0) { throw 'gatec wrote files without a connection' }
+          Write-Host 'gatec smoke OK'
+
       - name: Assemble probe zip
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
           Copy-Item scripts/hqp-probe/dist/hqp-probe.exe out/
+          Copy-Item scripts/hqp-probe/dist/hqp-gatec.exe out/
           Copy-Item scripts/hqp-probe/README-WINDOWS.txt out/
           Compress-Archive -Path out/* -DestinationPath hqp-probe-windows-x64.zip -Force
 

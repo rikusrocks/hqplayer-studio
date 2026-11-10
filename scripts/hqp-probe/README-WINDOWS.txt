@@ -28,4 +28,26 @@ English
    redacted.
 5. Takes about 10 seconds. Press Enter to close the window.
 
+hqp-gatec.exe — Gate C 写命令测试 / write-command test
+=====================================================
+
+这是第二个工具，会真的控制 HQPlayer（播放、暂停、跳转、临时替换播放列表），
+只执行已批准的计划（docs/gate-c-plan.md），每一步都要你按回车。约 20 分钟，需要你在场听。
+
+准备：
+- 测试文件夹，例如 D:\HQPS 测试\テスト アルバム\ ：同一专辑连续 3 首 FLAC（最好无缝专辑）+ 1 个 DSF（可选）。
+  文件夹里最多 40 个音频文件，避免误选整个音乐库。
+- 放大器音量适中；HQPlayer 打开即可。
+
+运行：双击 hqp-gatec.exe → 先自动备份当前播放列表（.m3u8 + .json，留在本机）→ 输入 y 开始 →
+每一步：回车执行 / s 跳过 / q 中止并恢复 → 结束时自动恢复原播放列表（不自动播放）并核对。
+把 hqp-gatec-report-*.json 发回即可（已脱敏）。备份文件不要发。
+若提示“没有完全恢复”，在 HQPlayer 里打开 hqp-gatec-backup-*.m3u8 即可还原。
+不会发送任何 DSP、输出、配置命令；音量只会设为当前值，不会调大。
+
+hqp-gatec.exe actually controls HQPlayer (play, pause, seek, temporarily replace the playlist), only
+as approved in docs/gate-c-plan.md, one step at a time (Enter each), ~20 minutes with you listening.
+It backs up the playlist first (.m3u8 + .json, keep local) and restores it at the end. Send back
+only hqp-gatec-report-*.json. If restore is incomplete, open the backup .m3u8 in HQPlayer.
+
 Not affiliated with Signalyst. HQPlayer is a product of Signalyst.

@@ -110,3 +110,31 @@ export function sanitizeElement(
   };
   return visit(el, 0);
 }
+
+/** Replace anything that looks like a local path or file URI in free text. */
+export function scrubPaths(text: string): string {
+  return text
+    .replace(/file:[^\s"']*/gi, '[path]')
+    .replace(/[A-Za-z]:\\[^"'\n]*/g, '[path]')
+    .replace(/\\\\[^"'\n]*/g, '[path]')
+    .replace(/\/(?:Users|home|var|private|tmp|Volumes|mnt|media)\/[^"'\n]*/g, '[path]');
+}
+
+/**
+ * Removes known secret strings (test folder, file names, backed-up paths) and path-like text from
+ * anything that goes into a shareable report — including error text echoed back by HQPlayer.
+ */
+export class Redactor {
+  private secrets: string[] = [];
+
+  add(...values: (string | null | undefined)[]): void {
+    for (const v of values) if (v && v.trim().length >= 3) this.secrets.push(v);
+    this.secrets.sort((a, b) => b.length - a.length);
+  }
+
+  apply(text: string): string {
+    let t = text;
+    for (const s of this.secrets) t = t.split(s).join('[redacted]');
+    return scrubPaths(t);
+  }
+}

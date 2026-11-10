@@ -1,5 +1,26 @@
 # PROGRESS
 
+## 2026-11-10 — Gate C 工具（hqp-gatec.exe）
+
+```text
+Implemented:
+- 按已批准计划（docs/gate-c-plan.md：C1–C4 + O1 Repeat/Random + O2 同值音量，本机备份）实现 hqp-gatec.exe：
+  逐步确认（回车/跳过/中止并恢复）、命令白名单（拒绝 DSP/输出/配置/PlaylistSave 等）、音量只能设为原值、
+  开始前备份当前播放列表（.m3u8 + .json，本机保留）、结束必恢复并逐条核对、可选 file:// 回退。
+- 报告脱敏：测试文件记为 T1–T3/DSD，原列表条目记为 backup#n；HQPlayer 错误文本中的路径与已知文件名被去除
+  （测试中发现 HQPlayer 风格的错误会回显路径，已修复）。
+- CI：Windows 构建打包 hqp-gatec.exe 到 hqp-probe-windows-x64.zip，并冒烟测试（无 HQPlayer 时干净退出、不写文件）。
+
+Verified:
+- 自动化测试 11 项（全流程、中止后恢复、原生路径被拒时 file:// 回退、无测试文件夹不改列表、白名单/音量守卫、报告无隐私）。
+- 真实编译的 hqp-gatec 可执行文件对有状态模拟引擎完整运行：29 个交互回答，所有步骤通过，恢复 6/6，
+  最终停止、Repeat/Random/音量未变，只发送了白名单命令（模拟引擎行为为虚构，不作为 HQPlayer 证据）。
+
+Next:
+- 用户在 Windows 上运行 hqp-gatec.exe（约 20 分钟）并发回 hqp-gatec-report-*.json → 更新能力矩阵 →
+  在 Studio 中加入“允许 Studio 控制 HQPlayer”开关，只开放通过的命令。
+```
+
 ## 2026-11-10 — Phase 1：真机只读读取达成（播放状态）
 
 ```text

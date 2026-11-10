@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Read-only-first HQPlayer Control API diagnostic. Builds to a single Windows .exe (Node SEA).",
+  "description": "Windows HQPlayer diagnostics: read-only probe (Gate A/B) and the Gate C write-command test. Builds to single .exe files (Node SEA).",
   "scripts": {
     "start": "tsx src/main.ts",
     "build": "node build-sea.mjs",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "gatec": "tsx src/gatec-main.ts"
   },
   "dependencies": {
     "@hqps/contracts": "workspace:*",
