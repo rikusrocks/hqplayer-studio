@@ -141,3 +141,8 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Request:** “open HQPlayer with Studio, or leave it running silently — I don't want to see the original HQPlayer”.
 - **Choice (Windows):** detect `HQPlayer*.exe` from the Uninstall registry entries / `Program Files\Signalyst` (or a user-picked path), start it detached (it outlives Studio), and show/minimize/hide its top-level windows via Win32 `ShowWindow` through PowerShell (`-EncodedCommand`, parameters only via environment variables). Preferences in `app_settings` (`hqplayer.app`). Nothing in HQPlayer's install or configuration is changed.
 - **Risk:** HQPlayer's window/class names are unverified on the user's machine; “show” restores Qt top-level windows (`QWindowIcon`) or ones titled “HQPlayer”.
+
+## D-026 Volume: follow HQPlayer's "Fixed volume" setting, cap increases — 2026-11-10
+
+- **Evidence:** user screenshot of HQPlayer Settings → Outputs: “Fixed volume” ticked (min −60 dB, max −3 dB greyed). Unticking it lets the volume change. This explains Gate C's rejected Volume and `VolumeRange enabled="0"`.
+- **Choice:** `volume.set` evidence → observed; usable only with the control switch **and** `VolumeRange enabled="1"` (otherwise note `fixed-volume` with instructions). VolumeRange is re-read every 10 s while connected, and capability changes are pushed to clients. Values are clamped to HQPlayer's range; one command raises the level by at most 12 dB (decreases unlimited).

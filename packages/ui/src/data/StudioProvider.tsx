@@ -371,6 +371,7 @@ export function useCapabilityGate(): (key: EngineCapabilityKey) => string | null
       const status = entry?.status;
       if (status === 'unsupported') return t('cap.unsupported');
       if (entry?.note === 'control-disabled') return t('cap.controlDisabled');
+      if (entry?.note === 'fixed-volume') return t('cap.fixedVolume');
       return t('cap.notVerified');
     },
     [capabilities, serverReachable, engineConnected, t],

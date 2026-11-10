@@ -72,6 +72,8 @@ export interface HQPlayerAdapter {
   getStatus(): Promise<EngineStatus>;
   /** Subscribe to engine-reported status changes. Returns an unsubscribe function. */
   subscribeStatus(listener: StatusListener): () => void;
+  /** Optional: notified when capabilities change at runtime (e.g. HQPlayer volume unlocked). */
+  subscribeCapabilities?(listener: () => void): () => void;
 
   play(): Promise<void>;
   pause(): Promise<void>;

@@ -1,5 +1,25 @@
 # PROGRESS
 
+## 2026-11-10 — v0.1.10：在 Studio 里调 HQPlayer 音量
+
+```text
+Implemented:
+- 原因已查明（你的截图）：HQPlayer 设置 → Outputs 勾选了“Fixed volume”时，HQPlayer 报告 VolumeRange enabled="0"
+  并拒绝 Volume 命令（Gate C 中看到的就是这个）。你已取消勾选。
+- Studio 每 10 秒重读一次 VolumeRange（只读），所以在 HQPlayer 里改这个设置后无需重启 Studio，音量条会自动解锁/锁定；
+  锁定时提示“在 HQPlayer 设置 → Outputs 取消勾选 Fixed volume”。
+- 音量范围遵守 HQPlayer 里设定的最小/最大值（你的是 -60 dB 至 -3 dB）；为保护音箱，每次最多调高 12 dB，调低不限。
+- 音量仍需“允许 Studio 控制 HQPlayer”开关开启。
+
+Verified:
+- 自动化测试通过；替身引擎模拟“Fixed volume”：锁定 → 运行中取消勾选 → 自动解锁 → 设 -25 dB 生效 →
+  要求跳到 -3 dB 时只升到 -13 dB → 调低被限制在 -60 dB。
+- 未在你的电脑上验证。
+
+Next:
+- 你：在 Studio 播放条拖动音量，确认 HQPlayer 音量跟着变（先从小幅度开始）。
+```
+
 ## 2026-11-10 — v0.1.9：由 Studio 启动 HQPlayer，并可隐藏其窗口
 
 ```text
