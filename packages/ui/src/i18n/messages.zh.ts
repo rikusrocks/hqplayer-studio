@@ -250,6 +250,19 @@ export const zh = {
   'settings.noRoots': '尚未添加音乐目录',
   'settings.rootAdded': '已添加目录',
   'settings.scanStarted': '已开始扫描',
+  'library.duplicates.title': '重复的专辑',
+  'library.duplicates.none': '没有发现同一张专辑的多个副本。',
+  'library.duplicates.found':
+    '发现 {count} 张专辑在多个位置都有（例如备份）。每张只显示一份：优先保留可用、格式最好的那份；它离线时会自动改为显示另一份。文件不会被改动。',
+  'library.duplicates.kept': '显示：{where}',
+  'library.duplicates.hidden': '已隐藏的副本：{where}',
+  'library.online.title': '联网核对专辑（MusicBrainz）',
+  'library.online.hint':
+    '只针对 Studio 自己无法判断的文件夹（同一文件夹里有几个不同专辑名、又没有清楚的曲目编号）：把专辑名和艺人名发送到 musicbrainz.org 查找对应的发行版本，曲目对得上才合并。很多独立音乐不在 MusicBrainz 里——查不到时什么都不改。不会发送文件路径；结果会缓存，每个文件夹只查一次。',
+  'library.online.running': '正在联网核对…',
+  'library.online.idle': '已开启，下次扫描后核对。',
+  'library.online.last':
+    '上次核对：新查询 {checked} 个文件夹，合并 {merged} 个，未找到匹配 {unmatched} 个。',
   'settings.removeRoot': '移除',
   'settings.removeRootHint': '从音乐库移除这个文件夹及其中的歌曲（磁盘上的文件不会被删除）',
   'settings.removeRootConfirm':

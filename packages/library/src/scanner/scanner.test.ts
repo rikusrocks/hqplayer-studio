@@ -333,6 +333,43 @@ describe('scanRoot', () => {
     expect(ctx.library.stats().trackCount).toBe(5);
   });
 
+  it('shows a backed-up album once, and the backup again when the original goes offline', async () => {
+    const original = ctx.library.addRoot(musicDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: original.id });
+    const before = ctx.library.stats();
+    const backupDir = join(dir, 'Backup Drive');
+    mkdirSync(join(backupDir, 'Lin Xia copy'), { recursive: true });
+    for (const f of ['01 城市漫游者.wav', '02 南方的风.wav']) {
+      copyFileSync(
+        join(musicDir, '林夏 - 城市漫游者 (2020)', f),
+        join(backupDir, 'Lin Xia copy', f),
+      );
+    }
+    const backup = ctx.library.addRoot(backupDir);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: backup.id });
+    expect(ctx.library.recomputeDuplicates()).toEqual({ groups: 1, hidden: 1 });
+    expect(ctx.library.stats()).toMatchObject({
+      albumCount: before.albumCount,
+      trackCount: before.trackCount,
+    });
+    expect(ctx.library.listTracks({ q: '南方的风' }).items).toHaveLength(1);
+    const dups = ctx.library.listDuplicates();
+    expect(dups).toHaveLength(1);
+    expect(dups[0]).toMatchObject({
+      title: '城市漫游者',
+      kept: { folder: '林夏 - 城市漫游者 (2020)' },
+      hidden: [{ folder: 'Lin Xia copy' }],
+    });
+
+    // the original drive goes offline → the backup copy is shown instead
+    renameSync(musicDir, `${musicDir}-offline`);
+    await scanRoot({ library: ctx.library, artwork: ctx.artwork, rootId: original.id });
+    ctx.library.recomputeDuplicates();
+    const shown = ctx.library.listTracks({ q: '南方的风' }).items;
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toMatchObject({ folder: 'Lin Xia copy', available: true });
+  });
+
   it('rejects relative or duplicate roots', () => {
     expect(() => ctx.library.addRoot('relative/music')).toThrow(/absolute/);
     ctx.library.addRoot(musicDir);

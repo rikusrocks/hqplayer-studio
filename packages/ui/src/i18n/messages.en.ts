@@ -256,6 +256,19 @@ export const en: Record<MessageKey, string> = {
   'settings.noRoots': 'No music folders added yet',
   'settings.rootAdded': 'Folder added',
   'settings.scanStarted': 'Scan started',
+  'library.duplicates.title': 'Duplicate albums',
+  'library.duplicates.none': 'No album was found in more than one place.',
+  'library.duplicates.found':
+    '{count} albums exist in more than one place (e.g. a backup). Each is shown once — the available copy in the best format; if it goes offline another copy is shown instead. Files are never changed.',
+  'library.duplicates.kept': 'Shown: {where}',
+  'library.duplicates.hidden': 'Hidden copy: {where}',
+  'library.online.title': 'Check albums online (MusicBrainz)',
+  'library.online.hint':
+    'Only for folders Studio cannot settle on its own (several album names in one folder without clear track numbers): sends the album and artist names to musicbrainz.org to find the release, and joins the tracks only if they match. Much indie music is not on MusicBrainz — then nothing changes. File paths are never sent; answers are cached so each folder is asked once.',
+  'library.online.running': 'Checking online…',
+  'library.online.idle': 'On — runs after the next scan.',
+  'library.online.last':
+    'Last check: {checked} folders looked up, {merged} joined, {unmatched} without a match.',
   'settings.removeRoot': 'Remove',
   'settings.removeRootHint':
     'Remove this folder and its songs from the library (files on disk are not deleted)',

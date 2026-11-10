@@ -13,6 +13,7 @@ import type {
   Track,
 } from '@hqps/contracts';
 import { likePattern, sql, transaction, type Database, type SqlValue } from '../db/database';
+import { planFolderAlbum } from '../scanner/album-grouping';
 import { ConflictError, NotFoundError, ValidationError } from '../errors';
 import {
   albumFolderOf,
@@ -36,6 +37,21 @@ import {
   type RootRow,
   type TrackRow,
 } from './rows';
+
+export interface AmbiguousFolder {
+  rootId: string;
+  folder: string;
+  tracks: (FolderTrack & { albumArtist: string; title: string; durationMs: number | null })[];
+}
+
+export interface DuplicateAlbum {
+  /** The copy that stays visible. */
+  albumId: string;
+  title: string;
+  albumArtist: string;
+  kept: { root: string; folder: string };
+  hidden: { albumId: string; root: string; folder: string }[];
+}
 
 export interface RemovedRoot {
   rootId: string;
@@ -318,6 +334,195 @@ export class LibraryRepository {
         queueItems,
       };
     });
+  }
+
+  /**
+   * Albums that are copies of each other — a backup in another folder or drive: same album
+   * artist + title and the same disc/track/title list. One copy stays visible (available first,
+   * then the best format, then the oldest); the others get `duplicate_of` and are left out of
+   * album/track/artist lists, search and stats. Recomputed after every scan that changed
+   * something, so a hidden copy comes back when the kept one goes offline.
+   */
+  recomputeDuplicates(): { groups: number; hidden: number } {
+    const albums = this.db
+      .prepare(
+        `SELECT al.id, al.title, al.album_artist, al.created_at, al.artwork_id, al.duplicate_of,
+           MIN(t.available) AS all_available, MAX(t.is_dsd) AS dsd, MAX(COALESCE(t.lossless, 0)) AS lossless,
+           MAX(COALESCE(t.sample_rate, 0)) AS sr, MAX(COALESCE(t.bit_depth, 0)) AS bd
+         FROM albums al JOIN tracks t ON t.album_id = al.id GROUP BY al.id`,
+      )
+      .all() as {
+      id: string;
+      title: string;
+      album_artist: string;
+      created_at: number;
+      artwork_id: string | null;
+      duplicate_of: string | null;
+      all_available: number;
+      dsd: number;
+      lossless: number;
+      sr: number;
+      bd: number;
+    }[];
+    const signatures = new Map<string, string[]>();
+    for (const t of this.db
+      .prepare(
+        'SELECT album_id, disc_number, track_number, title FROM tracks WHERE album_id IS NOT NULL',
+      )
+      .all() as {
+      album_id: string;
+      disc_number: number | null;
+      track_number: number | null;
+      title: string;
+    }[]) {
+      const list = signatures.get(t.album_id) ?? [];
+      list.push(`${t.disc_number ?? 1}:${t.track_number ?? 0}:${normalizeText(t.title)}`);
+      signatures.set(t.album_id, list);
+    }
+    const groups = new Map<string, typeof albums>();
+    for (const a of albums) {
+      const list = (signatures.get(a.id) ?? []).sort();
+      if (list.length === 0) continue;
+      const key = [normalizeText(a.album_artist), normalizeText(a.title), list.join('|')].join('#');
+      const g = groups.get(key) ?? [];
+      g.push(a);
+      groups.set(key, g);
+    }
+    const want = new Map<string, string | null>(albums.map((a) => [a.id, null]));
+    const artworkFor = new Map<string, string>();
+    let groupCount = 0;
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      groupCount += 1;
+      g.sort(
+        (a, b) =>
+          b.all_available - a.all_available ||
+          b.dsd - a.dsd ||
+          b.lossless - a.lossless ||
+          b.sr - a.sr ||
+          b.bd - a.bd ||
+          a.created_at - b.created_at ||
+          a.id.localeCompare(b.id),
+      );
+      const [kept, ...copies] = g as [(typeof albums)[number], ...typeof albums];
+      for (const c of copies) want.set(c.id, kept.id);
+      const art = copies.find((c) => c.artwork_id)?.artwork_id;
+      if (!kept.artwork_id && art) artworkFor.set(kept.id, art);
+    }
+    let hidden = 0;
+    transaction(this.db, () => {
+      const setDup = this.db.prepare('UPDATE albums SET duplicate_of = ? WHERE id = ?');
+      for (const a of albums) {
+        const target = want.get(a.id) ?? null;
+        if (target) hidden += 1;
+        if (target !== a.duplicate_of) setDup.run(target, a.id);
+      }
+      const setArt = this.db.prepare(
+        'UPDATE albums SET artwork_id = ? WHERE id = ? AND artwork_id IS NULL',
+      );
+      for (const [id, art] of artworkFor) setArt.run(art, id);
+    });
+    return { groups: groupCount, hidden };
+  }
+
+  /** Duplicate albums for Settings: which copy is shown and where the hidden ones are. */
+  listDuplicates(): DuplicateAlbum[] {
+    const rows = this.db
+      .prepare(
+        `SELECT c.id AS copy_id, c.folder AS copy_folder, rc.name AS copy_root,
+                k.id AS kept_id, k.title, k.album_artist, k.folder AS kept_folder, rk.name AS kept_root
+         FROM albums c JOIN albums k ON k.id = c.duplicate_of
+         LEFT JOIN library_roots rc ON rc.id = c.root_id LEFT JOIN library_roots rk ON rk.id = k.root_id
+         WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = c.id)
+         ORDER BY k.album_artist COLLATE NOCASE, k.title COLLATE NOCASE`,
+      )
+      .all() as {
+      copy_id: string;
+      copy_folder: string | null;
+      copy_root: string | null;
+      kept_id: string;
+      title: string;
+      album_artist: string;
+      kept_folder: string | null;
+      kept_root: string | null;
+    }[];
+    const byKept = new Map<string, DuplicateAlbum>();
+    for (const r of rows) {
+      const d = byKept.get(r.kept_id) ?? {
+        albumId: r.kept_id,
+        title: r.title,
+        albumArtist: r.album_artist,
+        kept: { root: r.kept_root ?? '', folder: r.kept_folder ?? '' },
+        hidden: [],
+      };
+      d.hidden.push({ albumId: r.copy_id, root: r.copy_root ?? '', folder: r.copy_folder ?? '' });
+      byKept.set(r.kept_id, d);
+    }
+    return [...byKept.values()];
+  }
+
+  /**
+   * Album folders the local rules could not settle: 2+ album rows, at most 3 different album
+   * titles, at most 40 tracks, and no clear numbering (`planFolderAlbum` said no). These are the
+   * only folders the opt-in online check looks at.
+   */
+  ambiguousFolders(rootId?: string): AmbiguousFolder[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, root_id, album_id, album, album_artist, title, relative_dir, disc_number, track_number, duration_ms
+         FROM tracks WHERE available = 1 AND album_id IS NOT NULL ${rootId ? 'AND root_id = ?' : ''}`,
+      )
+      .all(...(rootId ? [rootId] : [])) as {
+      id: string;
+      root_id: string;
+      album_id: string;
+      album: string;
+      album_artist: string;
+      title: string;
+      relative_dir: string;
+      disc_number: number | null;
+      track_number: number | null;
+      duration_ms: number | null;
+    }[];
+    const folders = new Map<string, AmbiguousFolder>();
+    for (const r of rows) {
+      const folder = albumFolderOf(r.relative_dir);
+      const key = `${r.root_id}/${folder}`;
+      const f = folders.get(key) ?? { rootId: r.root_id, folder, tracks: [] };
+      f.tracks.push({
+        id: r.id,
+        albumId: r.album_id,
+        album: r.album,
+        albumArtist: r.album_artist,
+        title: r.title,
+        disc: r.disc_number,
+        track: r.track_number,
+        durationMs: r.duration_ms,
+      });
+      folders.set(key, f);
+    }
+    return [...folders.values()].filter((f) => {
+      if (f.tracks.length > 40) return false;
+      if (new Set(f.tracks.map((t) => t.albumId)).size < 2) return false;
+      if (new Set(f.tracks.map((t) => normalizeText(t.album))).size > 3) return false;
+      return planFolderAlbum(f.tracks) === null;
+    });
+  }
+
+  getOnlineLookup<T>(key: string): { result: T; checkedAt: number } | null {
+    const row = this.db
+      .prepare('SELECT result, checked_at FROM online_lookups WHERE key = ?')
+      .get(key) as { result: string; checked_at: number } | undefined;
+    return row ? { result: JSON.parse(row.result) as T, checkedAt: row.checked_at } : null;
+  }
+
+  setOnlineLookup(key: string, source: string, result: unknown, now = Date.now()): void {
+    this.db
+      .prepare(
+        `INSERT INTO online_lookups (key, source, result, checked_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET source = excluded.source, result = excluded.result, checked_at = excluded.checked_at`,
+      )
+      .run(key, source, JSON.stringify(result), now);
   }
 
   /** Available tracks in one album folder (disc sub-folders included) — for folder grouping. */
@@ -707,7 +912,11 @@ export class LibraryRepository {
   listTracks(q: ListQuery = {}): Page<Track> {
     const { offset, limit } = clampPage(q);
     const w = tokenWhere('t.search_text', q.q);
-    const conds = [w.clause];
+    // hidden copies of duplicate albums (backups) are not listed
+    const conds = [
+      w.clause,
+      'NOT EXISTS (SELECT 1 FROM albums dup WHERE dup.id = t.album_id AND dup.duplicate_of IS NOT NULL)',
+    ];
     const params: SqlValue[] = [...w.params];
     if (q.artistId) {
       // album-artist albums + tracks credited to the artist (e.g. on compilations)
@@ -737,7 +946,11 @@ export class LibraryRepository {
   listAlbums(q: ListQuery = {}): Page<AlbumSummary> {
     const { offset, limit } = clampPage(q);
     const w = tokenWhere('al.search_text', q.q);
-    const conds = [w.clause, q.artistId ? 'al.album_artist_id = ?' : ''].filter(Boolean);
+    const conds = [
+      w.clause,
+      'al.duplicate_of IS NULL',
+      q.artistId ? 'al.album_artist_id = ?' : '',
+    ].filter(Boolean);
     const params: SqlValue[] = [...w.params, ...(q.artistId ? [q.artistId] : [])];
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const total = (
@@ -776,7 +989,7 @@ export class LibraryRepository {
   listArtists(q: ListQuery = {}): Page<ArtistSummary> {
     const { offset, limit } = clampPage(q);
     const w = tokenWhere('ar.search_text', q.q);
-    const where = w.clause ? `WHERE ${w.clause}` : '';
+    const where = `WHERE al.duplicate_of IS NULL${w.clause ? ` AND ${w.clause}` : ''}`;
     const base = `FROM artists ar JOIN albums al ON al.album_artist_id = ar.id JOIN tracks t ON t.album_id = al.id ${where}`;
     const total = (
       this.db.prepare(`SELECT COUNT(DISTINCT ar.id) AS n ${base}`).get(...w.params) as { n: number }
@@ -811,7 +1024,8 @@ export class LibraryRepository {
     const r = this.db
       .prepare(
         `SELECT ar.id, ar.name, COUNT(DISTINCT al.id) AS album_count, COUNT(t.id) AS track_count, MAX(al.artwork_id) AS artwork_id
-         FROM artists ar LEFT JOIN albums al ON al.album_artist_id = ar.id LEFT JOIN tracks t ON t.album_id = al.id
+         FROM artists ar LEFT JOIN albums al ON al.album_artist_id = ar.id AND al.duplicate_of IS NULL
+           LEFT JOIN tracks t ON t.album_id = al.id
          WHERE ar.id = ? GROUP BY ar.id`,
       )
       .get(id) as
@@ -896,12 +1110,12 @@ export class LibraryRepository {
     const r = this.db
       .prepare(
         `SELECT
-           (SELECT COUNT(*) FROM tracks) AS track_count,
-           (SELECT COUNT(*) FROM albums al WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id)) AS album_count,
-           (SELECT COUNT(DISTINCT al.album_artist_id) FROM albums al WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id)) AS artist_count,
+           (SELECT COUNT(*) FROM tracks t WHERE NOT EXISTS (SELECT 1 FROM albums dup WHERE dup.id = t.album_id AND dup.duplicate_of IS NOT NULL)) AS track_count,
+           (SELECT COUNT(*) FROM albums al WHERE al.duplicate_of IS NULL AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id)) AS album_count,
+           (SELECT COUNT(DISTINCT al.album_artist_id) FROM albums al WHERE al.duplicate_of IS NULL AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id)) AS artist_count,
            (SELECT COUNT(*) FROM library_roots) AS root_count,
-           (SELECT COUNT(*) FROM tracks WHERE available = 0) AS unavailable,
-           (SELECT COALESCE(SUM(duration_ms), 0) FROM tracks) AS total_ms`,
+           (SELECT COUNT(*) FROM tracks t WHERE t.available = 0 AND NOT EXISTS (SELECT 1 FROM albums dup WHERE dup.id = t.album_id AND dup.duplicate_of IS NOT NULL)) AS unavailable,
+           (SELECT COALESCE(SUM(t.duration_ms), 0) FROM tracks t WHERE NOT EXISTS (SELECT 1 FROM albums dup WHERE dup.id = t.album_id AND dup.duplicate_of IS NOT NULL)) AS total_ms`,
       )
       .get() as {
       track_count: number;

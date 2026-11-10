@@ -117,6 +117,34 @@ export const LibraryRootSchema = z.object({
 });
 export type LibraryRoot = z.infer<typeof LibraryRootSchema>;
 
+/** Settings → Library: backup copies shown once + the opt-in MusicBrainz album check. */
+export const LibrarySettingsSchema = z.object({
+  onlineAlbumCheck: z.object({
+    enabled: z.boolean(),
+    running: z.boolean(),
+    lastRunAt: z.number().nullable(),
+    lastRun: z
+      .object({
+        checked: z.number().int(),
+        merged: z.number().int(),
+        unmatched: z.number().int(),
+        failed: z.number().int(),
+      })
+      .nullable(),
+  }),
+  duplicates: z.array(
+    z.object({
+      albumId: z.string(),
+      title: z.string(),
+      albumArtist: z.string(),
+      kept: z.object({ root: z.string(), folder: z.string() }),
+      hidden: z.array(z.object({ albumId: z.string(), root: z.string(), folder: z.string() })),
+    }),
+  ),
+});
+export type LibrarySettings = z.infer<typeof LibrarySettingsSchema>;
+export const UpdateLibrarySettingsRequestSchema = z.object({ onlineAlbumCheck: z.boolean() });
+
 export const RemovedRootSchema = z.object({
   rootId: z.string(),
   kind: z.string(),

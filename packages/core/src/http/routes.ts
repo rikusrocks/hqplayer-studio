@@ -10,6 +10,7 @@ import {
   LibraryQuerySchema,
   MockControlRequestSchema,
   UpdateEngineSettingsRequestSchema,
+  UpdateLibrarySettingsRequestSchema,
   PlayAlbumRequestSchema,
   PlayPlaylistRequestSchema,
   QueueAddRequestSchema,
@@ -283,6 +284,10 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
           return lib.removeRoot(IdParams.parse(req.params).id);
         });
         api.post('/library/scan', async (req) => lib.scan(body(ScanRequestSchema, req).rootId));
+        api.get('/settings/library', async () => lib.librarySettings());
+        api.post('/settings/library', async (req) =>
+          lib.setOnlineAlbumCheck(body(UpdateLibrarySettingsRequestSchema, req).onlineAlbumCheck),
+        );
       }
       api.get('/library/scan', async () => lib.listJobs());
       api.get('/library/scan/:id', async (req) => {

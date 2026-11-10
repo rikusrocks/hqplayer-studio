@@ -198,6 +198,21 @@ CREATE TABLE remote_devices (
   last_address TEXT
 );`,
   },
+  {
+    id: 4,
+    name: 'duplicate album copies + online lookup cache',
+    // duplicate_of: this album is a copy (e.g. a backup in another folder) of the album shown
+    // instead; recomputed after scans. online_lookups caches opt-in MusicBrainz answers.
+    sql: `
+ALTER TABLE albums ADD COLUMN duplicate_of TEXT REFERENCES albums(id) ON DELETE SET NULL;
+CREATE INDEX idx_albums_duplicate ON albums(duplicate_of);
+CREATE TABLE online_lookups (
+  key TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  result TEXT NOT NULL,
+  checked_at INTEGER NOT NULL
+);`,
+  },
 ];
 
 export function migrate(db: DatabaseSync): number[] {

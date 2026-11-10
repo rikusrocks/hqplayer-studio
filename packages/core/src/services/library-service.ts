@@ -1,7 +1,8 @@
-import type { LibraryRoot, ScanJob } from '@hqps/contracts';
+import type { LibraryRoot, LibrarySettings, ScanJob } from '@hqps/contracts';
 import { newId, scanRoot, type LibraryContext } from '@hqps/library';
 import type { EventHub } from '../event-hub';
-import { DEMO_REMOVED_SETTING } from '../settings-keys';
+import { DEMO_REMOVED_SETTING, ONLINE_ALBUM_CHECK_SETTING } from '../settings-keys';
+import type { OnlineAlbumChecker } from './online-albums';
 import { LibraryWatcher, type LibraryWatcherOptions } from './library-watcher';
 
 export type ScanTrigger = ScanJob['trigger'];
@@ -20,6 +21,8 @@ export interface LibraryServiceOptions {
   pace?: () => Promise<void>;
   /** Called (synchronously) after tracks were removed from the library, e.g. to fix the queue. */
   onTracksRemoved?: (trackIds: ReadonlySet<string>) => void;
+  /** Opt-in MusicBrainz check (only used while the user has switched it on). */
+  onlineChecker?: OnlineAlbumChecker;
 }
 
 interface JobPlan {
@@ -46,6 +49,12 @@ export class LibraryService {
   private readonly rescanAfterMs: number;
   private readonly rescanUnwatchedAfterMs: number;
   private readonly tickMs: number;
+  private online: {
+    running: boolean;
+    lastRunAt: number | null;
+    lastRun: { checked: number; merged: number; unmatched: number; failed: number } | null;
+    chain: Promise<void>;
+  } = { running: false, lastRunAt: null, lastRun: null, chain: Promise.resolve() };
 
   constructor(
     private readonly ctx: LibraryContext,
@@ -175,6 +184,7 @@ export class LibraryService {
     if (isRunning()) this.abort?.abort();
     while (isRunning()) await new Promise((r) => setTimeout(r, 20));
     const removed = this.ctx.library.removeRoot(rootId);
+    this.ctx.library.recomputeDuplicates();
     if (root.kind === 'fixture') this.ctx.settings.set(DEMO_REMOVED_SETTING, true);
     this.options.onTracksRemoved?.(new Set(removed.trackIds));
     this.watcher?.sync();
@@ -184,6 +194,60 @@ export class LibraryService {
     }
     const { trackIds: _ids, ...summary } = removed;
     return summary;
+  }
+
+  /** Settings → Library: duplicate albums (backup copies) and the online album check. */
+  librarySettings(): LibrarySettings {
+    return {
+      onlineAlbumCheck: {
+        enabled: this.onlineEnabled(),
+        running: this.online.running,
+        lastRunAt: this.online.lastRunAt,
+        lastRun: this.online.lastRun,
+      },
+      duplicates: this.ctx.library.listDuplicates(),
+    };
+  }
+
+  setOnlineAlbumCheck(enabled: boolean): LibrarySettings {
+    this.ctx.settings.set(ONLINE_ALBUM_CHECK_SETTING, enabled);
+    if (enabled) this.queueOnlineCheck();
+    return this.librarySettings();
+  }
+
+  private onlineEnabled(): boolean {
+    return (
+      Boolean(this.options.onlineChecker) &&
+      this.ctx.settings.get(ONLINE_ALBUM_CHECK_SETTING, false)
+    );
+  }
+
+  /** Runs one check at a time, in the background; never blocks scans. */
+  private queueOnlineCheck(rootId?: string): void {
+    const checker = this.options.onlineChecker;
+    if (!checker || !this.onlineEnabled()) return;
+    this.online.chain = this.online.chain.then(async () => {
+      if (!this.onlineEnabled()) return;
+      this.online.running = true;
+      try {
+        const res = await checker.run(rootId);
+        this.online.lastRun = res;
+        this.online.lastRunAt = Date.now();
+        if (res.merged > 0) {
+          this.ctx.library.recomputeDuplicates();
+          this.hub.publish({ type: 'library.changed', stats: this.ctx.library.stats() });
+        }
+      } catch {
+        // network trouble: the next scan or toggle tries again
+      } finally {
+        this.online.running = false;
+      }
+    });
+  }
+
+  /** Resolves when background online checks are done (tests). */
+  async onlineIdle(): Promise<void> {
+    await this.online.chain;
   }
 
   getJob(id: string): ScanJob | undefined {
@@ -269,7 +333,12 @@ export class LibraryService {
         const quiet =
           job.trigger !== 'manual' &&
           job.added + job.updated + job.moved + job.markedUnavailable === 0;
-        if (!quiet) this.hub.publish({ type: 'library.changed', stats: this.ctx.library.stats() });
+        if (!quiet) {
+          // backup copies: show one of each album (recomputed — availability may have changed)
+          this.ctx.library.recomputeDuplicates();
+          this.hub.publish({ type: 'library.changed', stats: this.ctx.library.stats() });
+          this.queueOnlineCheck(job.rootId);
+        }
       }
     } finally {
       this.running = false;

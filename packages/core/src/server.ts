@@ -20,6 +20,7 @@ import { RemoteAccessService, type RemoteAccessOptions } from './remote/remote-a
 import { sanitizeForLan } from './remote/sanitize';
 import { EngineService, type EngineServiceOptions } from './services/engine-service';
 import { LibraryService, type LibraryServiceOptions } from './services/library-service';
+import { MusicBrainzClient, OnlineAlbumChecker } from './services/online-albums';
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
 
 export interface StudioServerOptions {
@@ -92,6 +93,13 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     // Scans yield to playback: while HQPlayer plays, every file read waits a little, so a big
     // rescan never competes with DSD512 for disk/NAS bandwidth or CPU.
     onTracksRemoved: (ids) => queue.forgetTracks(ids),
+    onlineChecker: new OnlineAlbumChecker(
+      opts.ctx,
+      new MusicBrainzClient({
+        // MusicBrainz asks clients to identify themselves; no personal data is sent.
+        userAgent: `HQPlayerStudio/${opts.appVersion} ( third-party HQPlayer library client )`,
+      }),
+    ),
     pace: async () => {
       if (paceMs > 0 && engine.getStatus().transport === 'playing') {
         await new Promise((r) => setTimeout(r, paceMs));

@@ -14,6 +14,7 @@ import {
   FolderListingSchema,
   HealthResponseSchema,
   LibraryRootSchema,
+  LibrarySettingsSchema,
   RemovedRootSchema,
   LibraryStatsSchema,
   PairResponseSchema,
@@ -191,6 +192,9 @@ export function createStudioClient(options: StudioClientOptions = {}) {
 
     settings: {
       engine: () => get(EngineSettingsSchema, '/settings/engine'),
+      library: () => get(LibrarySettingsSchema, '/settings/library'),
+      setOnlineAlbumCheck: (enabled: boolean) =>
+        post(LibrarySettingsSchema, '/settings/library', { onlineAlbumCheck: enabled }),
       setEngine: (adapter: 'mock' | 'live') =>
         post(EngineSettingsSchema, '/settings/engine', { adapter }),
       /** “允许 Studio 控制 HQPlayer” — applies immediately, no restart. */

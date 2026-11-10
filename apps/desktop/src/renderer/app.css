@@ -813,6 +813,21 @@
   display: flex;
   gap: 8px;
 }
+.dup-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+}
+.dup-list .hq-mono {
+  font-size: var(--fs-xs, 12px);
+  overflow-wrap: anywhere;
+}
 .root-list {
   list-style: none;
   margin: 0;

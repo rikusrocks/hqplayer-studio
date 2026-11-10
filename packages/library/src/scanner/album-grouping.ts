@@ -41,10 +41,25 @@ export function planFolderAlbum(tracks: FolderTrack[]): { albumId: string; title
   const titles = new Set(tracks.map((t) => normalizeText(t.album)));
   if (titles.size > 3) return null;
 
+  return pickCanonicalAlbum(tracks);
+}
+
+/** The album row a folder's tracks should join: most tracks, ties → the lowest disc/track. */
+export function pickCanonicalAlbum(
+  tracks: FolderTrack[],
+): { albumId: string; title: string } | null {
+  const albums = new Map<string, FolderTrack[]>();
+  for (const t of tracks) {
+    if (!t.albumId) continue;
+    const list = albums.get(t.albumId) ?? [];
+    list.push(t);
+    albums.set(t.albumId, list);
+  }
   const order = (t: FolderTrack) => (t.disc ?? 1) * 10_000 + (t.track ?? 9_999);
   const ranked = [...albums.entries()].sort(
     ([, a], [, b]) => b.length - a.length || Math.min(...a.map(order)) - Math.min(...b.map(order)),
   );
+  if (ranked.length === 0) return null;
   const [albumId, members] = ranked[0] as [string, FolderTrack[]];
   return { albumId, title: (members[0] as FolderTrack).album };
 }

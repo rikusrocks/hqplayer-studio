@@ -257,6 +257,83 @@ function LibrarySettings() {
         {formatNumber(roots.data?.reduce((n, r) => n + r.trackCount, 0) ?? 0, locale)}{' '}
         {t('home.statsTracks')}
       </p>
+      {trusted && <LibraryCleanupCard />}
+    </div>
+  );
+}
+
+/** Backup copies shown once + the opt-in MusicBrainz check for unclear album folders. */
+function LibraryCleanupCard() {
+  const { t } = useI18n();
+  const { client, run, libraryVersion } = useStudio();
+  const [tick, setTick] = useState(0);
+  const state = useAsync(() => client.settings.library(), [client, libraryVersion, tick]);
+  const [busy, setBusy] = useState(false);
+  const data = state.data;
+  useEffect(() => {
+    if (!data?.onlineAlbumCheck.running) return;
+    const timer = setTimeout(() => setTick((n) => n + 1), 2000);
+    return () => clearTimeout(timer);
+  }, [data]);
+  if (!data) return null;
+  const online = data.onlineAlbumCheck;
+  const toggle = async (on: boolean) => {
+    setBusy(true);
+    await run(() => client.settings.setOnlineAlbumCheck(on));
+    setBusy(false);
+    setTick((n) => n + 1);
+  };
+  const where = (p: { root: string; folder: string }) =>
+    [p.root, p.folder].filter(Boolean).join(' / ');
+  return (
+    <div className="settings-block">
+      <h3>{t('library.duplicates.title')}</h3>
+      <p className="hint">
+        {data.duplicates.length === 0
+          ? t('library.duplicates.none')
+          : t('library.duplicates.found', { count: data.duplicates.length })}
+      </p>
+      {data.duplicates.length > 0 && (
+        <ul className="dup-list">
+          {data.duplicates.slice(0, 50).map((d) => (
+            <li key={d.albumId}>
+              <strong>{d.title}</strong> <span className="hq-muted">— {d.albumArtist}</span>
+              <div className="hq-mono hq-muted">
+                {t('library.duplicates.kept', { where: where(d.kept) })}
+                {d.hidden.map((h) => (
+                  <div key={h.albumId}>{t('library.duplicates.hidden', { where: where(h) })}</div>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <label className="engine-option engine-control">
+        <input
+          type="checkbox"
+          role="switch"
+          checked={online.enabled}
+          disabled={busy}
+          onChange={(e) => void toggle(e.target.checked)}
+        />
+        <span>
+          <strong>{t('library.online.title')}</strong>
+          <span className="hint">{t('library.online.hint')}</span>
+        </span>
+      </label>
+      {online.enabled && (
+        <p className="hint hq-muted">
+          {online.running
+            ? t('library.online.running')
+            : online.lastRun
+              ? t('library.online.last', {
+                  checked: online.lastRun.checked,
+                  merged: online.lastRun.merged,
+                  unmatched: online.lastRun.unmatched,
+                })
+              : t('library.online.idle')}
+        </p>
+      )}
     </div>
   );
 }

@@ -5,3 +5,5 @@ export const ENGINE_ADAPTER_SETTING = 'engine.adapter';
 export const ENGINE_CONTROL_SETTING = 'engine.allowControl';
 /** The user removed the demo library: never seed it again. */
 export const DEMO_REMOVED_SETTING = 'library.demoRemoved';
+/** Opt-in: ask MusicBrainz about album folders the local rules cannot settle. */
+export const ONLINE_ALBUM_CHECK_SETTING = 'library.onlineAlbumCheck';
