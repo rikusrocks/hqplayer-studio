@@ -413,10 +413,12 @@ describe('online covers', () => {
     expect(done.body.missing).toBe(1);
     expect(artworkOf(albumOf('One'))).toMatch(/^art_/);
     expect(artworkOf(albumOf('Four'))).toBeNull();
-    // only the two albums without a cover were asked about
-    expect(
-      calls.filter((u) => u.hostname === 'api.deezer.com').map((u) => u.searchParams.get('q')),
-    ).toEqual(['Invented Artist Bare Album', 'Invented Artist Other Album']);
+    // only the two albums without a cover were asked about (in whatever order they were scanned)
+    const asked = calls
+      .filter((u) => u.hostname === 'api.deezer.com')
+      .map((u) => u.searchParams.get('q'))
+      .sort();
+    expect(asked).toEqual(['Invented Artist Bare Album', 'Invented Artist Other Album']);
   });
 
   it('leaves the fictional demo library alone', async () => {
