@@ -1,5 +1,34 @@
 # PROGRESS
 
+## 2026-11-10 — DSP 设置测试工具（hqp-dspgate.exe）
+
+```text
+Implemented:
+- 新的独立工具 hqp-dspgate.exe（与 hqp-probe / hqp-gatec 一起打包在 hqp-probe-windows-x64.zip）：
+  逐步临时更改 调制器 / 滤波器（Nx+1x、单值）/ 采样率（只调低、同系列）/ 模式（并重读列表）/
+  反相·卷积·自适应音量 / 矩阵配置，每步用 State 回读确认、立即改回，最后与开始时的快照整体核对；
+  再在播放中各切换一次调制器和滤波器，记录状态推送并询问听感。
+- 要回答的问题：Set* 命令用列表的 index 还是 value；列表是否随模式变化；单值 SetFilter 是否同时改 1x 和 Nx；
+  播放中更改是无缝、短暂中断、重新播放还是被拒绝。
+- 守卫：只发送本次连接刚读到的列表里的 index/value；白名单之外的命令（Reset、ConfigurationLoad、
+  SetTransport*、Volume、播放列表编辑等）在本地拒绝；改不回去就停止后续步骤并提示手动恢复
+  （原设置同时写入 hqp-dspgate-original-*.txt）；断线会重连后恢复。
+- Gate C 工具的白名单没有改动；Studio 应用本身没有改动，dsp.write 仍然禁用。
+
+Verified:
+- 自动化测试：新增 20 项（对可配置的模拟引擎：index 语义、value 语义、index=value 无法区分、
+  单值滤波器只改 Nx、播放中重新开始、改不回去、中途断线、用户中止/拒绝开始/开始时正在播放、无法连接）。
+- 模拟引擎的行为是假设，不是证据；真实行为只能由你电脑上的报告确定。
+
+Known limitations:
+- 不测试“重启 HQPlayer 后设置是否保留”（工具会把一切改回）。
+- 尚未在你的电脑上运行。
+
+Next:
+- 你：下载新的 hqp-probe-windows-x64，运行 hqp-dspgate.exe（约 10 分钟），发回 hqp-dspgate-report-*.json。
+- 之后：按报告实现 Studio 里的 DSP 面板（单独的开关、列表校验、State 回读、预设）。
+```
+
 ## 2026-11-10 — v0.2.1：备份副本只显示一份 + 可选的 MusicBrainz 联网核对
 
 ```text

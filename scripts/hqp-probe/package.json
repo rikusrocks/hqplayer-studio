@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Windows HQPlayer diagnostics: read-only probe (Gate A/B) and the Gate C write-command test. Builds to single .exe files (Node SEA).",
+  "description": "Windows HQPlayer diagnostics: read-only probe (Gate A/B), the Gate C write-command test and the DSP settings test. Builds to single .exe files (Node SEA).",
   "scripts": {
     "start": "tsx src/main.ts",
     "build": "node build-sea.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "gatec": "tsx src/gatec-main.ts"
+    "gatec": "tsx src/gatec-main.ts",
+    "dspgate": "tsx src/dspgate-main.ts"
   },
   "dependencies": {
     "@hqps/contracts": "workspace:*",

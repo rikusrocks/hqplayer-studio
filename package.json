@@ -25,6 +25,7 @@
     "probe": "pnpm --filter @hqps/hqp-probe start",
     "demo:reset": "pnpm --filter @hqps/core demo:reset",
     "gatec": "pnpm --filter @hqps/hqp-probe gatec",
+    "dspgate": "pnpm --filter @hqps/hqp-probe dspgate",
     "bench:scan": "pnpm --filter @hqps/core exec tsx ../library/src/testing/scan-bench.ts"
   },
   "devDependencies": {

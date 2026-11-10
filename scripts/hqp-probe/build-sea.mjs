@@ -1,6 +1,7 @@
 // Builds the Windows diagnostic tools into single executables (Node SEA) for the current platform:
 //   hqp-probe  — read-only Gate A/B probe
 //   hqp-gatec  — Gate C write-command test (approved plan, step-by-step, restores the playlist)
+//   hqp-dspgate — DSP settings test (step-by-step, reverts every change, verifies at the end)
 // On the Windows CI runner this produces dist/*.exe — no Node install needed on the target PC.
 // Requires Node >= 25.5 (`node --build-sea`).
 import { build } from 'esbuild';
@@ -20,6 +21,11 @@ const tools = [
     name: 'hqp-gatec',
     entry: 'src/gatec-main.ts',
     banner: 'Gate C write-command test (approved plan)',
+  },
+  {
+    name: 'hqp-dspgate',
+    entry: 'src/dspgate-main.ts',
+    banner: 'DSP settings test (reverts every change)',
   },
 ];
 

@@ -50,4 +50,33 @@ as approved in docs/gate-c-plan.md, one step at a time (Enter each), ~20 minutes
 It backs up the playlist first (.m3u8 + .json, keep local) and restores it at the end. Send back
 only hqp-gatec-report-*.json. If restore is incomplete, open the backup .m3u8 in HQPlayer.
 
+hqp-dspgate.exe — DSP 设置测试 / DSP settings test
+==================================================
+
+第三个工具，用来弄清 Studio 以后怎样安全地切换 模式 / 滤波器 / 调制器 / 采样率。
+它会临时更改这些设置：每一步都要你按回车，改完马上改回，最后再整体核对一遍。约 10 分钟，需要你在场听。
+
+它会做的：
+- D1 调制器、D2/D3 滤波器（Nx+1x、单个值）、D4 采样率（只调低、同一系列）、D5 模式（并重读各列表）、
+  D6 反相/卷积/自适应音量开关、D7 矩阵配置（有两个以上配置且当前已选中时才做）——都在停止状态下进行，不出声。
+- D8 播放当前播放列表，在播放中切换一次调制器、一次滤波器，问你听到了什么，然后停止。
+它不会做的：不改播放列表、音量、输出设备、配置文件；不发送 HQPlayer 没有列出的选项；不调高采样率。
+
+准备：HQPlayer 打开，播放列表里有能正常播放的曲目，放大器音量适中。
+运行：双击 hqp-dspgate.exe → 先把当前设置写到 hqp-dspgate-original-*.txt → 可为调制器和滤波器各选一个
+“你的电脑能流畅播放”的测试项（直接回车用默认）→ 输入 y 开始 → 每一步：回车执行 / s 跳过 / q 中止并恢复。
+如果开始时 HQPlayer 正在播放，工具会先问你是否停止；结束后不会自动恢复播放。
+结束时把 hqp-dspgate-report-*.json 发回（不含曲名、路径、矩阵配置名）。
+若提示“没有完全恢复”，按屏幕上（或 hqp-dspgate-original-*.txt 里）列出的原设置在 HQPlayer 主窗口改回即可。
+
+hqp-dspgate.exe finds out how HQPlayer's mode / filter / shaper / rate commands behave so Studio can
+offer them safely later. It briefly changes those settings, one step at a time (Enter each), reverts
+each change straight away and compares everything with the starting snapshot at the end. About
+10 minutes with you listening. Steps D1-D7 run while stopped (silent); D8 plays the current playlist
+and changes the shaper and the filter once each during playback. It never touches the playlist,
+volume, output device or configuration, only sends options HQPlayer itself lists, and only lowers
+the rate. If HQPlayer is playing at the start it asks before stopping, and it does not resume.
+Send back hqp-dspgate-report-*.json. If it says "Not fully restored", set the values shown on
+screen (also saved in hqp-dspgate-original-*.txt) again in HQPlayer's main window.
+
 Not affiliated with Signalyst. HQPlayer is a product of Signalyst.
