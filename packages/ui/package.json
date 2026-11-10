@@ -1,0 +1,28 @@
+{
+  "name": "@hqps/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared React components, design tokens, i18n and data hooks for Desktop and Web Remote.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/tokens.css"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hqps/api-client": "workspace:*",
+    "@hqps/contracts": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  }
+}

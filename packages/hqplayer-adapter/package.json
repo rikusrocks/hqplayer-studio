@@ -1,0 +1,16 @@
+{
+  "name": "@hqps/hqplayer-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HQPlayer engine adapter contract, MockHQPlayerAdapter and the SDK-derived TCP/XML protocol layer.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hqps/contracts": "workspace:*"
+  }
+}

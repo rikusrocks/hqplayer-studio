@@ -1,0 +1,26 @@
+appId: io.github.rikusrocks.hqplayerstudio
+productName: HQPlayer Studio
+copyright: Copyright © 2026 HQPlayer Studio contributors. Not affiliated with Signalyst.
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+  - '!**/*.map'
+asar: true
+# Everything is bundled by esbuild/Vite; there are no runtime dependencies or native addons.
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+win:
+  target:
+    - target: portable
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  artifactName: HQPlayerStudio-${version}-win-${arch}.${ext}
+portable:
+  artifactName: HQPlayerStudio-${version}-portable-${arch}.exe
+mac:
+  target: [dir]
+  identity: null

@@ -1,0 +1,21 @@
+node_modules/
+dist/
+release/
+coverage/
+.data/
+*.log
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+.vite/
+.env
+.env.*
+!.env.example
+
+# Probe output may contain local machine details — never commit real reports.
+hqp-probe-report*.json
+hqp-probe-raw*.log
+!fixtures/hqplayer-protocol/**
+
+# Third-party SDK sources are read locally only; see docs/protocol-capabilities.md.
+vendor/

@@ -1,0 +1,9 @@
+node_modules
+dist
+release
+coverage
+.data
+pnpm-lock.yaml
+fixtures/hqplayer-protocol/*.xml
+docs/handoff
+.claude

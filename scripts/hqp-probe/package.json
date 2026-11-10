@@ -1,0 +1,20 @@
+{
+  "name": "@hqps/hqp-probe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only-first HQPlayer Control API diagnostic. Builds to a single Windows .exe (Node SEA).",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "build": "node build-sea.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hqps/contracts": "workspace:*",
+    "@hqps/hqplayer-adapter": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  }
+}

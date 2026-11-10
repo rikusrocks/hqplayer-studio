@@ -1,0 +1,13 @@
+{
+  "name": "@hqps/lyrics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LRC parsing and lyric line synchronisation (LRCLIB client lands in P1).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

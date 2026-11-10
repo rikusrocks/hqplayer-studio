@@ -1,0 +1,20 @@
+{
+  "name": "HQPlayer Studio Remote",
+  "short_name": "Studio Remote",
+  "description": "Web remote for HQPlayer Studio. Audio always plays from HQPlayer on the host PC — never in the browser.",
+  "start_url": "/remote/",
+  "scope": "/remote/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d0e11",
+  "theme_color": "#0d0e11",
+  "icons": [
+    { "src": "/remote/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    {
+      "src": "/remote/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

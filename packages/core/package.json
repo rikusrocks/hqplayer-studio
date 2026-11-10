@@ -1,0 +1,30 @@
+{
+  "name": "@hqps/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HQPlayer Studio Core: REST + WebSocket API, queue orchestration and engine supervision.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "tsx src/main.ts",
+    "demo:reset": "tsx src/main.ts --reset-demo --exit",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.10",
+    "@fastify/websocket": "^11.3.7",
+    "@hqps/contracts": "workspace:*",
+    "@hqps/hqplayer-adapter": "workspace:*",
+    "@hqps/library": "workspace:*",
+    "fastify": "^5.12.8",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "ws": "^8.22.2"
+  }
+}

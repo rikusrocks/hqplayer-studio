@@ -1,0 +1,40 @@
+{
+  "name": "hqplayer-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HQPlayer Studio — a third-party modern music library, playlist manager and web remote for HQPlayer Desktop 6. Not affiliated with Signalyst.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24.11"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n core,desktop,remote -c cyan,magenta,green \"pnpm --filter @hqps/core dev\" \"pnpm --filter @hqps/desktop dev:web\" \"pnpm --filter @hqps/remote dev\"",
+    "dev:core": "pnpm --filter @hqps/core dev",
+    "dev:electron": "pnpm --filter @hqps/desktop dev:electron",
+    "build": "pnpm --filter @hqps/remote build && pnpm --filter @hqps/desktop build && pnpm --filter @hqps/hqp-probe build",
+    "package:win": "pnpm build && pnpm --filter @hqps/desktop package:win",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "probe": "pnpm --filter @hqps/hqp-probe start",
+    "demo:reset": "pnpm --filter @hqps/core demo:reset"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.9.0",
+    "concurrently": "^10.0.7",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  }
+}

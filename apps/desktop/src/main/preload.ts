@@ -1,0 +1,16 @@
+/**
+ * Sandboxed preload. Exposes exactly the `StudioShell` interface declared in
+ * src/renderer/shell.ts — nothing else (no ipcRenderer, no Node APIs).
+ */
+import { contextBridge, ipcRenderer } from 'electron';
+
+contextBridge.exposeInMainWorld('studioShell', {
+  isElectron: true as const,
+  platform: process.platform,
+  toggleMiniPlayer: (): void => ipcRenderer.send('studio:toggle-mini'),
+  showMainWindow: (): void => ipcRenderer.send('studio:show-main'),
+  setAlwaysOnTop: (on: boolean): Promise<boolean> =>
+    ipcRenderer.invoke('studio:set-always-on-top', on === true) as Promise<boolean>,
+  pickFolder: (): Promise<string | null> =>
+    ipcRenderer.invoke('studio:pick-folder') as Promise<string | null>,
+});

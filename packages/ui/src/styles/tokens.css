@@ -1,0 +1,210 @@
+@import './components.css';
+
+/*
+ * HQPlayer Studio design tokens — dark first, restrained, dense.
+ * Accent is a warm brass/amber; status colours are reserved for state, never decoration.
+ */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0d0e11;
+  --bg-sunken: #0a0b0d;
+  --surface-1: #14161a;
+  --surface-2: #1a1d22;
+  --surface-3: #22262d;
+  --surface-4: #2b3038;
+  --hover: rgb(255 255 255 / 0.05);
+  --active: rgb(255 255 255 / 0.09);
+  --border: rgb(255 255 255 / 0.07);
+  --border-strong: rgb(255 255 255 / 0.13);
+  --text: #e9ebef;
+  --text-2: #a3a9b5;
+  --text-3: #6c7280;
+  --accent: #d4a25c;
+  --accent-strong: #e6b671;
+  --accent-contrast: #1b1306;
+  --accent-soft: rgb(212 162 92 / 0.14);
+  --ok: #58bf88;
+  --warn: #e0b03e;
+  --danger: #e2675e;
+  --info: #6aa4e6;
+  --ok-soft: rgb(88 191 136 / 0.14);
+  --warn-soft: rgb(224 176 62 / 0.14);
+  --danger-soft: rgb(226 103 94 / 0.14);
+  --info-soft: rgb(106 164 230 / 0.14);
+  --range-track: rgb(255 255 255 / 0.14);
+  --shadow-pop: 0 14px 36px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
+  --shadow-card: 0 6px 18px rgb(0 0 0 / 0.35);
+  --art-placeholder: linear-gradient(135deg, #252a33, #171a1f);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f4f2;
+  --bg-sunken: #ebebe8;
+  --surface-1: #ffffff;
+  --surface-2: #f7f7f5;
+  --surface-3: #eeeeeb;
+  --surface-4: #e3e3df;
+  --hover: rgb(0 0 0 / 0.04);
+  --active: rgb(0 0 0 / 0.08);
+  --border: rgb(0 0 0 / 0.08);
+  --border-strong: rgb(0 0 0 / 0.15);
+  --text: #18191c;
+  --text-2: #555a64;
+  --text-3: #8a8f99;
+  --accent: #a26a22;
+  --accent-strong: #8a5918;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgb(162 106 34 / 0.12);
+  --ok: #23854f;
+  --warn: #9a6c00;
+  --danger: #c23b32;
+  --info: #2f6db3;
+  --ok-soft: rgb(35 133 79 / 0.12);
+  --warn-soft: rgb(154 108 0 / 0.12);
+  --danger-soft: rgb(194 59 50 / 0.1);
+  --info-soft: rgb(47 109 179 / 0.1);
+  --range-track: rgb(0 0 0 / 0.14);
+  --shadow-pop: 0 14px 36px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
+  --shadow-card: 0 6px 18px rgb(0 0 0 / 0.1);
+  --art-placeholder: linear-gradient(135deg, #e3e3df, #f2f2ef);
+}
+
+:root {
+  --font:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans',
+    'Microsoft YaHei', 'Yu Gothic UI', 'Noto Sans CJK SC', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --fs-3xl: 32px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 140ms;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'tnum' 0;
+}
+
+#root {
+  height: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--surface-4);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

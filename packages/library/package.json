@@ -1,0 +1,17 @@
+{
+  "name": "@hqps/library",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SQLite persistence, migrations, music library scanning and repositories.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hqps/contracts": "workspace:*",
+    "music-metadata": "^12.3.5"
+  }
+}

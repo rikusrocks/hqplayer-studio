@@ -1,0 +1,333 @@
+{
+  "version": 1,
+  "note": "Entirely fictional artists, albums and track titles for development, demos and tests. No real recordings, lyrics or artwork are included; covers are generated procedurally.",
+  "rootPath": "D:\\Music\\HQPlayer Studio Demo",
+  "albums": [
+    {
+      "title": "Northern Lights Suite",
+      "albumArtist": "Aurora Chamber Ensemble",
+      "year": 2019,
+      "genre": "Classical",
+      "folder": "Aurora Chamber Ensemble - Northern Lights Suite (2019) [FLAC 24-96]",
+      "format": {
+        "codec": "FLAC",
+        "container": "FLAC",
+        "ext": "flac",
+        "sampleRate": 96000,
+        "bitDepth": 24
+      },
+      "tracks": [
+        { "title": "I. Polar Dawn", "duration": 412 },
+        { "title": "II. Ice Cathedral", "duration": 388 },
+        { "title": "III. Solar Wind", "duration": 297 },
+        { "title": "IV. Silent Fjord", "duration": 455 },
+        { "title": "V. Magnetic Storm", "duration": 341 },
+        { "title": "VI. Return of the Sun", "duration": 503 }
+      ]
+    },
+    {
+      "title": "Northern Lights Suite",
+      "albumArtist": "Aurora Chamber Ensemble",
+      "year": 2019,
+      "genre": "Classical",
+      "folder": "Aurora Chamber Ensemble - Northern Lights Suite (2019) [DSD256]",
+      "format": {
+        "codec": "DSD",
+        "container": "DSF",
+        "ext": "dsf",
+        "sampleRate": 11289600,
+        "bitDepth": 1,
+        "isDsd": true
+      },
+      "tracks": [
+        { "title": "I. Polar Dawn", "duration": 412 },
+        { "title": "II. Ice Cathedral", "duration": 388 },
+        { "title": "III. Solar Wind", "duration": 297 },
+        { "title": "IV. Silent Fjord", "duration": 455 },
+        { "title": "V. Magnetic Storm", "duration": 341 },
+        { "title": "VI. Return of the Sun", "duration": 503 }
+      ]
+    },
+    {
+      "title": "夜の終わりに",
+      "albumArtist": "青木 灯",
+      "year": 2021,
+      "genre": "J-Pop",
+      "folder": "青木 灯 - 夜の終わりに (2021)",
+      "format": {
+        "codec": "FLAC",
+        "container": "FLAC",
+        "ext": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16
+      },
+      "tracks": [
+        { "title": "プロローグ", "duration": 92 },
+        { "title": "夜の終わりに", "duration": 254 },
+        { "title": "「ひかり」をさがして", "duration": 231 },
+        { "title": "東京ミッドナイト・ドライブ", "duration": 268 },
+        { "title": "雨音のワルツ", "duration": 199 },
+        { "title": "君とみた星座", "duration": 245 },
+        { "title": "ネオンの海", "duration": 223 },
+        { "title": "エピローグ（朝）", "duration": 187 }
+      ]
+    },
+    {
+      "title": "城市漫游者",
+      "albumArtist": "林夏",
+      "year": 2020,
+      "genre": "Mandopop",
+      "folder": "林夏 - 城市漫游者 (2020)",
+      "format": {
+        "codec": "FLAC",
+        "container": "FLAC",
+        "ext": "flac",
+        "sampleRate": 48000,
+        "bitDepth": 24
+      },
+      "tracks": [
+        { "title": "城市漫游者", "duration": 243 },
+        { "title": "南方的风", "duration": 228 },
+        { "title": "午夜地铁", "duration": 261 },
+        { "title": "旧书店", "duration": 214 },
+        { "title": "雨后的街道", "duration": 237 },
+        { "title": "灯火", "duration": 252 },
+        { "title": "回家的路", "duration": 289 }
+      ]
+    },
+    {
+      "title": "Blue Hour Sessions",
+      "albumArtist": "The Marlowe Trio",
+      "year": 2018,
+      "genre": "Jazz",
+      "folder": "The Marlowe Trio - Blue Hour Sessions (2018) [DSD64]",
+      "format": {
+        "codec": "DSD",
+        "container": "DSF",
+        "ext": "dsf",
+        "sampleRate": 2822400,
+        "bitDepth": 1,
+        "isDsd": true
+      },
+      "tracks": [
+        { "title": "Blue Hour", "duration": 402 },
+        { "title": "Velvet Steps", "duration": 365 },
+        { "title": "Harbor Lights", "duration": 433 },
+        { "title": "Late Train to Lisbon", "duration": 391 },
+        { "title": "Smoke & Mirrors", "duration": 347 },
+        { "title": "Coda for Clara", "duration": 289 }
+      ]
+    },
+    {
+      "title": "Glass Architecture",
+      "albumArtist": "Helix Fields",
+      "year": 2022,
+      "genre": "Electronic",
+      "folder": "Helix Fields - Glass Architecture (2022)",
+      "format": {
+        "codec": "FLAC",
+        "container": "FLAC",
+        "ext": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 24
+      },
+      "tracks": [
+        { "title": "Prism", "duration": 276 },
+        { "title": "Lattice", "duration": 311 },
+        { "title": "Refraction", "duration": 298 },
+        { "title": "Transparent City", "duration": 342 },
+        { "title": "Fracture Lines", "duration": 287 },
+        { "title": "Daylight Engine", "duration": 305 },
+        { "title": "Afterimage", "duration": 356 }
+      ]
+    },
+    {
+      "title": "Saltwater Hymns",
+      "albumArtist": "Ida Vane",
+      "year": 2017,
+      "genre": "Folk",
+      "folder": "Ida Vane - Saltwater Hymns (2017)",
+      "format": {
+        "codec": "FLAC",
+        "container": "FLAC",
+        "ext": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16
+      },
+      "tracks": [
+        { "title": "Tidewater", "duration": 214 },
+        { "title": "Lantern Song", "duration": 198 },
+        { "title": "The Keeper's Daughter", "duration": 243 },
+        { "title": "Driftwood", "duration": 187 },
+        { "title": "Salt on the Window", "duration": 221 },
+        { "title": "Gull Island", "duration": 176 },
+        { "title": "Low Tide Prayer", "duration": 232 },
+        { "title": "Harbour Bells", "duration": 205 },
+        { "title": "Home Before the Storm", "duration": 268 }
+      ]
+    },
+    {
+      "title": "Variations on a Quiet Theme",
+      "albumArtist": "Mira Castell",
+      "year": 2016,
+      "genre": "Classical",
+      "folder": "Mira Castell - Variations on a Quiet Theme (2016) [DSD128]",
+      "format": {
+        "codec": "DSD",
+        "container": "DSDIFF",
+        "ext": "dff",
+        "sampleRate": 5644800,
+        "bitDepth": 1,
+        "isDsd": true
+      },
+      "tracks": [
+        { "title": "Theme", "duration": 245, "disc": 1 },
+        { "title": "Variation 1: Morning", "duration": 112, "disc": 1 },
+        { "title": "Variation 2: Canon", "duration": 98, "disc": 1 },
+        { "title": "Variation 3: Dance", "duration": 134, "disc": 1 },
+        { "title": "Variation 4: Lament", "duration": 176, "disc": 1 },
+        { "title": "Variation 5: Toccata", "duration": 88, "disc": 1 },
+        { "title": "Variation 6: Nocturne", "duration": 192, "disc": 2 },
+        { "title": "Variation 7: Fugue", "duration": 118, "disc": 2 },
+        { "title": "Variation 8: Chorale", "duration": 104, "disc": 2 },
+        { "title": "Variation 9: Etude", "duration": 141, "disc": 2 },
+        { "title": "Variation 10: Reverie", "duration": 205, "disc": 2 },
+        { "title": "Theme (Reprise)", "duration": 262, "disc": 2 }
+      ]
+    },
+    {
+      "title": "Midnight Transit",
+      "albumArtist": "Various Artists",
+      "year": 2023,
+      "genre": "Lo-fi",
+      "folder": "Various Artists - Midnight Transit (2023)",
+      "format": {
+        "codec": "FLAC",
+        "container": "FLAC",
+        "ext": "flac",
+        "sampleRate": 44100,
+        "bitDepth": 16
+      },
+      "tracks": [
+        { "title": "Platform Nine", "artist": "Nodal", "duration": 201 },
+        { "title": "Night Bus", "artist": "森 海斗", "duration": 189 },
+        { "title": "Last Call", "artist": "Ines Rocha", "duration": 222 },
+        { "title": "Cassette Rain", "artist": "Paper Moons", "duration": 175 },
+        { "title": "Empty Carriage", "artist": "Helix Fields", "duration": 243 },
+        { "title": "Arrival", "artist": "Lumen Drift feat. 林夏", "duration": 256 }
+      ]
+    },
+    {
+      "title": "紅葉 Kōyō",
+      "albumArtist": "月見カルテット",
+      "year": 2015,
+      "genre": "Chamber",
+      "folder": "月見カルテット - 紅葉 Kōyō (2015) [24-192]",
+      "format": {
+        "codec": "PCM",
+        "container": "WAVE",
+        "ext": "wav",
+        "sampleRate": 192000,
+        "bitDepth": 24
+      },
+      "tracks": [
+        { "title": "第一楽章「秋の詩」", "duration": 512 },
+        { "title": "第二楽章「落葉」", "duration": 437 },
+        { "title": "第三楽章「月見」", "duration": 389 },
+        { "title": "第四楽章「初雪」", "duration": 466 },
+        { "title": "アンコール：故郷", "duration": 201 }
+      ]
+    },
+    {
+      "title": "Desert Cartography",
+      "albumArtist": "Sol Ibarra",
+      "year": 2024,
+      "genre": "World",
+      "folder": "Sol Ibarra - Desert Cartography (2024)",
+      "format": {
+        "codec": "WavPack",
+        "container": "WavPack",
+        "ext": "wv",
+        "sampleRate": 96000,
+        "bitDepth": 24
+      },
+      "tracks": [
+        { "title": "Dune Sea", "duration": 312 },
+        { "title": "Caravan Clock", "duration": 287 },
+        { "title": "Mirage Market", "duration": 264 },
+        { "title": "Oasis at Noon", "duration": 298 },
+        { "title": "Star Compass", "duration": 331 },
+        { "title": "The Long Road West", "duration": 402 }
+      ]
+    },
+    {
+      "title": "Lullabies for Machines",
+      "albumArtist": "Nodal",
+      "year": 2021,
+      "genre": "Ambient",
+      "folder": "Nodal - Lullabies for Machines (2021)",
+      "format": {
+        "codec": "PCM",
+        "container": "AIFF",
+        "ext": "aiff",
+        "sampleRate": 48000,
+        "bitDepth": 24
+      },
+      "tracks": [
+        { "title": "Boot Sequence", "duration": 241 },
+        { "title": "Servo Dreams", "duration": 386 },
+        { "title": "Cooling Fans", "duration": 452 },
+        { "title": "Idle State", "duration": 518 },
+        { "title": "Shutdown Hymn", "duration": 337 }
+      ]
+    },
+    {
+      "title": "Folded Maps",
+      "albumArtist": "Paper Moons",
+      "year": 2019,
+      "genre": "Indie",
+      "folder": "Paper Moons - Folded Maps (2019)",
+      "format": {
+        "codec": "MPEG 1 Layer 3",
+        "container": "MPEG",
+        "ext": "mp3",
+        "sampleRate": 44100,
+        "bitDepth": null,
+        "bitrate": 320000,
+        "lossless": false
+      },
+      "tracks": [
+        { "title": "Origami Heart", "duration": 213 },
+        { "title": "Folded Maps", "duration": 228 },
+        { "title": "Kite Weather", "duration": 195 },
+        { "title": "Ink & Water", "duration": 241 },
+        { "title": "Moon Made of Paper", "duration": 266 },
+        { "title": "Unfold", "duration": 289 }
+      ]
+    }
+  ],
+  "playlists": [
+    {
+      "name": "深夜聆听 Late Night",
+      "description": "Demo playlist (fictional tracks)",
+      "tracks": [
+        ["Blue Hour Sessions", "Blue Hour"],
+        ["夜の終わりに", "雨音のワルツ"],
+        ["Lullabies for Machines", "Idle State"],
+        ["城市漫游者", "午夜地铁"],
+        ["Midnight Transit", "Night Bus"],
+        ["Blue Hour Sessions", "Coda for Clara"]
+      ]
+    },
+    {
+      "name": "Hi-Res Showcase",
+      "description": "DSD and 24-bit demo items — the same track appears twice on purpose",
+      "tracks": [
+        ["Variations on a Quiet Theme", "Theme"],
+        ["紅葉 Kōyō", "第一楽章「秋の詩」"],
+        ["Desert Cartography", "Star Compass"],
+        ["Variations on a Quiet Theme", "Theme"]
+      ]
+    }
+  ]
+}

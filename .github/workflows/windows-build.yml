@@ -1,0 +1,98 @@
+name: Windows build
+
+# Produces the artifacts the user runs on the Windows PC (no dev tools needed there):
+#   - HQPlayerStudio portable .exe + .zip (Electron, mock engine in Phase 0)
+#   - hqp-probe-windows-x64.zip (read-only HQPlayer API probe, single .exe)
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+      - name: Build remote, desktop and probe
+        run: pnpm build
+
+      - name: Package Electron app (portable + zip)
+        working-directory: apps/desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: pnpm exec electron-builder --win portable zip --x64 --publish never
+
+      - name: Smoke-test packaged app (node:sqlite in Electron, preload bridge, UI served)
+        shell: pwsh
+        working-directory: apps/desktop/release/win-unpacked
+        run: |
+          $env:STUDIO_SMOKE_OUT = Join-Path $PWD 'smoke-result.txt'
+          $p = Start-Process -FilePath '.\HQPlayer Studio.exe' -ArgumentList '--smoke-test' -Wait -PassThru
+          Get-Content $env:STUDIO_SMOKE_OUT
+          if ($p.ExitCode -ne 0) { throw "smoke test failed with exit code $($p.ExitCode)" }
+          if (-not (Select-String -Path $env:STUDIO_SMOKE_OUT -Pattern '^SMOKE_OK' -Quiet)) { throw 'smoke test did not report SMOKE_OK' }
+
+      - name: Smoke-test probe (no HQPlayer on the runner -> must still write a report)
+        shell: pwsh
+        working-directory: scripts/hqp-probe/dist
+        run: |
+          .\hqp-probe.exe --no-pause --port 1 --out probe-smoke
+          $report = Get-ChildItem probe-smoke -Filter 'hqp-probe-report-*.json' | Select-Object -First 1
+          if (-not $report) { throw 'probe did not write a report' }
+          $json = Get-Content $report.FullName -Raw | ConvertFrom-Json
+          if ($json.summary.reachable -ne $false) { throw 'expected unreachable target' }
+          Write-Host "probe report OK: $($report.Name)"
+
+      - name: Assemble probe zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item scripts/hqp-probe/dist/hqp-probe.exe out/
+          Copy-Item scripts/hqp-probe/README-WINDOWS.txt out/
+          Compress-Archive -Path out/* -DestinationPath hqp-probe-windows-x64.zip -Force
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: HQPlayerStudio-windows-x64
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.zip
+          retention-days: 30
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hqp-probe-windows-x64
+          path: hqp-probe-windows-x64.zip
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v3
+        with:
+          draft: true
+          files: |
+            artifacts/HQPlayerStudio-windows-x64/*
+            artifacts/hqp-probe-windows-x64/*
