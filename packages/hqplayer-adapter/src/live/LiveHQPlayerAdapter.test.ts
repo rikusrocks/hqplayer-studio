@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CapabilityUnavailableError,
   EngineCommandError,
@@ -119,8 +119,7 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     expect(s.random).toBe(true);
 
     server.push(STATUS.replace('position="12.5"', 'position="13.5"'));
-    await new Promise((r) => setTimeout(r, 30));
-    expect(seen.at(-1)).toBe(13_500);
+    await vi.waitFor(() => expect(seen.at(-1)).toBe(13_500), { timeout: 3000 });
 
     expect(server.received.map((r) => r.name)).toEqual(['GetInfo', 'Status', 'State']);
     expect(server.received[1]?.attributes.subscribe).toBe('1');
@@ -186,8 +185,12 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     await adapter.connect();
     await server.close();
     server = null;
-    await new Promise((r) => setTimeout(r, 30));
-    expect((await adapter.getStatus()).connection).toBe('disconnected');
+    await vi.waitFor(
+      async () => expect((await adapter.getStatus()).connection).toBe('disconnected'),
+      {
+        timeout: 3000,
+      },
+    );
     expect(adapter.isConnected()).toBe(false);
   });
 });

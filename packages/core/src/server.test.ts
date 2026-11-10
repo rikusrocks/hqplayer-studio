@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { QueueState, StudioEvent } from '@hqps/contracts';
 import { MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
 import { createStudioServer, type StudioServer } from './server';
 
@@ -130,8 +130,9 @@ describe('Studio Core REST API', () => {
     expect(status.track.studioTrackId).toBe(q.body.items[0]!.track.id);
 
     await api('POST', '/engine/transport', { action: 'next' });
-    await new Promise((r) => setTimeout(r, 20));
-    expect((await api<QueueState>('GET', '/queue')).body.currentIndex).toBe(1);
+    await vi.waitFor(async () =>
+      expect((await api<QueueState>('GET', '/queue')).body.currentIndex).toBe(1),
+    );
 
     const paused = await api<{ status: { transport: string } }>('POST', '/engine/transport', {
       action: 'toggle',
@@ -163,9 +164,10 @@ describe('Studio Core REST API', () => {
   it('flags an external change as out_of_sync and lets the user take over without autoplay', async () => {
     await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {});
     adapter.simulateExternalChange();
-    await new Promise((r) => setTimeout(r, 20));
+    await vi.waitFor(async () =>
+      expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('out_of_sync'),
+    );
     const q = (await api<QueueState>('GET', '/queue')).body;
-    expect(q.sync.state).toBe('out_of_sync');
     expect(q.sync.reason).toMatch(/outside Studio/);
     expect(q.items).toHaveLength(6); // plan preserved, not overwritten
 
@@ -178,7 +180,9 @@ describe('Studio Core REST API', () => {
     await api('POST', `/playback/album/${await firstAlbumId('blue hour')}`, {});
     await api('POST', '/engine/transport', { action: 'pause' });
     adapter.simulateDisconnect();
-    await new Promise((r) => setTimeout(r, 20));
+    await vi.waitFor(async () =>
+      expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('engine_offline'),
+    );
     const fail = await api<{ error: { code: string } }>('POST', '/engine/transport', {
       action: 'play',
     });
@@ -187,7 +191,10 @@ describe('Studio Core REST API', () => {
     expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('engine_offline');
 
     adapter.simulateReconnect();
-    await new Promise((r) => setTimeout(r, 120));
+    await vi.waitFor(
+      async () => expect((await api<QueueState>('GET', '/queue')).body.sync.state).toBe('in_sync'),
+      { timeout: 3000 },
+    );
     const status = (await api<{ connection: string; transport: string }>('GET', '/engine/status'))
       .body;
     expect(status.connection).toBe('connected');
@@ -316,8 +323,7 @@ describe('WebSocket events', () => {
       });
     const desktop = await open();
     const remote = await open({ origin: `http://127.0.0.1:${port}` });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(desktop.events[0]?.type).toBe('hello');
+    await vi.waitFor(() => expect(desktop.events[0]?.type).toBe('hello'));
 
     const res = await fetch(
       `http://127.0.0.1:${port}/api/v1/playback/album/${await firstAlbumId('saltwater')}`,
@@ -328,7 +334,14 @@ describe('WebSocket events', () => {
       },
     );
     expect(res.status).toBe(200);
-    await new Promise((r) => setTimeout(r, 100));
+    await vi.waitFor(() => {
+      for (const client of [desktop, remote]) {
+        const last = client.events.filter((e) => e.type === 'queue.changed').at(-1);
+        expect(last && last.type === 'queue.changed' && last.queue.source?.label).toContain(
+          'Saltwater Hymns',
+        );
+      }
+    });
     for (const client of [desktop, remote]) {
       const types = new Set(client.events.map((e) => e.type));
       expect(types.has('engine.status')).toBe(true);
