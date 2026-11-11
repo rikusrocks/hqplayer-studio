@@ -232,7 +232,12 @@ export class LyricsService {
     } catch (err) {
       throw err instanceof OnlineUnavailableError ? upstreamUnavailable(err) : err;
     }
-    if (!lyrics) throw new HttpError(404, 'not_found', 'The source has no such lyrics');
+    if (!lyrics) {
+      // The catalogue entry exists (it was listed) but carries no lyric text.
+      throw new HttpError(404, 'not_found', 'This result has no lyrics; choose another one', {
+        reason: 'no_lyrics',
+      });
+    }
     const row = this.ctx.lyrics.save({
       trackId,
       source: provider,
