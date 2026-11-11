@@ -204,17 +204,45 @@ export function toNeteaseSong(v: unknown): NeteaseSong | null {
 
 /**
  * Lyrics from a NetEase lyric answer. Newer songs put credits into JSON lines
- * (`{"t":0,"c":[…]}`) before the LRC text; those are dropped.
+ * (`{"t":0,"c":[…]}`) before the LRC text; those are dropped. Instrumentals are marked with
+ * `nolyric` or `pureMusic` (the latter still carries a "纯音乐，请欣赏" placeholder line, which
+ * is not lyrics). Null when the song has no lyrics on NetEase (`uncollected`, empty text).
  */
 export function neteaseLyrics(v: unknown): OnlineLyrics | null {
   const o = obj(v);
   if (!o) return null;
-  if (o.nolyric === true) return { synced: null, plain: null, instrumental: true };
-  const text = str(obj(o.lrc)?.lyric)
+  if (o.nolyric === true || o.pureMusic === true) {
+    return { synced: null, plain: null, instrumental: true };
+  }
+  const lines = str(obj(o.lrc)?.lyric)
     .split(/\r\n|\r|\n/)
-    .filter((l) => !/^\s*\{.*\}\s*$/.test(l))
-    .join('\n');
-  return lyricsFromText(text);
+    .filter((l) => !/^\s*\{.*\}\s*$/.test(l));
+  // Songs without lyrics often still carry credits ("[00:00.00-1] 作词 : …"): not lyrics.
+  if (!lines.some(isSungLine)) return null;
+  return lyricsFromText(lines.join('\n'));
+}
+
+/**
+ * A credit as NetEase writes it — a short label, a space, a colon ("作词 : Somebody") — or a
+ * well-known label right before the colon ("作曲：Somebody"). "She said: stay" is a lyric.
+ */
+const CREDIT_LINE =
+  /^(?:[^:：]{1,24}\s[:：]\s*\S|(?:作词|作詞|作曲|编曲|編曲|制作人|製作人|监制|監製|演唱|词|詞|曲|lyricist|composer|arranger|producer|lyrics by|written by|composed by)\s*[:：])/iu;
+
+/** Does a line carry lyric text (not just tags or a credit)? */
+function isSungLine(line: string): boolean {
+  const text = line.replace(/^(?:\s*\[[^\]]*\])+/u, '').trim();
+  return text !== '' && !CREDIT_LINE.test(text);
+}
+
+/**
+ * Query of NetEase's lyric interface. `lv` / `kv` / `tv` are the versions of the lyrics,
+ * karaoke lyrics and translation the caller already has: the answer leaves out every text that
+ * is not newer. `-1` means "I have nothing". (With `lv=1` every song whose lyrics were never
+ * revised — version 1, most of the catalogue — came back empty.)
+ */
+export function neteaseLyricParams(id: string): Record<string, string> {
+  return { id, lv: '-1', kv: '-1', tv: '-1' };
 }
 
 export class NeteaseProvider implements OnlineLyricsProvider {
@@ -287,12 +315,7 @@ export class NeteaseProvider implements OnlineLyricsProvider {
 
   async fetch(ref: string): Promise<OnlineLyrics | null> {
     if (!/^\d{1,15}$/.test(ref)) return null;
-    const json = await this.http.getJson(`${this.baseUrl}/api/song/lyric`, {
-      id: ref,
-      lv: '1',
-      kv: '1',
-      tv: '-1',
-    });
+    const json = await this.http.getJson(`${this.baseUrl}/api/song/lyric`, neteaseLyricParams(ref));
     if (json === null) return null;
     const o = obj(json);
     if (!o) throw this.http.badResponse();

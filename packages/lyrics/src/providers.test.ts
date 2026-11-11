@@ -7,8 +7,10 @@ import {
   LyricsOvhProvider,
   NeteaseProvider,
   createOnlineLyricsProviders,
+  neteaseLyricParams,
   neteaseLyrics,
 } from './providers';
+import { fakeNetease } from './testing/fake-netease';
 
 // Every lyric line and catalogue entry below is invented for the tests.
 const SYNCED = '[00:01.00]first invented line\n[00:03.00]second invented line';
@@ -105,6 +107,103 @@ describe('NeteaseProvider', () => {
         synced: null,
       }),
     ]);
+  });
+
+  describe('against a service that follows the real version rule', () => {
+    const CREDITS = '[00:00.00] 作词 : Invented Writer\n[00:01.00] 作曲 : Invented Composer';
+    const catalogue = [
+      // Never revised: version 1 — most of the real catalogue.
+      { id: 11, name: 'Fresh Song', artists: ['Lin Xia'], durationMs: 200_000, lyric: SYNCED },
+      // Revised many times, with credit lines in front.
+      {
+        id: 12,
+        name: 'Fresh Song',
+        artists: ['Chen Mo'],
+        durationMs: 180_000,
+        lyric: `${CREDITS}\n${SYNCED}`,
+        lyricVersion: 70,
+      },
+      {
+        id: 13,
+        name: 'Fresh Song (Piano)',
+        artists: ['Somebody'],
+        lyric: `${CREDITS}\n[00:05.00]纯音乐，请欣赏`,
+        pureMusic: true,
+      },
+      { id: 14, name: 'Fresh Song (Cover)', artists: ['Nobody'] }, // no lyrics were ever added
+      {
+        id: 15,
+        name: 'Fresh Song (Demo)',
+        artists: ['Credits Only'],
+        lyric: '[00:00.00-1] 作词 : Invented Writer\n[00:00.00-1] 作曲 : Invented Composer\n',
+      },
+    ];
+    const provider = () => {
+      const net = fakeNetease(catalogue);
+      const p = new NeteaseProvider({
+        userAgent: UA,
+        fetch: net.fetch,
+        minIntervalMs: 0,
+        sleep: async () => undefined,
+      });
+      return { net, p };
+    };
+
+    it('delivers the lyrics of every listed song that has some, whatever their version', async () => {
+      const { net, p } = provider();
+      const listed = await p.search({ text: 'Fresh Song' });
+      expect(listed.map((c) => c.ref)).toEqual(['11', '12', '13', '14', '15']);
+      const picked = new Map<string, Awaited<ReturnType<typeof p.fetch>>>();
+      for (const c of listed) picked.set(c.ref, await p.fetch(c.ref));
+
+      // The regression: a version-1 song used to come back empty ("no such lyrics").
+      expect(picked.get('11')).toEqual({ synced: SYNCED, plain: null, instrumental: false });
+      expect(picked.get('12')?.synced).toContain('second invented line');
+      expect(picked.get('13')).toEqual({ synced: null, plain: null, instrumental: true });
+      expect(picked.get('14')).toBeNull();
+      expect(picked.get('15')).toBeNull(); // credits are not lyrics
+
+      const asked = net.calls.filter((u) => u.pathname === '/api/song/lyric');
+      expect(asked.map((u) => Object.fromEntries(u.searchParams))).toEqual(
+        listed.map((c) => ({ id: c.ref, lv: '-1', kv: '-1', tv: '-1' })),
+      );
+    });
+
+    it('finds a never-revised song automatically', async () => {
+      const { p } = provider();
+      const found = await p.find({
+        trackName: 'Fresh Song',
+        artistName: 'Lin Xia',
+        durationSec: 200,
+      });
+      expect(found).toEqual({ synced: SYNCED, plain: null, instrumental: false });
+    });
+
+    it('the fake really withholds text the caller claims to have (guards the test itself)', async () => {
+      const { net } = provider();
+      const ask = async (lv: string) =>
+        (await (await net.fetch(`https://music.163.com/api/song/lyric?id=11&lv=${lv}`)).json()) as {
+          lrc: { version: number; lyric: string };
+        };
+      expect((await ask('1')).lrc).toEqual({ version: 1, lyric: '' });
+      expect((await ask('-1')).lrc.lyric).toBe(SYNCED);
+    });
+  });
+
+  it('tells lyrics from credits, placeholders and empty answers', () => {
+    const credits = '[00:00.00-1] 作词 : Invented Writer\n[00:00.00-1] 作曲 : Invented Composer\n';
+    expect(neteaseLyrics({ code: 200, lrc: { version: 1, lyric: credits } })).toBeNull();
+    expect(
+      neteaseLyrics({ code: 200, uncollected: true, lrc: { version: 1, lyric: '' } }),
+    ).toBeNull();
+    expect(
+      neteaseLyrics({ code: 200, pureMusic: true, lrc: { lyric: '[00:05.00]纯音乐，请欣赏' } }),
+    ).toEqual({ synced: null, plain: null, instrumental: true });
+    // Credits in front of real lines stay; a sung line with a colon is still a lyric.
+    expect(
+      neteaseLyrics({ code: 200, lrc: { lyric: `${credits}[00:09.00]She said: stay` } })?.synced,
+    ).toContain('She said: stay');
+    expect(neteaseLyricParams('42')).toEqual({ id: '42', lv: '-1', kv: '-1', tv: '-1' });
   });
 
   it('returns null when nothing fits and pauses when the service refuses', async () => {

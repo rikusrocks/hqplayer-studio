@@ -29,6 +29,23 @@ Additional gates in CI (`.github/workflows/windows-build.yml`): Electron package
 
 Still to add (tracked in PROGRESS): 1000+ track scan performance fixture, browser-level UI tests (Playwright) for the main flows.
 
+## Opt-in — real lyric and cover services (by hand, needs the network)
+
+Not part of `pnpm test` or CI: they call third parties. A run sends a few dozen requests per source, one per second, and prints names and line counts only (never lyric text).
+
+```sh
+HQPS_LIVE_TESTS=all pnpm vitest run packages/lyrics/src/live.test.ts packages/core/src/services/covers.live.test.ts
+HQPS_LIVE_TESTS=netease,kugou pnpm vitest run packages/lyrics/src/live.test.ts   # a list of sources
+```
+
+| Checks                                                                                  | File                                                                      |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Search lists results; choosing a listed result delivers lyrics; automatic match         | `packages/lyrics/src/live.test.ts`                                        |
+| Album search lists the album; its cover downloads as a real JPEG/PNG/WebP at full size  | `packages/core/src/services/covers.live.test.ts`                          |
+| NetEase, search list → choice → lines on screen, against a stand-in with the real rules | `packages/core/src/services/lyrics-netease.test.ts` (runs in `pnpm test`) |
+
+`HQPS_LIVE_NETEASE_URL=http://music.163.com` helps on a network that resets NetEase's HTTPS. Last run 2026-11-11 (Mac): NetEase (over HTTP), Kugou, lyrics.ovh, iTunes, Deezer, MusicBrainz passed; LRCLIB is blocked on that network.
+
 ## Manual — Mac (done 2026-11-10)
 
 - [x] Desktop UI at 1440×900 against real Core + Mock: browse, album detail, play from track 3, player bar shows engine-confirmed DSD64 → DSD512.
