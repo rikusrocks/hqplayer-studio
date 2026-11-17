@@ -24,8 +24,10 @@ export type QueueSyncState = z.infer<typeof QueueSyncStateSchema>;
  * `engine_playlist_empty`  HQPlayer's playlist is empty but Studio has a queue
  * `engine_track_differs`   HQPlayer's current track is not the planned one
  * `engine_length_differs`  same current track, but HQPlayer's playlist length differs
+ * `live_input`             HQPlayer plays a live input (Apple Music); the plan is kept and waits
  */
 export const QueueSyncCodeSchema = z.enum([
+  'live_input',
   'engine_unqueued',
   'engine_playlist_empty',
   'engine_track_differs',

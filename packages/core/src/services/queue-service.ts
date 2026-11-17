@@ -74,6 +74,12 @@ export class QueueService {
   private lastChangeAt = 0;
   private settleTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly settleMs: number;
+  /**
+   * Set while HQPlayer plays a live input (Apple Music) on Studio's request: the plan is kept
+   * as it is and not compared with HQPlayer. Called once when that ends because Studio itself
+   * loads something else into HQPlayer.
+   */
+  private liveRelease: (() => void) | null = null;
 
   constructor(
     private readonly engine: EngineService,
@@ -93,6 +99,32 @@ export class QueueService {
   dispose(): void {
     if (this.settleTimer) clearTimeout(this.settleTimer);
     this.settleTimer = null;
+  }
+
+  /**
+   * HQPlayer is about to play a live input instead of the plan. The plan stays untouched (it
+   * comes back with "take over" when the live input ends) and is not flagged as out of sync.
+   * `onRelease` fires if a queue change from Studio ends the live input on its own.
+   */
+  suspendForLive(onRelease: () => void): void {
+    this.liveRelease = onRelease;
+    if (this.sync.state !== 'unknown' || this.sync.code !== 'live_input') {
+      this.setSync('unknown', 'live_input');
+      this.commit(false);
+    }
+  }
+
+  /** The live input is over: compare the plan with HQPlayer again. */
+  resumeFromLive(): void {
+    if (!this.liveRelease) return;
+    this.liveRelease = null;
+    this.setSync('unknown');
+    this.commit(false);
+    this.onEngineStatus(this.engine.getStatus());
+  }
+
+  get suspendedForLive(): boolean {
+    return this.liveRelease !== null;
   }
 
   private restore(): void {
@@ -138,7 +170,7 @@ export class QueueService {
   }
 
   replace(input: ReplaceInput): Promise<QueueState> {
-    return this.exclusive(() => this.replaceImpl(input));
+    return this.exclusive(() => this.replaceImpl(input), true);
   }
 
   private async replaceImpl(input: ReplaceInput): Promise<QueueState> {
@@ -309,7 +341,7 @@ export class QueueService {
   }
 
   clear(): Promise<QueueState> {
-    return this.exclusive(() => this.clearImpl());
+    return this.exclusive(() => this.clearImpl(), true);
   }
 
   private async clearImpl(): Promise<QueueState> {
@@ -414,7 +446,7 @@ export class QueueService {
    * playlist cannot be replaced under a playing track) and does not start playback.
    */
   takeover(): Promise<QueueState> {
-    return this.exclusive(() => this.takeoverImpl());
+    return this.exclusive(() => this.takeoverImpl(), true);
   }
 
   private async takeoverImpl(): Promise<QueueState> {
@@ -438,9 +470,23 @@ export class QueueService {
 
   // --- internals ------------------------------------------------------------------------------
 
-  private async exclusive(fn: () => Promise<QueueState>): Promise<QueueState> {
+  private async exclusive(
+    fn: () => Promise<QueueState>,
+    replacesEngineQueue = false,
+  ): Promise<QueueState> {
+    const release = this.liveRelease;
+    if (release && !replacesEngineQueue) {
+      // Appending to, or jumping within, HQPlayer's playlist makes no sense while that playlist
+      // is one live input: the plan would no longer describe anything.
+      throw new ConflictError(
+        'HQPlayer is playing Apple Music (live input). Stop it, or play something from the library, first.',
+      );
+    }
     this.busy += 1;
+    // Loading a queue replaces what HQPlayer plays, a live input included.
+    this.liveRelease = null;
     try {
+      release?.();
       const state = await fn();
       this.lastChangeAt = Date.now();
       this.startSettling();
@@ -489,7 +535,7 @@ export class QueueService {
   }
 
   private onEngineStatus(status: EngineStatus): void {
-    if (this.busy > 0) return;
+    if (this.busy > 0 || this.liveRelease) return;
     const verdict = this.evaluate(status);
     if (verdict.state !== 'engine_offline' && this.restored) {
       // First look at HQPlayer since the plan was restored from the last session.
@@ -581,6 +627,7 @@ export class QueueService {
 
 /** English fallbacks for clients that do not translate `sync.code`. */
 const SYNC_REASONS: Record<QueueSyncCode, string> = {
+  live_input: 'HQPlayer is playing a live input (Apple Music); the queue is kept for later.',
   engine_unqueued: 'HQPlayer is playing something that Studio did not queue.',
   engine_playlist_empty:
     "HQPlayer's playlist is empty, so it no longer matches Studio's queue (HQPlayer restarted, or the playlist was cleared elsewhere).",
