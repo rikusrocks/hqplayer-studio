@@ -34,6 +34,11 @@ export default tseslint.config(
     },
   },
   {
+    // the static website (rikus.rocks): a plain browser script
+    files: ['website/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: { ...globals.browser } },
+  },
+  {
     files: ['apps/**/*.{ts,tsx}', 'packages/ui/**/*.{ts,tsx}', 'packages/api-client/**/*.ts'],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },

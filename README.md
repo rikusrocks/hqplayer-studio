@@ -9,6 +9,8 @@
 
 **第一次安装：[安装与上手 / Getting started](docs/getting-started.md)**（准备 HQPlayer、安装、第一次打开时的设置向导、各功能怎么用、常见问题）。
 
+**网站 / Website：<https://rikus.rocks>**（介绍、安装说明、下载；源文件在 `website/`，合并到 `main` 后由 “Website” 工作流发布到 GitHub Pages）。
+
 **使用说明：[用户指南 / User guide](docs/user-guide.md)**（安装、连接 HQPlayer、音乐库、遥控、DSP、备份与回退、日志、长时间播放测试）。
 
 |                 |                                                                                                                                                              |

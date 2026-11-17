@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Guide — HQP Studio</title>
+    <meta name="title-en" content="Guide — HQP Studio" />
+    <meta name="title-zh" content="使用说明 — HQP Studio" />
+    <meta
+      name="description"
+      content="How to install HQP Studio, connect it to HQPlayer Desktop 6, add your music, use the phone remote, DSP presets and EQ."
+    />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="img/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="site.js" defer></script>
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="./"
+          ><img src="img/icon-256.png" alt="" /><span class="name">HQP Studio</span
+          ><small>beta</small></a
+        >
+        <nav class="nav">
+          <a class="hide-sm" href="./#features"
+            ><span data-l="en">Features</span><span data-l="zh">功能</span></a
+          >
+          <a href="guide.html" aria-current="page"
+            ><span data-l="en">Guide</span><span data-l="zh">使用说明</span></a
+          >
+          <a href="./#download"><span data-l="en">Download</span><span data-l="zh">下载</span></a>
+          <button class="lang" type="button">中文</button>
+        </nav>
+      </div>
+    </header>
+
+    <div class="page-head">
+      <div class="wrap">
+        <h1><span data-l="en">Getting started</span><span data-l="zh">安装与上手</span></h1>
+        <p>
+          <span data-l="en"
+            >From download to your first album in about ten minutes. Studio only remote-controls
+            HQPlayer, so the first step happens in HQPlayer itself.</span
+          >
+          <span data-l="zh"
+            >从下载到播放第一张专辑，大约十分钟。Studio 只是遥控 HQPlayer，所以第一步在 HQPlayer
+            里完成。</span
+          >
+        </p>
+      </div>
+    </div>
+
+    <div class="wrap guide">
+      <nav class="toc" aria-label="Contents">
+        <ol>
+          <li>
+            <a href="#need"><span data-l="en">What you need</span><span data-l="zh">准备</span></a>
+          </li>
+          <li>
+            <a href="#hqplayer"
+              ><span data-l="en">Make HQPlayer play</span
+              ><span data-l="zh">先让 HQPlayer 出声</span></a
+            >
+          </li>
+          <li>
+            <a href="#install"
+              ><span data-l="en">Install HQP Studio</span
+              ><span data-l="zh">安装 HQP Studio</span></a
+            >
+          </li>
+          <li>
+            <a href="#wizard"
+              ><span data-l="en">The setup wizard</span><span data-l="zh">设置向导</span></a
+            >
+          </li>
+          <li>
+            <a href="#use"
+              ><span data-l="en">Everyday use</span><span data-l="zh">日常使用</span></a
+            >
+          </li>
+          <li>
+            <a href="#remote"
+              ><span data-l="en">Phone remote</span><span data-l="zh">手机遥控</span></a
+            >
+          </li>
+          <li>
+            <a href="#dsp"
+              ><span data-l="en">DSP and presets</span><span data-l="zh">DSP 与预设</span></a
+            >
+          </li>
+          <li>
+            <a href="#eq"><span data-l="en">Equalizer</span><span data-l="zh">均衡器</span></a>
+          </li>
+          <li>
+            <a href="#lyrics"
+              ><span data-l="en">Lyrics and covers</span><span data-l="zh">歌词与封面</span></a
+            >
+          </li>
+          <li>
+            <a href="#apple"
+              ><span data-l="en">Apple Music (experimental)</span
+              ><span data-l="zh">Apple Music（实验）</span></a
+            >
+          </li>
+          <li>
+            <a href="#backup"
+              ><span data-l="en">Backups and updates</span><span data-l="zh">备份与升级</span></a
+            >
+          </li>
+          <li>
+            <a href="#help"
+              ><span data-l="en">Troubleshooting</span><span data-l="zh">常见问题</span></a
+            >
+          </li>
+          <li>
+            <a href="#privacy"><span data-l="en">Privacy</span><span data-l="zh">隐私</span></a>
+          </li>
+        </ol>
+      </nav>
+
+      <article class="doc">
+        <!-- 1 -->
+        <section id="need">
+          <h2><span data-l="en">What you need</span><span data-l="zh">你需要准备什么</span></h2>
+          <div data-l="en">
+            <div class="tbl">
+              <table>
+                <tr>
+                  <td>PC</td>
+                  <td>Windows 10 or 11, 64-bit</td>
+                </tr>
+                <tr>
+                  <td>HQPlayer</td>
+                  <td>
+                    <strong>HQPlayer Desktop 6</strong> (trial or licensed) on the
+                    <strong>same PC</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Music</td>
+                  <td>
+                    Folders on a local disk, USB drive or NAS share — FLAC, WAV, DSF, DFF, ALAC, MP3
+                    and anything else HQPlayer plays
+                  </td>
+                </tr>
+                <tr>
+                  <td>Remote (optional)</td>
+                  <td>
+                    A phone or iPad on the same home Wi-Fi; it uses the browser, no app to install
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <p>
+              Studio does not include or install HQPlayer. Get it from Signalyst:
+              <a href="https://www.signalyst.com/consumer.html">signalyst.com/consumer.html</a>.
+            </p>
+          </div>
+          <div data-l="zh">
+            <div class="tbl">
+              <table>
+                <tr>
+                  <td>电脑</td>
+                  <td>Windows 10 或 11，64 位</td>
+                </tr>
+                <tr>
+                  <td>HQPlayer</td>
+                  <td>
+                    <strong>HQPlayer Desktop 6</strong
+                    >（试用版或已授权），装在<strong>同一台电脑</strong>上
+                  </td>
+                </tr>
+                <tr>
+                  <td>音乐</td>
+                  <td>
+                    本地硬盘、USB 盘或 NAS 共享上的音乐文件夹 —— FLAC、WAV、DSF、DFF、ALAC、MP3 等
+                    HQPlayer 能播放的格式
+                  </td>
+                </tr>
+                <tr>
+                  <td>手机遥控（可选）</td>
+                  <td>和电脑连着同一个家庭 Wi-Fi 的手机或 iPad，用浏览器即可，不需要装 App</td>
+                </tr>
+              </table>
+            </div>
+            <p>
+              Studio 不包含、不安装、也不破解 HQPlayer。HQPlayer 请从 Signalyst 官网下载：<a
+                href="https://www.signalyst.com/consumer.html"
+                >signalyst.com/consumer.html</a
+              >。
+            </p>
+          </div>
+        </section>
+
+        <!-- 2 -->
+        <section id="hqplayer">
+          <h2>
+            <span data-l="en">First: make HQPlayer play on its own</span
+            ><span data-l="zh">第一步：先让 HQPlayer 自己能出声</span>
+          </h2>
+          <ol class="steps" data-l="en">
+            <li>Install and open <strong>HQPlayer Desktop 6</strong>.</li>
+            <li>
+              In HQPlayer's <strong>Settings</strong>, choose your DAC as the output (backend /
+              device, e.g. its ASIO driver) and your usual mode, filter and rate (e.g. DSD512).
+              Studio leaves these alone unless you allow it to change DSP settings.
+            </li>
+            <li>
+              To use Studio's volume control, untick <strong>Fixed volume</strong> under
+              <strong>Outputs</strong> in HQPlayer's settings. Otherwise Studio can only show the
+              volume.
+            </li>
+            <li>Play any song in HQPlayer and check that you hear it.</li>
+          </ol>
+          <ol class="steps" data-l="zh">
+            <li>安装并打开 <strong>HQPlayer Desktop 6</strong>。</li>
+            <li>
+              在 HQPlayer 的 <strong>设置（Settings）</strong> 里选好输出（Backend / Device，例如你
+              DAC 的 ASIO 驱动），以及常用的模式、滤波器和采样率（例如 DSD512）。除非你在 Studio
+              里明确允许，Studio 不会改这些设置。
+            </li>
+            <li>
+              想用 Studio 调音量：在 HQPlayer 设置的 <strong>Outputs</strong> 里<strong
+                >取消勾选 “Fixed volume”</strong
+              >，否则音量条只能显示、不能调。
+            </li>
+            <li>在 HQPlayer 里播放任意一首歌，确认能听到声音。</li>
+          </ol>
+        </section>
+
+        <!-- 3 -->
+        <section id="install">
+          <h2>
+            <span data-l="en">Install HQP Studio</span
+            ><span data-l="zh">第二步：安装 HQP Studio</span>
+          </h2>
+          <div data-l="en">
+            <p>Download from the <a href="./#download">download section</a>. Pick one:</p>
+            <div class="tbl">
+              <table>
+                <tr>
+                  <th>File</th>
+                  <th>Use</th>
+                </tr>
+                <tr>
+                  <td><code>…-setup-x64.exe</code></td>
+                  <td>
+                    <strong>Installer (recommended).</strong> Per-user, no admin rights, Start menu
+                    and desktop shortcut
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>…-portable-x64.exe</code></td>
+                  <td>Portable: double-click to run, nothing installed</td>
+                </tr>
+                <tr>
+                  <td><code>…-win-x64.zip</code></td>
+                  <td>The unpacked app folder</td>
+                </tr>
+              </table>
+            </div>
+            <ol class="steps">
+              <li>Double-click <code>…-setup-x64.exe</code>.</li>
+              <li>
+                The program is not code-signed. If Windows says
+                <strong>"Windows protected your PC"</strong>, choose
+                <strong>More info → Run anyway</strong>.
+              </li>
+              <li>Keep the suggested install folder (or change it).</li>
+              <li>
+                Leave "Run HQPlayer Studio" ticked on the last page and press
+                <strong>Finish</strong>.
+              </li>
+            </ol>
+            <div class="callout">
+              <p>
+                All three share the data folder <code>%APPDATA%\HQPlayer Studio</code> (library
+                index, playlists, settings, backups, logs). Updating, switching or uninstalling
+                keeps it.
+              </p>
+            </div>
+          </div>
+          <div data-l="zh">
+            <p>在 <a href="./#download">下载区</a> 下载，三选一：</p>
+            <div class="tbl">
+              <table>
+                <tr>
+                  <th>文件</th>
+                  <th>用途</th>
+                </tr>
+                <tr>
+                  <td><code>…-setup-x64.exe</code></td>
+                  <td>
+                    <strong>安装版（推荐）。</strong
+                    >装到当前用户，不需要管理员权限，有开始菜单和桌面图标
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>…-portable-x64.exe</code></td>
+                  <td>免安装版：双击就运行，不安装任何东西</td>
+                </tr>
+                <tr>
+                  <td><code>…-win-x64.zip</code></td>
+                  <td>解压即用的程序文件夹</td>
+                </tr>
+              </table>
+            </div>
+            <ol class="steps">
+              <li>双击 <code>…-setup-x64.exe</code>。</li>
+              <li>
+                程序没有数字签名，Windows 可能弹出 <strong>“Windows 已保护你的电脑”</strong>：点
+                <strong>更多信息 → 仍要运行</strong>。
+              </li>
+              <li>安装位置用默认的即可（也可以改）。</li>
+              <li>最后一页保持勾选“运行 HQPlayer Studio”，点 <strong>完成</strong>。</li>
+            </ol>
+            <div class="callout">
+              <p>
+                三种方式共用同一个数据文件夹
+                <code>%APPDATA%\HQPlayer Studio</code
+                >（音乐库索引、播放列表、设置、备份、日志）。升级、换用、卸载都不会删除它。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4 -->
+        <section id="wizard">
+          <h2>
+            <span data-l="en">The setup wizard</span><span data-l="zh">第三步：设置向导</span>
+          </h2>
+          <figure>
+            <div class="frame">
+              <img
+                src="img/wizard.jpg"
+                width="2000"
+                height="1250"
+                loading="lazy"
+                alt="The first page of the setup wizard"
+              />
+            </div>
+            <figcaption>
+              <span data-l="en"
+                >The wizard opens on the first start. Nothing reaches HQPlayer until you press
+                Finish.</span
+              ><span data-l="zh">第一次打开时自动出现。点“完成”之前不会连接或改动 HQPlayer。</span>
+            </figcaption>
+          </figure>
+          <div data-l="en">
+            <p>
+              Five steps; everything can be changed later in Settings. To look around first, press
+              <strong>Skip, show me the demo</strong> (a made-up demo library, HQPlayer untouched).
+              Run it again any time from
+              <strong>Settings → General → Setup wizard → Run setup again</strong>.
+            </p>
+            <h3>① Welcome</h3>
+            <p>Choose the language: 简体中文 or English.</p>
+            <h3>② HQPlayer — three checks</h3>
+            <div class="tbl">
+              <table>
+                <tr>
+                  <th>Check / option</th>
+                  <th>What it means</th>
+                  <th>Recommended</th>
+                </tr>
+                <tr>
+                  <td>HQPlayer Desktop found</td>
+                  <td>
+                    Studio looks in the usual places. If not found, press
+                    <strong>Choose HQPlayer…</strong> and pick <code>HQPlayer6Desktop.exe</code>
+                  </td>
+                  <td>must be ticked</td>
+                </tr>
+                <tr>
+                  <td>HQPlayer is running</td>
+                  <td>If not, press <strong>Start HQPlayer</strong></td>
+                  <td>must be ticked</td>
+                </tr>
+                <tr>
+                  <td>Control interface answers (127.0.0.1:4321)</td>
+                  <td>
+                    Studio connects to HQPlayer's control port and disconnects, sending no command.
+                    HQPlayer needs a few seconds after starting: press <strong>Check again</strong>
+                  </td>
+                  <td>must be ticked</td>
+                </tr>
+                <tr>
+                  <td>Start HQPlayer when Studio starts</td>
+                  <td>Studio opens HQPlayer if it is not running yet</td>
+                  <td>on</td>
+                </tr>
+                <tr>
+                  <td>HQPlayer window: normal / minimized / hidden</td>
+                  <td>
+                    A hidden HQPlayer keeps playing; bring it back from Settings → Playback &amp;
+                    engine capabilities → HQPlayer program → Show
+                  </td>
+                  <td>"hidden" once you're used to it</td>
+                </tr>
+              </table>
+            </div>
+            <div class="callout warn">
+              <p>
+                <strong>Control interface doesn't answer?</strong> Make sure HQPlayer is actually
+                open → quit it completely and reopen → wait a few seconds and press "Check again" →
+                make sure no other program (e.g. another HQPlayer remote) uses port 4321 → allow
+                HQPlayer if security software asks.
+              </p>
+            </div>
+            <h3>③ Music folders</h3>
+            <ul>
+              <li>
+                <strong>Add music folder…</strong> as many times as you like. Scanning starts right
+                away and continues in the background.
+              </li>
+              <li>
+                <strong>NAS:</strong> use the network path, e.g. <code>\\NAS\Music</code>, rather
+                than a mapped drive letter.
+              </li>
+              <li>
+                Scans only read: nothing is moved, renamed, deleted or retagged. New music is picked
+                up automatically later.
+              </li>
+              <li>
+                Tick <strong>Remove the demo library</strong> once you've added your own folder.
+              </li>
+            </ul>
+            <h3>④ Connection and control</h3>
+            <div class="tbl">
+              <table>
+                <tr>
+                  <th>Option</th>
+                  <th>What it means</th>
+                  <th>Recommended</th>
+                </tr>
+                <tr>
+                  <td>Real HQPlayer / demo mode</td>
+                  <td>Real = HQPlayer on this PC; demo = mock engine, no sound</td>
+                  <td>Real HQPlayer</td>
+                </tr>
+                <tr>
+                  <td>Allow Studio to control HQPlayer</td>
+                  <td>
+                    Play, pause, skip, volume, send albums and playlists to HQPlayer. Off = Studio
+                    only shows what HQPlayer does
+                  </td>
+                  <td>on</td>
+                </tr>
+                <tr>
+                  <td>Allow Studio to change HQPlayer DSP settings</td>
+                  <td>
+                    Mode, filters, modulator, output rate, invert, adaptive volume and presets from
+                    Studio. A change while playing causes a short gap (~5 s)
+                  </td>
+                  <td>off if unsure</td>
+                </tr>
+              </table>
+            </div>
+            <h3>⑤ Done</h3>
+            <p>
+              Check the summary and press <strong>Finish and restart Studio</strong>. Afterwards the
+              top bar should say <strong>HQPlayer connected</strong>.
+            </p>
+          </div>
+          <div data-l="zh">
+            <p>
+              一共 5 步，每一项都可以以后在“设置”里改。想先看看界面，可以点
+              <strong>跳过，先看演示</strong>（虚构的演示音乐库，不会碰 HQPlayer）。随时可以在
+              <strong>设置 → 常规 → 设置向导 → 重新运行设置向导</strong> 再来一次。
+            </p>
+            <h3>① 欢迎</h3>
+            <p>选择语言：简体中文 / English。</p>
+            <h3>② HQPlayer（三项检查）</h3>
+            <div class="tbl">
+              <table>
+                <tr>
+                  <th>检查 / 选项</th>
+                  <th>说明</th>
+                  <th>建议</th>
+                </tr>
+                <tr>
+                  <td>找到了 HQPlayer Desktop</td>
+                  <td>
+                    Studio 会在常见位置查找。找不到时点 <strong>选择 HQPlayer…</strong> 选
+                    <code>HQPlayer6Desktop.exe</code>
+                  </td>
+                  <td>必须打勾</td>
+                </tr>
+                <tr>
+                  <td>HQPlayer 正在运行</td>
+                  <td>没运行就点 <strong>启动 HQPlayer</strong></td>
+                  <td>必须打勾</td>
+                </tr>
+                <tr>
+                  <td>控制接口有回应（127.0.0.1:4321）</td>
+                  <td>
+                    Studio 连一下 HQPlayer 的控制端口再断开，不发任何命令。HQPlayer 刚启动要几秒，点
+                    <strong>再检查一次</strong>
+                  </td>
+                  <td>必须打勾</td>
+                </tr>
+                <tr>
+                  <td>启动 Studio 时自动启动 HQPlayer</td>
+                  <td>打开 Studio 时如果 HQPlayer 没运行，就替你打开</td>
+                  <td>推荐开</td>
+                </tr>
+                <tr>
+                  <td>HQPlayer 窗口：正常 / 最小化 / 隐藏</td>
+                  <td>
+                    “隐藏”后 HQPlayer 照常在后台播放，可在 设置 → 播放与引擎能力 → HQPlayer 程序
+                    里点“显示 HQPlayer”找回来
+                  </td>
+                  <td>熟悉后可选“隐藏”</td>
+                </tr>
+              </table>
+            </div>
+            <div class="callout warn">
+              <p>
+                <strong>控制接口没回应？</strong>确认 HQPlayer 真的开着 → 完全退出 HQPlayer 再打开 →
+                等几秒点“再检查一次”→ 确认没有别的程序（例如另一个 HQPlayer 遥控软件）占用 4321 端口
+                → 安全软件询问时允许 HQPlayer。
+              </p>
+            </div>
+            <h3>③ 音乐文件夹</h3>
+            <ul>
+              <li>
+                点
+                <strong>添加音乐文件夹…</strong>，可以添加多个。添加后立即开始扫描，并在后台继续。
+              </li>
+              <li>
+                <strong>NAS：</strong>用网络路径，例如 <code>\\NAS\Music</code>，比映射盘符更可靠。
+              </li>
+              <li>扫描只读文件，从不移动、改名、删除或改标签。以后新增的音乐会被自动发现。</li>
+              <li>添加了自己的文件夹后，勾选 <strong>删除演示音乐库</strong>。</li>
+            </ul>
+            <h3>④ 连接与控制</h3>
+            <div class="tbl">
+              <table>
+                <tr>
+                  <th>选项</th>
+                  <th>说明</th>
+                  <th>建议</th>
+                </tr>
+                <tr>
+                  <td>真实 HQPlayer / 演示模式</td>
+                  <td>真实 = 连接本机 HQPlayer；演示 = 模拟引擎，没有声音</td>
+                  <td>真实 HQPlayer</td>
+                </tr>
+                <tr>
+                  <td>允许 Studio 控制 HQPlayer</td>
+                  <td>
+                    播放、暂停、切歌、调音量、把专辑和播放列表送进 HQPlayer。关掉时 Studio 只显示
+                    HQPlayer 的状态
+                  </td>
+                  <td>开</td>
+                </tr>
+                <tr>
+                  <td>允许 Studio 修改 HQPlayer DSP 设置</td>
+                  <td>
+                    在 Studio
+                    里切换模式、滤波器、调制器、输出采样率、反相、自适应音量并保存预设。播放中更改会有约
+                    5 秒的短暂中断
+                  </td>
+                  <td>不确定就先关</td>
+                </tr>
+              </table>
+            </div>
+            <h3>⑤ 完成</h3>
+            <p>
+              检查摘要，点 <strong>完成并重新启动 Studio</strong>。重启后右上角应显示
+              <strong>“HQPlayer 已连接”</strong>。
+            </p>
+          </div>
+        </section>
+
+        <!-- 5 -->
+        <section id="use">
+          <h2><span data-l="en">Everyday use</span><span data-l="zh">日常使用</span></h2>
+          <figure>
+            <div class="frame">
+              <img
+                src="img/album.jpg"
+                width="2000"
+                height="1250"
+                loading="lazy"
+                alt="An album page with the queue panel"
+              />
+            </div>
+          </figure>
+          <ul data-l="en">
+            <li>
+              <strong>Play:</strong> double-click an album, track or playlist, or use the play
+              button on a cover. Studio stops HQPlayer, loads the tracks into it and starts
+              playback.
+            </li>
+            <li>
+              <strong>Queue:</strong> the right-hand panel (toggle it with the button at the right
+              of the player bar). Play next, add to queue, drag to reorder. Playing never changes a
+              saved playlist.
+            </li>
+            <li>
+              <strong>Out of sync:</strong> if someone changes tracks in HQPlayer's own window,
+              choose <strong>Follow HQPlayer</strong> or <strong>Replace HQPlayer's queue</strong>.
+              Nothing is overwritten silently.
+            </li>
+            <li>
+              <strong>Playlists:</strong> create them under Playlists; add albums or tracks with
+              right-click or "…".
+            </li>
+            <li>
+              <strong>Search:</strong> the box at the top, or <kbd>Ctrl</kbd> + <kbd>K</kbd> /
+              <kbd>/</kbd>.
+            </li>
+            <li>
+              <strong>Keys:</strong> <kbd>Space</kbd> play / pause; <kbd>Ctrl</kbd> + <kbd>→</kbd> /
+              <kbd>←</kbd> next / previous.
+            </li>
+            <li>
+              <strong>Mini Player:</strong> the button on the player bar; optionally always on top.
+            </li>
+            <li><strong>Media keys, tray, themes:</strong> Settings → General.</li>
+          </ul>
+          <ul data-l="zh">
+            <li>
+              <strong>播放：</strong>双击专辑、歌曲或播放列表，或点封面上的播放按钮。Studio 先停止
+              HQPlayer，再把曲目放进去并开始播放。
+            </li>
+            <li>
+              <strong>队列：</strong>右侧面板（播放条右边的按钮可以打开 /
+              收起）。可以“下一首播放”“加入队列”、拖动排序。播放不会改动保存的播放列表。
+            </li>
+            <li>
+              <strong>队列不一致：</strong>如果有人在 HQPlayer 自己的窗口里换了歌，选择
+              <strong>以 HQPlayer 为准</strong> 或
+              <strong>用 Studio 队列替换 HQPlayer</strong>。Studio 从不静默覆盖。
+            </li>
+            <li>
+              <strong>播放列表：</strong>在侧栏“播放列表”新建；在专辑 / 歌曲上右键或点“…”加入。
+            </li>
+            <li>
+              <strong>搜索：</strong>顶部搜索框，或按 <kbd>Ctrl</kbd> + <kbd>K</kbd> /
+              <kbd>/</kbd>。
+            </li>
+            <li>
+              <strong>快捷键：</strong><kbd>空格</kbd> 播放 / 暂停；<kbd>Ctrl</kbd> + <kbd>→</kbd> /
+              <kbd>←</kbd> 下一首 / 上一首。
+            </li>
+            <li><strong>迷你播放器：</strong>播放条上的按钮，小窗可置顶。</li>
+            <li><strong>媒体键、托盘、主题：</strong>设置 → 常规。</li>
+          </ul>
+        </section>
+
+        <!-- 6 -->
+        <section id="remote">
+          <h2>
+            <span data-l="en">Phone and tablet remote</span
+            ><span data-l="zh">手机 / iPad 遥控</span>
+          </h2>
+          <ol class="steps" data-l="en">
+            <li>
+              On the PC: <strong>Settings → Web Remote</strong> → turn on
+              <strong>Allow phones and tablets on the LAN</strong> → choose your home network.
+            </li>
+            <li>
+              The first time, Windows may show a security alert: tick
+              <strong>only "Private networks"</strong> and allow access. If the phone can't open the
+              page, check in Windows Settings → Network &amp; internet that this network is
+              "Private".
+            </li>
+            <li>
+              Press <strong>Create pairing code</strong>: scan the QR code with the phone, or open
+              the shown address and type the 6-digit code.
+            </li>
+            <li>"Add to Home Screen" makes it feel like an app.</li>
+          </ol>
+          <ol class="steps" data-l="zh">
+            <li>
+              电脑上：<strong>设置 → 网页遥控</strong> → 打开
+              <strong>允许局域网内的手机/平板访问</strong> → 选择你家的网络。
+            </li>
+            <li>
+              第一次 Windows
+              可能弹出安全警报：<strong>只勾选“专用网络”</strong>，点“允许访问”。如果手机打不开页面，在
+              Windows 设置 → 网络和 Internet 里确认这个网络是“专用”。
+            </li>
+            <li>
+              点 <strong>生成配对码</strong>：手机扫二维码，或打开页面上显示的地址并输入 6
+              位配对码。
+            </li>
+            <li>“添加到主屏幕”后用起来就像 App。</li>
+          </ol>
+          <div class="callout warn">
+            <p data-l="en">
+              The remote uses plain HTTP inside your home network. Only turn it on for a network you
+              trust and <strong>never forward the port to the internet</strong>. Phones never get
+              settings, diagnostics, folder management or file paths; unpair devices any time.
+            </p>
+            <p data-l="zh">
+              网页遥控在家庭网络里使用不加密的
+              HTTP。只在你信任的网络里打开，<strong>不要把端口映射到公网</strong>。手机永远拿不到设置、诊断、文件夹管理或文件路径；设备可以随时取消配对。
+            </p>
+          </div>
+        </section>
+
+        <!-- 7 -->
+        <section id="dsp">
+          <h2>
+            <span data-l="en">DSP settings and presets</span><span data-l="zh">DSP 设置与预设</span>
+          </h2>
+          <div data-l="en">
+            <p>
+              With <strong>Allow Studio to change HQPlayer DSP settings</strong> on (in the wizard
+              or <strong>Settings → DSP</strong>) you can change mode (PCM / SDM), 1x / Nx filters,
+              modulator / noise shaping, output rate, invert and adaptive volume. Every change is
+              read back from HQPlayer; while playing there's a short gap and it applies after about
+              5 seconds.
+            </p>
+            <p>
+              <strong>Presets:</strong> <em>Save current settings as preset…</em>, name it (e.g.
+              "DSD512 night") and <strong>Apply</strong> it later to switch everything at once. If
+              HQPlayer no longer offers an item of the preset, Studio names it and changes nothing.
+            </p>
+            <p>
+              Output device, buffers, convolution, matrix and CUDA stay in HQPlayer's own settings.
+            </p>
+          </div>
+          <div data-l="zh">
+            <p>
+              打开 <strong>允许 Studio 修改 HQPlayer DSP 设置</strong>（在向导或
+              <strong>设置 → DSP</strong>）后，可以改模式（PCM / SDM）、1x / Nx 滤波器、调制器 /
+              噪声整形、输出采样率、反相和自适应音量。每次更改都会从 HQPlayer
+              读回确认；播放中更改会有短暂中断，约 5 秒后生效。
+            </p>
+            <p>
+              <strong>预设：</strong>点 <em>把当前设置存为预设…</em>，起个名字（例如“DSD512
+              夜间”），以后选中点 <strong>应用</strong> 一次切换全部。如果 HQPlayer
+              里已经没有预设中的某一项，Studio 会说明是哪一项，不会改动任何设置。
+            </p>
+            <p>输出设备、缓冲、卷积、矩阵、CUDA 只能在 HQPlayer 自己的设置里改。</p>
+          </div>
+        </section>
+
+        <!-- 8 -->
+        <section id="eq">
+          <h2><span data-l="en">Equalizer (EQ)</span><span data-l="zh">均衡器（EQ）</span></h2>
+          <div data-l="en">
+            <p>
+              Studio turns your EQ curve into a filter file that HQPlayer plays through its own
+              convolution engine — the sound is still processed entirely by HQPlayer. In
+              <strong>Settings → EQ</strong>:
+            </p>
+            <ol class="steps">
+              <li>
+                Shape the curve (peaks, shelves, low / high-pass, presets, or paste an AutoEQ
+                <code>ParametricEQ.txt</code>) and press <strong>Apply</strong> once, so the filter
+                file exists.
+              </li>
+              <li>
+                <strong>One-time setup in HQPlayer:</strong> in the convolution section of
+                HQPlayer's settings, choose the file shown on the page ("Copy path") as the impulse
+                response for the left and right channels (gain 0 dB), tick convolution and press OK.
+              </li>
+              <li>
+                With music playing, run the <strong>Listening check</strong>: a strong treble-cut
+                test filter goes in briefly and Studio asks whether the music sounds muffled. Your
+                EQ goes back as soon as you answer (or after 2 minutes).
+              </li>
+              <li>
+                From then on just press Apply. Boosts automatically lower the preamp so the curve
+                never exceeds 0 dB.
+              </li>
+            </ol>
+          </div>
+          <div data-l="zh">
+            <p>
+              Studio 把你的 EQ 曲线写成一个滤波器文件，由 HQPlayer 自己的卷积引擎处理 ——
+              声音仍然全部由 HQPlayer 处理。在 <strong>设置 → EQ</strong>：
+            </p>
+            <ol class="steps">
+              <li>
+                调好曲线（峰值、高低架、高低通、预设，或粘贴 AutoEQ 的
+                <code>ParametricEQ.txt</code>），点一次 <strong>应用</strong>，生成滤波器文件。
+              </li>
+              <li>
+                <strong>在 HQPlayer 里一次性设置：</strong>在 HQPlayer
+                设置的卷积（Convolution）部分，把页面上显示的文件（可点“复制路径”）设为左右声道的脉冲响应（增益
+                0 dB），勾选卷积并确定。
+              </li>
+              <li>
+                播放音乐，运行 <strong>试听检查</strong>：Studio
+                临时放入一个明显削减高音的测试滤波器，问你“音乐是不是变闷了”。回答后（或 2
+                分钟后）你的 EQ 自动恢复。
+              </li>
+              <li>
+                以后改曲线只需点“应用”。有提升时 Studio 会自动降低前级增益，曲线不会超过 0 dB。
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <!-- 9 -->
+        <section id="lyrics">
+          <h2><span data-l="en">Lyrics and covers</span><span data-l="zh">歌词与封面</span></h2>
+          <ul data-l="en">
+            <li>
+              Local lyrics first: a <code>.lrc</code> with the song's name, or lyrics embedded in
+              the file. Open the lyrics panel from the player bar; − / + adjusts the timing.
+            </li>
+            <li>
+              <strong>Online lyrics</strong> (LRCLIB, NetEase, Kugou, lyrics.ovh) are off until you
+              enable them one by one in <strong>Settings → Lyrics</strong>; then only the playing
+              track is looked up.
+            </li>
+            <li>
+              <strong>Online covers</strong> (iTunes, Deezer, MusicBrainz) are off until enabled in
+              <strong>Settings → Library → Covers</strong>. Local covers are never replaced.
+            </li>
+          </ul>
+          <ul data-l="zh">
+            <li>
+              优先使用本地歌词：与歌曲同名的
+              <code>.lrc</code>，或文件内嵌歌词。点播放条上的歌词按钮打开面板，用 − / + 校准时间。
+            </li>
+            <li>
+              <strong>在线歌词</strong>（LRCLIB、网易云、酷狗、lyrics.ovh）默认关闭，在
+              <strong>设置 → 歌词</strong> 逐个开启；开启后只为正在播放的那一首查询。
+            </li>
+            <li>
+              <strong>在线封面</strong>（iTunes、Deezer、MusicBrainz）默认关闭，在
+              <strong>设置 → 音乐库 → 封面</strong> 开启。已有的本地封面不会被替换。
+            </li>
+          </ul>
+        </section>
+
+        <!-- 10 -->
+        <section id="apple">
+          <h2>
+            <span data-l="en">Apple Music (experimental)</span
+            ><span data-l="zh">Apple Music（实验功能）</span>
+          </h2>
+          <div data-l="en">
+            <p>
+              <strong>Apple Music</strong> in the sidebar sends the Apple Music app's sound through
+              HQPlayer. You need the Apple Music app for Windows, a virtual audio cable (e.g.
+              VB-Audio's, installed by you) and HQPlayer's input set to that cable.
+              <strong>Check this PC</strong> on that page lists what's missing and opens the right
+              Windows settings.
+            </p>
+            <p>
+              It is not bit-perfect (the sound passes the Windows mixer) and is a few seconds behind
+              the Apple Music app. Turn the amplifier down the first time.
+            </p>
+          </div>
+          <div data-l="zh">
+            <p>
+              侧栏的 <strong>Apple Music</strong> 让 Apple Music 应用的声音经过
+              HQPlayer。需要：Windows 版 Apple Music 应用、一个虚拟声卡（例如 VB-Audio
+              的虚拟线缆，需要自己安装），并在 HQPlayer 设置里把输入设为它。页面上的
+              <strong>检查这台电脑</strong> 会逐项告诉你缺什么，并打开对应的 Windows 设置。
+            </p>
+            <p>
+              这不是逐位精确播放（声音经过 Windows 混音器），并且比 Apple Music
+              应用晚几秒。第一次使用请先把放大器音量调低。
+            </p>
+          </div>
+        </section>
+
+        <!-- 11 -->
+        <section id="backup">
+          <h2>
+            <span data-l="en">Backups, updates, uninstalling</span
+            ><span data-l="zh">备份、升级、卸载</span>
+          </h2>
+          <ul data-l="en">
+            <li>
+              <strong>Backups:</strong> Settings → General → Data backups. One a day and one before
+              each update, automatically; <strong>Back up now</strong> any time.
+              <strong>Restore…</strong> brings one back, and the current data is saved first so a
+              restore can be undone. Backups hold the library index, playlists, queue and settings —
+              not music files.
+            </li>
+            <li>
+              <strong>Update:</strong> download the new version here and install it over the old
+              one. Studio never updates itself.
+            </li>
+            <li>
+              <strong>Going back:</strong> install the older version. If the newer one upgraded the
+              database, the older one says so and offers to restore the pre-update backup.
+            </li>
+            <li>
+              <strong>Uninstall:</strong> Windows Settings → Apps → HQPlayer Studio → Uninstall.
+              <code>%APPDATA%\HQPlayer Studio</code> stays; delete it yourself if you're done with
+              Studio. HQPlayer is not affected.
+            </li>
+          </ul>
+          <ul data-l="zh">
+            <li>
+              <strong>备份：</strong>设置 → 常规 →
+              数据备份。每天自动一份、每次升级前自动一份；也可以随时点
+              <strong>立即备份</strong>。<strong>恢复…</strong>
+              可选一份备份恢复，恢复前的数据也会先存一份，所以恢复可以撤销。备份只包括音乐库索引、播放列表、队列和设置，不包括音乐文件。
+            </li>
+            <li>
+              <strong>升级：</strong>在本站下载新版本，直接安装即可，不需要先卸载。Studio
+              不会自动更新自己。
+            </li>
+            <li>
+              <strong>退回旧版本：</strong
+              >安装旧版本即可；如果数据库已被新版本升级，旧版本会提示并提供“恢复这个备份”。
+            </li>
+            <li>
+              <strong>卸载：</strong>Windows 设置 → 应用 → HQPlayer Studio → 卸载。数据文件夹
+              <code>%APPDATA%\HQPlayer Studio</code> 会保留，确定不用后可手动删除。卸载 Studio
+              不影响 HQPlayer。
+            </li>
+          </ul>
+        </section>
+
+        <!-- 12 -->
+        <section id="help">
+          <h2><span data-l="en">Troubleshooting</span><span data-l="zh">常见问题</span></h2>
+          <div class="tbl" data-l="en">
+            <table>
+              <tr>
+                <th>Symptom</th>
+                <th>What to do</th>
+              </tr>
+              <tr>
+                <td>Top bar says "MOCK engine"</td>
+                <td>
+                  Still in demo mode: Settings → Playback &amp; engine capabilities → Engine
+                  connection → Real HQPlayer → Restart now (or run the wizard again)
+                </td>
+              </tr>
+              <tr>
+                <td>"HQPlayer not connected"</td>
+                <td>
+                  Open HQPlayer, or turn on "Start HQPlayer when Studio starts". Studio reconnects
+                  by itself and never starts playback on reconnect
+                </td>
+              </tr>
+              <tr>
+                <td>Play buttons greyed out</td>
+                <td>
+                  Settings → Playback &amp; engine capabilities →
+                  <strong>Allow Studio to control HQPlayer</strong>
+                </td>
+              </tr>
+              <tr>
+                <td>Plays but no sound</td>
+                <td>
+                  That's HQPlayer's output: play a song in HQPlayer itself and check its output
+                  device / DAC
+                </td>
+              </tr>
+              <tr>
+                <td>Volume slider doesn't move</td>
+                <td>HQPlayer Settings → Outputs → untick <strong>Fixed volume</strong></td>
+              </tr>
+              <tr>
+                <td>Folder not scanned / NAS unavailable</td>
+                <td>
+                  See the folder's error under Settings → Library; use <code>\\NAS\share</code> and
+                  make sure File Explorer can open it
+                </td>
+              </tr>
+              <tr>
+                <td>Phone can't open the remote</td>
+                <td>
+                  Same Wi-Fi; network set to "Private"; allow "Private networks" in the firewall
+                  prompt; create a new code if it expired
+                </td>
+              </tr>
+              <tr>
+                <td>HQPlayer window hidden</td>
+                <td>
+                  Settings → Playback &amp; engine capabilities → HQPlayer program → Show HQPlayer
+                </td>
+              </tr>
+              <tr>
+                <td>Something went wrong</td>
+                <td>
+                  Settings → Diagnostics → <strong>Copy diagnostics</strong> and send it to the
+                  developer. Paths, titles, computer and user names are removed
+                </td>
+              </tr>
+            </table>
+          </div>
+          <div class="tbl" data-l="zh">
+            <table>
+              <tr>
+                <th>现象</th>
+                <th>处理</th>
+              </tr>
+              <tr>
+                <td>顶栏显示 “MOCK 引擎”</td>
+                <td>
+                  还在演示模式：设置 → 播放与引擎能力 → 引擎连接 → 真实 HQPlayer →
+                  立即重启（或重新运行设置向导）
+                </td>
+              </tr>
+              <tr>
+                <td>显示“HQPlayer 未连接”</td>
+                <td>
+                  打开 HQPlayer，或开启“启动 Studio 时自动启动 HQPlayer”。Studio
+                  会自动重连，重连后不会自动播放
+                </td>
+              </tr>
+              <tr>
+                <td>播放按钮是灰的</td>
+                <td>设置 → 播放与引擎能力 → <strong>允许 Studio 控制 HQPlayer</strong></td>
+              </tr>
+              <tr>
+                <td>能播放但没有声音</td>
+                <td>是 HQPlayer 的输出问题：在 HQPlayer 里直接播放一首歌，检查输出设备 / DAC</td>
+              </tr>
+              <tr>
+                <td>音量条不能拖</td>
+                <td>HQPlayer 设置 → Outputs → 取消 <strong>Fixed volume</strong></td>
+              </tr>
+              <tr>
+                <td>文件夹扫描不到 / NAS 不可用</td>
+                <td>
+                  在 设置 → 音乐库 查看该文件夹的错误；NAS 用
+                  <code>\\NAS\共享名</code> 路径，并确认资源管理器能打开
+                </td>
+              </tr>
+              <tr>
+                <td>手机打不开遥控页面</td>
+                <td>
+                  同一个 Wi-Fi；网络设为“专用”；防火墙提示时允许“专用网络”；配对码过期就生成新的
+                </td>
+              </tr>
+              <tr>
+                <td>HQPlayer 窗口被隐藏了</td>
+                <td>设置 → 播放与引擎能力 → HQPlayer 程序 → 显示 HQPlayer</td>
+              </tr>
+              <tr>
+                <td>出了问题</td>
+                <td>
+                  设置 → 诊断 →
+                  <strong>复制诊断信息</strong>，发给开发者。内容已去掉路径、曲名、电脑名和用户名
+                </td>
+              </tr>
+            </table>
+          </div>
+        </section>
+
+        <!-- 13 -->
+        <section id="privacy">
+          <h2><span data-l="en">Privacy</span><span data-l="zh">隐私</span></h2>
+          <p data-l="en">
+            Studio uploads nothing. Only the online lyrics / cover sources you enable receive track
+            or album names — never paths. Logs, crash reports and diagnostics stay on your PC;
+            sending them is your choice. More detail (the long listening test, going back a version)
+            is in the
+            <a
+              href="https://github.com/rikusrocks/hqplayer-studio/blob/main/docs/user-guide.md#english"
+              >full user guide</a
+            >.
+          </p>
+          <p data-l="zh">
+            Studio 不上传任何数据。只有你开启的在线歌词 / 封面来源会收到歌名或专辑名 ——
+            从不发送路径。日志、崩溃报告和诊断信息都留在你的电脑上，是否发给别人由你决定。更多细节（长时间播放测试、版本回退等）见
+            <a href="https://github.com/rikusrocks/hqplayer-studio/blob/main/docs/user-guide.md"
+              >完整用户指南</a
+            >。
+          </p>
+        </section>
+      </article>
+    </div>
+
+    <footer>
+      <div class="wrap">
+        <span
+          ><span data-l="en"
+            >HQP Studio is an unofficial third-party app and is
+            <strong>not affiliated with Signalyst</strong>. HQPlayer is a product of
+            Signalyst.</span
+          ><span data-l="zh"
+            >HQP Studio 是非官方的第三方应用，<strong>与 Signalyst 没有任何隶属关系</strong
+            >。HQPlayer 是 Signalyst 的产品。</span
+          ></span
+        >
+        <span
+          ><a href="./"><span data-l="en">Home</span><span data-l="zh">首页</span></a> ·
+          <a href="./#download"><span data-l="en">Download</span><span data-l="zh">下载</span></a> ·
+          <a href="https://github.com/rikusrocks/hqplayer-studio">GitHub</a></span
+        >
+      </div>
+    </footer>
+  </body>
+</html>
