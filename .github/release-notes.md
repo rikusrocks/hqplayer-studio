@@ -14,6 +14,7 @@ HQPlayer Studio {{VERSION}} — a third-party music library, playlist manager an
 
 All three share one data folder (`%APPDATA%\HQPlayer Studio`): switching, updating or uninstalling keeps the library, playlists and settings. Updates back up the database first; see the user guide for going back to an older version.
 
+- 安装与上手 / Getting started: [docs/getting-started.md](https://github.com/rikusrocks/hqplayer-studio/blob/v{{VERSION}}/docs/getting-started.md)（第一次打开时有设置向导 / a setup wizard opens on the first start）
 - 用户指南 / User guide: [docs/user-guide.md](https://github.com/rikusrocks/hqplayer-studio/blob/v{{VERSION}}/docs/user-guide.md)
 - 更新内容 / Changes: [docs/PROGRESS.md](https://github.com/rikusrocks/hqplayer-studio/blob/v{{VERSION}}/docs/PROGRESS.md)
 

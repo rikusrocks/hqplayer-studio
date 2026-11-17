@@ -1097,4 +1097,110 @@ export const en: Record<MessageKey, string> = {
     'HQPlayer did not pick up the change. Check that convolution in HQPlayer uses the file shown above; if it does, restart HQPlayer after applying a new curve.',
   'eq.check.result.not-configured':
     'HQPlayer would not turn convolution on: no convolution filter is set up in HQPlayer yet. Do the setup above first.',
+  'setup.progress': 'Setup steps',
+  'setup.step.welcome': 'Welcome',
+  'setup.step.hqplayer': 'HQPlayer',
+  'setup.step.music': 'Music',
+  'setup.step.control': 'Control',
+  'setup.step.done': 'Done',
+  'setup.skip': 'Skip, show me the demo',
+  'setup.skipHint':
+    'Set nothing up for now and try the demo library on the mock engine. You can run this wizard again from Settings → General.',
+  'setup.start': 'Start setup',
+  'setup.next': 'Next',
+  'setup.back': 'Back',
+  'setup.finish': 'Finish',
+  'setup.finishRestart': 'Finish and restart Studio',
+  'setup.guideLink': 'Open the full install and user guide',
+  'setup.welcome.title': 'Welcome to HQP Studio',
+  'setup.welcome.intro':
+    'HQP Studio is a music library, playlist manager and remote for HQPlayer Desktop 6. HQPlayer still does all the sound: DSP, upsampling and the DAC output. Studio finds your music, keeps the queue and remote-controls HQPlayer. The next steps take about 3 minutes.',
+  'setup.welcome.needTitle': 'Before you start, have ready:',
+  'setup.welcome.need1':
+    'HQPlayer Desktop 6 installed on this PC (trial or licensed), with the output device (DAC) chosen in HQPlayer’s own settings and sound working.',
+  'setup.welcome.need2': 'Your music folders (local disk, USB drive or a NAS share).',
+  'setup.welcome.need3': 'Optional: a phone or iPad on the same home Wi-Fi, for the remote.',
+  'setup.welcome.safe':
+    'This wizard does not change HQPlayer’s installation, licence or output settings. Studio starts talking to HQPlayer only after you press “Finish” at the end.',
+  'setup.hqp.title': 'Step 1: HQPlayer',
+  'setup.hqp.intro':
+    'Studio talks to HQPlayer over its control interface (this PC, 127.0.0.1, port 4321). When all three checks are ticked you are ready to go on.',
+  'setup.hqp.browser':
+    'This is a browser preview: HQPlayer can only be checked from the HQP Studio app on Windows.',
+  'setup.hqp.installed': 'HQPlayer Desktop found',
+  'setup.hqp.notInstalled': 'HQPlayer Desktop not found',
+  'setup.hqp.notInstalledHelp':
+    'If it is not installed yet, download HQPlayer Desktop 6 from Signalyst and install it. If it is installed somewhere unusual, use “Choose HQPlayer…” to pick HQPlayer6Desktop.exe.',
+  'setup.hqp.download': 'Download HQPlayer Desktop',
+  'setup.hqp.running': 'HQPlayer is running',
+  'setup.hqp.notRunning': 'HQPlayer is not running',
+  'setup.hqp.notRunningHelp':
+    'Press “Start HQPlayer” or open it yourself. On its first start, choose the output device in HQPlayer’s settings.',
+  'setup.hqp.portOk': 'HQPlayer’s control interface answers (127.0.0.1:4321)',
+  'setup.hqp.portChecking': 'Checking HQPlayer’s control interface…',
+  'setup.hqp.portBad': 'HQPlayer’s control interface does not answer',
+  'setup.hqp.portWhat':
+    'This check only connects to the port and disconnects; it sends no command to HQPlayer.',
+  'setup.hqp.portHelp':
+    'Make sure HQPlayer is open (not just installed). It needs a few seconds after starting; then press “Check again”. If it still fails: quit HQPlayer completely and open it again, make sure no other program uses port 4321, and allow HQPlayer if security software asks.',
+  'setup.hqp.checkAgain': 'Check again',
+  'setup.hqp.windowHint':
+    'What Studio does with HQPlayer’s window when it starts or finds it. A hidden HQPlayer keeps running and playing; show it again from Settings → Playback & engine capabilities.',
+  'setup.hqp.ownSettingsTitle': 'Done in HQPlayer’s own settings:',
+  'setup.hqp.ownSettings':
+    'The output device (DAC / ASIO driver), buffers, convolution, matrix and CUDA can only be changed in HQPlayer’s settings window. Play any song in HQPlayer first to check that you hear it, then come back here.',
+  'setup.hqp.noHqp': 'No HQPlayer yet?',
+  'setup.hqp.useDemo': 'Use demo mode (mock engine) for now',
+  'setup.music.title': 'Step 2: Music folders',
+  'setup.music.intro':
+    'Choose the folders that hold your music and Studio builds its library index. Scans only read files; nothing is ever moved, renamed or deleted.',
+  'setup.music.add': 'Add music folder…',
+  'setup.music.scanning': 'Scanning… {count} files found',
+  'setup.music.help':
+    'Add as many folders as you like (e.g. one on a local disk, one on a NAS). Scanning runs in the background, so you can press “Next” right away; later Studio notices new or changed music in these folders by itself. For a NAS use the network path (e.g. \\\\NAS\\Music) rather than a mapped drive letter.',
+  'setup.music.removeDemo': 'Remove the demo library',
+  'setup.music.removeDemoHint':
+    'The demo library holds made-up albums for trying Studio out. It is removed when you finish.',
+  'setup.music.removeDemoLater':
+    'Add a folder of your own first; then the demo library can be removed.',
+  'setup.control.title': 'Step 3: Connection and control',
+  'setup.control.intro':
+    'Choose whether Studio connects to the real HQPlayer or starts with the mock engine.',
+  'setup.control.live': 'Real HQPlayer',
+  'setup.control.liveHint':
+    'Connects to HQPlayer Desktop on this PC (127.0.0.1:4321). It reconnects by itself, and a reconnect only reads the state: it never starts playback or changes settings.',
+  'setup.control.mock': 'Demo mode (mock engine)',
+  'setup.control.mockHint':
+    'No HQPlayer, no sound: for getting to know the app. Switch later in Settings → Playback & engine capabilities.',
+  'setup.control.controlHint':
+    'Lets Studio play, pause, skip, change the volume and send albums and playlists to HQPlayer. When off, Studio only shows what HQPlayer is doing. Only commands verified on HQPlayer 6 are offered.',
+  'setup.control.dsp': 'Allow Studio to change HQPlayer DSP settings',
+  'setup.control.dspHint':
+    'Change mode, 1x / Nx filters, modulator, output rate (e.g. DSD512), invert and adaptive volume from Studio, and save them as presets. A change while playing causes a short gap. Not sure? Leave it off and turn it on later in Settings → DSP.',
+  'setup.control.never':
+    'Whatever you choose, Studio never changes HQPlayer’s output device, licence or installation, and uploads nothing.',
+  'setup.done.title': 'All set',
+  'setup.done.intro':
+    'Check your choices below. “Finish” saves them; you can change all of them in Settings at any time.',
+  'setup.done.engine': 'Connection',
+  'setup.done.folders': 'Music folders',
+  'setup.done.demoOnly': 'Only the demo library for now',
+  'setup.done.folderCount': '{count} folder(s)',
+  'setup.done.demoRemoved': 'demo library removed',
+  'setup.done.on': 'On',
+  'setup.done.off': 'Off',
+  'setup.done.restart':
+    'Switching to the real HQPlayer needs a restart of Studio: “Finish” restarts it for you (a few seconds).',
+  'setup.done.laterTitle': 'Later, in Settings:',
+  'setup.done.later.remote':
+    'Web Remote: control playback from a phone or iPad (Settings → Web Remote, scan the QR code and type the pairing code).',
+  'setup.done.later.lyrics':
+    'Online lyrics and covers (Settings → Lyrics, Settings → Library → Covers), off by default.',
+  'setup.done.later.dsp': 'DSP presets and the equalizer (Settings → DSP, Settings → EQ).',
+  'setup.done.later.backup': 'Data backups and restore (Settings → General → Data backups).',
+  'setup.done.later.again': 'Run this wizard again at any time: Settings → General → Setup wizard.',
+  'setup.again.title': 'Setup wizard',
+  'setup.again.hint':
+    'Go through the first-start setup again: check HQPlayer, add music folders, choose connection and control.',
+  'setup.again.run': 'Run setup again',
 };

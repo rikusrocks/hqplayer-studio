@@ -2350,3 +2350,226 @@ body.is-mini {
   flex: none;
   margin-top: 2px;
 }
+
+/* ------------------------------------------------------------------ first-run setup wizard */
+.setup {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* below dialogs (1100) and toasts (1200): confirms and errors stay visible */
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  animation: hq-fade 160ms var(--ease) both;
+}
+.setup__card {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  background: var(--bg);
+  border: var(--outline);
+  box-shadow: 8px 8px 0 var(--text);
+  overflow: hidden;
+}
+.setup__steps {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 14px 18px;
+  list-style: none;
+  background: var(--surface-1);
+  border-bottom: 2px solid var(--surface-2);
+  overflow-x: auto;
+}
+.setup__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.setup__step.is-done {
+  color: var(--ok);
+}
+.setup__step.is-active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.setup__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 26px;
+  animation: hq-fade 160ms var(--ease) both;
+}
+.setup__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.setup__title {
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.setup__intro {
+  color: var(--text-2);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.setup__note {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  line-height: 1.5;
+}
+.setup__note ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.setup__note li + li {
+  margin-top: 4px;
+}
+.setup__note p {
+  margin: 6px 0 0;
+}
+.setup__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.setup__sub {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.setup .setting-row__label {
+  flex: 1 1 320px;
+}
+.setup__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.setup__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 2px solid var(--surface-1);
+}
+.setup__count {
+  flex: 1;
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.setup-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-check {
+  --tone: var(--text-2);
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 2px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  background: color-mix(in srgb, var(--tone) 8%, var(--bg));
+}
+.setup-check--ok {
+  --tone: var(--ok);
+}
+.setup-check--bad {
+  --tone: var(--warn);
+}
+.setup-check__icon {
+  flex: none;
+  display: inline-flex;
+  padding-top: 1px;
+  color: var(--tone);
+}
+.setup-check__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.45;
+}
+.setup-check__body .hq-mono {
+  overflow-wrap: anywhere;
+}
+.setup-roots {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.setup-root {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 2px solid var(--surface-1);
+}
+.setup-root > div {
+  flex: 1;
+  min-width: 0;
+}
+.setup-root .hq-mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setup-option {
+  align-items: flex-start;
+  padding: 12px 14px;
+}
+.setup-option input {
+  margin-top: 3px;
+}
+.setup-option .setup__sub {
+  color: inherit;
+  opacity: 0.8;
+}
+.setup-option > span {
+  display: flex;
+  flex-direction: column;
+}
+.setup__summary {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+@media (max-width: 560px) {
+  .setup__step span {
+    display: none;
+  }
+  .setup__step.is-active span {
+    display: inline;
+  }
+  .setup__body {
+    padding: 18px 16px;
+  }
+}

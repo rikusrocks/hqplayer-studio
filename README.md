@@ -7,6 +7,8 @@
 
 **当前阶段：Phase 5（v0.5.0）—— 稳定性与发布：安装包、数据库备份/恢复与版本回退、本地日志与崩溃报告、长时间播放测试。** 控制 HQPlayer 需在设置中开启，且只开放在你的 HQPlayer 上验证过的命令；协议能力见 [docs/protocol-capabilities.md](docs/protocol-capabilities.md)，进度见 [docs/PROGRESS.md](docs/PROGRESS.md)。
 
+**第一次安装：[安装与上手 / Getting started](docs/getting-started.md)**（准备 HQPlayer、安装、第一次打开时的设置向导、各功能怎么用、常见问题）。
+
 **使用说明：[用户指南 / User guide](docs/user-guide.md)**（安装、连接 HQPlayer、音乐库、遥控、DSP、备份与回退、日志、长时间播放测试）。
 
 |                 |                                                                                                                                                              |

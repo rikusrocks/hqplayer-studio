@@ -235,6 +235,14 @@ export const UpdateEngineSettingsRequestSchema = z
   );
 export type UpdateEngineSettingsRequest = z.infer<typeof UpdateEngineSettingsRequestSchema>;
 
+/**
+ * First-run setup (the welcome wizard). `completed` is false only on a fresh install: a Studio
+ * that already has a saved engine choice or a music folder of its own counts as set up.
+ */
+export const SetupStateSchema = z.object({ completed: z.boolean() });
+export type SetupState = z.infer<typeof SetupStateSchema>;
+export const UpdateSetupStateRequestSchema = z.object({ completed: z.boolean() });
+
 /** HQPlayer's own current playlist, read-only. Local paths are deliberately not exposed. */
 export const EngineQueueEntrySchema = z.object({
   index: z.number().int(),

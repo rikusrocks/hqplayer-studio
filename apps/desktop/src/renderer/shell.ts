@@ -40,6 +40,8 @@ export interface StudioShell {
     pickExe(): Promise<HqpAppState | null>;
     /** What the latest start / hide runs did, without folders or window titles. */
     diagnostics(): Promise<unknown>;
+    /** Does HQPlayer's control port 127.0.0.1:4321 answer? (connects and disconnects, sends nothing) */
+    probe(): Promise<boolean>;
   };
 }
 

@@ -1056,6 +1056,104 @@ export const zh = {
     'HQPlayer 没有载入更改。请确认 HQPlayer 的卷积用的是上面显示的文件；如果是，应用新曲线后请重启 HQPlayer。',
   'eq.check.result.not-configured':
     'HQPlayer 无法打开卷积：HQPlayer 里还没有设置卷积滤波器。请先完成上面的设置。',
+  'setup.progress': '设置步骤',
+  'setup.step.welcome': '欢迎',
+  'setup.step.hqplayer': 'HQPlayer',
+  'setup.step.music': '音乐',
+  'setup.step.control': '控制',
+  'setup.step.done': '完成',
+  'setup.skip': '跳过，先看演示',
+  'setup.skipHint':
+    '不做任何设置，先用演示音乐库和模拟引擎看看。以后可在 设置 → 常规 重新运行设置向导。',
+  'setup.start': '开始设置',
+  'setup.next': '下一步',
+  'setup.back': '上一步',
+  'setup.finish': '完成',
+  'setup.finishRestart': '完成并重新启动 Studio',
+  'setup.guideLink': '打开完整的安装与使用说明',
+  'setup.welcome.title': '欢迎使用 HQP Studio',
+  'setup.welcome.intro':
+    'HQP Studio 是 HQPlayer Desktop 6 的音乐库、播放列表和遥控器。声音、DSP、升频和 DAC 输出始终由 HQPlayer 完成；Studio 负责找音乐、排队和遥控。接下来几步大约需要 3 分钟。',
+  'setup.welcome.needTitle': '开始前请准备好：',
+  'setup.welcome.need1':
+    '在这台电脑上安装好 HQPlayer Desktop 6（试用版或已授权），并在 HQPlayer 自己的设置里选好输出设备（DAC），能正常出声。',
+  'setup.welcome.need2': '你的音乐文件夹（本地硬盘、USB 盘或 NAS 共享都可以）。',
+  'setup.welcome.need3': '可选：和电脑连同一个家庭 Wi-Fi 的手机或 iPad，用来遥控。',
+  'setup.welcome.safe':
+    '向导不会修改 HQPlayer 的安装、许可证或输出设置。只有到最后一步点“完成”后，Studio 才会开始连接 HQPlayer。',
+  'setup.hqp.title': '第 1 步：HQPlayer',
+  'setup.hqp.intro':
+    'Studio 通过 HQPlayer 的控制接口（本机 127.0.0.1，端口 4321）和它对话。下面三项都打勾就可以继续。',
+  'setup.hqp.browser': '这是浏览器预览：只有在 Windows 上的 HQP Studio 程序里才能检查 HQPlayer。',
+  'setup.hqp.installed': '找到了 HQPlayer Desktop',
+  'setup.hqp.notInstalled': '没有找到 HQPlayer Desktop',
+  'setup.hqp.notInstalledHelp':
+    '如果还没装，请先从 Signalyst 官网下载安装 HQPlayer Desktop 6；如果装在了别的位置，点“选择 HQPlayer…”找到 HQPlayer6Desktop.exe。',
+  'setup.hqp.download': '下载 HQPlayer Desktop',
+  'setup.hqp.running': 'HQPlayer 正在运行',
+  'setup.hqp.notRunning': 'HQPlayer 没有运行',
+  'setup.hqp.notRunningHelp':
+    '点“启动 HQPlayer”，或者自己打开它。第一次打开时请在 HQPlayer 的设置里选好输出设备。',
+  'setup.hqp.portOk': 'HQPlayer 的控制接口有回应（127.0.0.1:4321）',
+  'setup.hqp.portChecking': '正在检查 HQPlayer 的控制接口…',
+  'setup.hqp.portBad': 'HQPlayer 的控制接口没有回应',
+  'setup.hqp.portWhat': '这项检查只是连一下端口再断开，不会向 HQPlayer 发送任何命令。',
+  'setup.hqp.portHelp':
+    '请确认 HQPlayer 已经打开（不只是安装）。刚启动时需要几秒，稍后点“再检查一次”。如果仍然不行：完全退出 HQPlayer 再打开；确认没有其他程序占用 4321 端口；安全软件弹出提示时允许 HQPlayer 联网。',
+  'setup.hqp.checkAgain': '再检查一次',
+  'setup.hqp.windowHint':
+    'Studio 启动或找到 HQPlayer 时如何处理它的窗口。“隐藏”后 HQPlayer 照常运行和播放，可在 设置 → 播放与引擎能力 里再显示出来。',
+  'setup.hqp.ownSettingsTitle': '在 HQPlayer 自己的设置里完成的事：',
+  'setup.hqp.ownSettings':
+    '输出设备（DAC / ASIO 驱动）、缓冲、卷积、矩阵、CUDA 只能在 HQPlayer 的设置窗口里改。建议先在 HQPlayer 里随便播放一首歌，确认能出声，再回到这里。',
+  'setup.hqp.noHqp': '暂时没有 HQPlayer？',
+  'setup.hqp.useDemo': '先用演示模式（模拟引擎）',
+  'setup.music.title': '第 2 步：音乐文件夹',
+  'setup.music.intro':
+    '选择存放音乐的文件夹，Studio 会建立音乐库索引。扫描只读取文件，从不移动、改名或删除任何文件。',
+  'setup.music.add': '添加音乐文件夹…',
+  'setup.music.scanning': '正在扫描…已发现 {count} 个文件',
+  'setup.music.help':
+    '可以添加多个文件夹（例如本地盘一个、NAS 一个）。扫描在后台进行，可以直接点“下一步”；之后 Studio 会自动发现文件夹里新增或修改的音乐。NAS 请填写网络路径（例如 \\\\NAS\\Music），不要只用映射的盘符。',
+  'setup.music.removeDemo': '删除演示音乐库',
+  'setup.music.removeDemoHint': '演示音乐库是虚构的专辑，仅用于试用。完成设置时删除它。',
+  'setup.music.removeDemoLater': '添加了自己的文件夹之后才能删除演示音乐库。',
+  'setup.control.title': '第 3 步：连接与控制',
+  'setup.control.intro': '选择 Studio 连接真实的 HQPlayer，还是先用模拟引擎试用。',
+  'setup.control.live': '真实 HQPlayer',
+  'setup.control.liveHint':
+    '连接这台电脑上的 HQPlayer Desktop（127.0.0.1:4321）。断线后自动重连，但重连只读取状态，不会自动播放或改设置。',
+  'setup.control.mock': '演示模式（模拟引擎）',
+  'setup.control.mockHint':
+    '不连接 HQPlayer，没有声音。适合先熟悉界面，之后可在 设置 → 播放与引擎能力 切换。',
+  'setup.control.controlHint':
+    '允许 Studio 播放、暂停、切歌、调音量、把专辑和播放列表送进 HQPlayer。关闭时 Studio 只显示 HQPlayer 的状态。只开放在 HQPlayer 6 上验证过的命令。',
+  'setup.control.dsp': '允许 Studio 修改 HQPlayer DSP 设置',
+  'setup.control.dspHint':
+    '可在 Studio 里切换模式、1x / Nx 滤波器、调制器、输出采样率（例如 DSD512）、反相和自适应音量，并保存为预设。播放中更改会有短暂中断。不确定可以先关着，以后在 设置 → DSP 打开。',
+  'setup.control.never':
+    '无论怎么选，Studio 都不会改 HQPlayer 的输出设备、许可证或安装，也不会上传任何数据。',
+  'setup.done.title': '设置完成',
+  'setup.done.intro': '检查一下下面的选择。点“完成”后保存；这些都可以在“设置”里随时更改。',
+  'setup.done.engine': '连接',
+  'setup.done.folders': '音乐文件夹',
+  'setup.done.demoOnly': '暂时只有演示音乐库',
+  'setup.done.folderCount': '{count} 个文件夹',
+  'setup.done.demoRemoved': '删除演示音乐库',
+  'setup.done.on': '开',
+  'setup.done.off': '关',
+  'setup.done.restart': '切换到真实 HQPlayer 需要重新启动 Studio，点“完成”后会自动重启（几秒钟）。',
+  'setup.done.laterTitle': '之后可以在“设置”里打开：',
+  'setup.done.later.remote':
+    '网页遥控：用手机或 iPad 控制播放（设置 → 网页遥控，扫码并输入配对码）。',
+  'setup.done.later.lyrics': '在线歌词和在线封面（设置 → 歌词、设置 → 音乐库 → 封面），默认关闭。',
+  'setup.done.later.dsp': 'DSP 预设和均衡器（设置 → DSP、设置 → EQ）。',
+  'setup.done.later.backup': '数据备份与恢复（设置 → 常规 → 数据备份）。',
+  'setup.done.later.again': '随时重新运行本向导：设置 → 常规 → 设置向导。',
+  'setup.again.title': '设置向导',
+  'setup.again.hint':
+    '重新走一遍第一次使用时的设置：检查 HQPlayer、添加音乐文件夹、选择连接与控制权限。',
+  'setup.again.run': '重新运行设置向导',
 } satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof zh;

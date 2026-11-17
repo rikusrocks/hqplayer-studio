@@ -38,6 +38,7 @@ import { Segmented, ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
 import { BackupSettings, LogsCard, SoakTestCard } from './MaintenanceSettings';
 import { EqSettings } from './EqSettings';
+import { openSetupWizard } from './SetupWizard';
 import {
   BlockHead,
   CoverSettings,
@@ -142,6 +143,18 @@ function GeneralSettings() {
             options={LOCALES.map((l) => ({ id: l.id, label: l.label }))}
             onChange={setLocale}
           />
+        </div>
+      </div>
+      <div className="settings-block">
+        <BlockHead title={t('setup.again.title')} layer="studio" />
+        <div className="setting-row">
+          <span className="setting-row__label">
+            <span className="hint">{t('setup.again.hint')}</span>
+          </span>
+          <button type="button" className="hq-btn hq-btn--sm" onClick={openSetupWizard}>
+            <Icon name="refresh" size={14} />
+            {t('setup.again.run')}
+          </button>
         </div>
       </div>
       <DesktopIntegration />

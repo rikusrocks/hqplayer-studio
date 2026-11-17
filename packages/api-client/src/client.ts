@@ -25,6 +25,7 @@ import {
   EngineCommandResultSchema,
   EngineQueueSchema,
   EngineSettingsSchema,
+  SetupStateSchema,
   EngineStatusSchema,
   FolderListingSchema,
   HealthResponseSchema,
@@ -235,6 +236,10 @@ export function createStudioClient(options: StudioClientOptions = {}) {
     },
 
     settings: {
+      /** First-run setup wizard: finished / skipped? */
+      setup: () => get(SetupStateSchema, '/settings/setup'),
+      setSetupCompleted: (completed: boolean) =>
+        post(SetupStateSchema, '/settings/setup', { completed }),
       engine: () => get(EngineSettingsSchema, '/settings/engine'),
       library: () => get(LibrarySettingsSchema, '/settings/library'),
       setOnlineAlbumCheck: (enabled: boolean) =>

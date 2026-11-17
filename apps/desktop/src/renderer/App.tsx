@@ -1,4 +1,4 @@
-import { matchRoute, useHashRoute, useI18n, type HashRoute } from '@hqps/ui';
+import { matchRoute, useHashRoute, useI18n, useStudio, type HashRoute } from '@hqps/ui';
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { getShell } from './shell';
 import { PlayerBar } from './layout/PlayerBar';
@@ -18,6 +18,7 @@ import { PlaylistDetailView } from './views/PlaylistDetailView';
 import { PlaylistsView } from './views/PlaylistsView';
 import { SearchView } from './views/SearchView';
 import { SettingsView } from './views/SettingsView';
+import { OPEN_SETUP_EVENT, SetupWizard } from './views/SetupWizard';
 import { TracksView } from './views/TracksView';
 
 const PANEL_KEY = 'hqps.desktop.panel';
@@ -65,6 +66,7 @@ export function App() {
   const { locale } = useI18n();
   const sidebar = useSidebar();
   useKeyboardShortcuts();
+  const setup = useSetupWizard();
   // The tray menu (main process) speaks the UI's language.
   useEffect(() => getShell()?.setLocale(locale), [locale]);
 
@@ -119,6 +121,27 @@ export function App() {
       </main>
       {panelOpen && <SidePanel onClose={togglePanel} />}
       <PlayerBar panelOpen={panelOpen} onTogglePanel={togglePanel} />
+      {setup.open && <SetupWizard onClose={setup.close} />}
     </div>
   );
+}
+
+/** The first-run wizard: open on a fresh install, or when Settings asks for it again. */
+function useSetupWizard() {
+  const { client } = useStudio();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    client.settings
+      .setup()
+      .then((s) => alive && !s.completed && setOpen(true))
+      .catch(() => undefined); // an older Core without the wizard: just start normally
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_SETUP_EVENT, show);
+    return () => {
+      alive = false;
+      window.removeEventListener(OPEN_SETUP_EVENT, show);
+    };
+  }, [client]);
+  return { open, close: () => setOpen(false) };
 }
