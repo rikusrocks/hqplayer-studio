@@ -679,6 +679,10 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
         (s) => s.adaptiveVolume === change.adaptiveVolume,
       );
     }
+    if (change.convolution !== undefined) {
+      await conn.request('SetConvolution', { value: change.convolution ? 1 : 0 });
+      await this.expectState(conn, 'SetConvolution', (s) => s.convolution === change.convolution);
+    }
     return this.getDspState();
   }
 

@@ -26,6 +26,7 @@ import { LyricsService, type LyricsServiceOptions } from './services/lyrics-serv
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
 import { BackupService, type BackupServiceOptions } from './services/backup-service';
 import { SoakRecorder, type SoakRecorderOptions } from './services/soak-recorder';
+import { EqService } from './services/eq-service';
 import { DspPresetService } from './services/dsp-presets';
 import { AppleMusicService } from './services/apple-music-service';
 import { SimulatedMedia, windowsMedia, type WindowsMedia } from './services/windows-media';
@@ -61,6 +62,8 @@ export interface StudioServerOptions {
   appleMusic?: { media?: WindowsMedia };
   /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
   scanPaceWhilePlayingMs?: number;
+  /** Folder of the Studio EQ filter file (`<data>/eq`); absent = no EQ file can be written. */
+  eqDir?: string;
   /** Web Remote LAN listener (off unless enabled in Settings → 网页遥控). */
   remote?: RemoteAccessOptions & {
     /** Rate limits of the LAN listener (tests lower them). */
@@ -91,6 +94,7 @@ export interface StudioServices {
   soak: SoakRecorder;
   dspPresets: DspPresetService;
   appleMusic: AppleMusicService;
+  eq: EqService;
   log: StudioLog;
   ctx: LibraryContext;
 }
@@ -209,6 +213,11 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     soak,
     dspPresets: new DspPresetService(engine, opts.ctx.settings, log),
     appleMusic,
+    eq: new EqService(engine, opts.ctx.settings, {
+      dir: opts.eqDir ?? null,
+      hqplayerHost: opts.engineInfo?.hqplayer.host ?? '127.0.0.1',
+      log,
+    }),
     log,
     ctx: opts.ctx,
   };
@@ -250,6 +259,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
       if (soak.isRunning()) soak.stop('app-quit');
       appleMusic.dispose();
       queue.dispose();
+      services.eq.dispose();
       await backups.stop();
       await remote.stop();
       await covers.stop();

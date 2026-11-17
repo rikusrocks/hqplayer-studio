@@ -139,6 +139,12 @@ export const DspChangeSchema = z
     rate: z.number().int().nonnegative().optional(),
     invert: z.boolean().optional(),
     adaptiveVolume: z.boolean().optional(),
+    /**
+     * HQPlayer's convolution switch. The filter itself is chosen in HQPlayer; Studio EQ writes
+     * the file HQPlayer is pointed at (D-041). Without a filter set up HQPlayer acknowledges
+     * SetConvolution but stays off (DSP gate, 2026-11-17) — that is reported as an error.
+     */
+    convolution: z.boolean().optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Nothing to change' });
 export type DspChange = z.infer<typeof DspChangeSchema>;

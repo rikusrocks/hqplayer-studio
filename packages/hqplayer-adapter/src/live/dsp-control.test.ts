@@ -98,4 +98,24 @@ describe('DSP control (live adapter)', () => {
     );
     await expect(adapter.setDsp({ shaper: 2 })).rejects.toThrow(/did not apply/);
   });
+
+  it('switches convolution with read-back (Studio EQ)', async () => {
+    const { engine, adapter } = await connect({ controlEnabled: true, dspEnabled: true });
+    const on = await adapter.setDsp({ convolution: true });
+    expect(engine.dsp().convolution).toBe(1);
+    expect(on.selected?.convolution).toBe(true);
+    expect(engine.received.find((r) => r.name === 'SetConvolution')?.attributes).toEqual({
+      value: '1',
+    });
+    const off = await adapter.setDsp({ convolution: false });
+    expect(off.selected?.convolution).toBe(false);
+  });
+
+  it('reports convolution that stays off when HQPlayer has no filter set up', async () => {
+    const { adapter } = await connect(
+      { controlEnabled: true, dspEnabled: true },
+      { ...AS_OBSERVED, convolutionConfigured: false },
+    );
+    await expect(adapter.setDsp({ convolution: true })).rejects.toThrow(/did not apply/);
+  });
 });

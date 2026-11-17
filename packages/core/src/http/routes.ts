@@ -3,6 +3,10 @@ import {
   API_PREFIX,
   API_VERSION,
   CreateDspPresetRequestSchema,
+  CreateEqProfileRequestSchema,
+  EqCheckAnswerSchema,
+  EqConvolutionRequestSchema,
+  SaveEqRequestSchema,
   DspChangeSchema,
   AddLibraryRootRequestSchema,
   AddPlaylistItemsRequestSchema,
@@ -320,6 +324,27 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
         api.post('/engine/dsp/presets/:id/apply', async (req) =>
           s.dspPresets.apply(IdParams.parse(req.params).id),
         );
+
+        // Studio EQ (D-043): the curve, its filter file and HQPlayer's convolution switch.
+        api.get('/eq', async () => s.eq.status());
+        api.post('/eq', async (req) => s.eq.save(body(SaveEqRequestSchema, req).config));
+        api.post('/eq/convolution', async (req) =>
+          s.eq.setConvolution(body(EqConvolutionRequestSchema, req).enabled),
+        );
+        api.post('/eq/profiles', async (req, reply) => {
+          const { name, config } = body(CreateEqProfileRequestSchema, req);
+          const profiles = s.eq.saveProfile(name, config);
+          void reply.status(201);
+          return { profiles };
+        });
+        api.delete('/eq/profiles/:id', async (req) => ({
+          profiles: s.eq.removeProfile(IdParams.parse(req.params).id),
+        }));
+        api.post('/eq/check', async () => s.eq.startCheck());
+        api.post('/eq/check/answer', async (req) =>
+          s.eq.finishCheck(body(EqCheckAnswerSchema, req).heard),
+        );
+        api.post('/eq/check/cancel', async () => s.eq.finishCheck(null));
 
         api.post('/engine/mock', async (req) => {
           const adapter = engine.adapter;

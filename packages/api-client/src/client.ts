@@ -17,6 +17,10 @@ import {
   DspStateSchema,
   DspPresetListSchema,
   type DspChange,
+  EqCheckStartSchema,
+  EqProfileSchema,
+  EqStatusSchema,
+  type EqConfig,
   EngineCapabilitiesSchema,
   EngineCommandResultSchema,
   EngineQueueSchema,
@@ -212,6 +216,22 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       diagnostics: () => get(z.record(z.string(), z.unknown()), '/engine/diagnostics'),
       mockControl: (action: MockControlRequest['action']) =>
         post(OkSchema, '/engine/mock', { action }),
+    },
+
+    /** Studio EQ: the curve, its filter file and HQPlayer's convolution switch (this computer only). */
+    eq: {
+      status: () => get(EqStatusSchema, '/eq'),
+      /** Save the curve and rewrite the filter file (HQPlayer reloads it when convolution is on). */
+      save: (config: EqConfig) => post(EqStatusSchema, '/eq', { config }),
+      setConvolution: (enabled: boolean) => post(EqStatusSchema, '/eq/convolution', { enabled }),
+      saveProfile: (name: string, config: EqConfig) =>
+        post(z.object({ profiles: z.array(EqProfileSchema) }), '/eq/profiles', { name, config }),
+      deleteProfile: (id: string) =>
+        del(z.object({ profiles: z.array(EqProfileSchema) }), `/eq/profiles/${enc(id)}`),
+      /** Listening check: a test filter goes in; then answer whether the music sounds muffled. */
+      startCheck: () => post(EqCheckStartSchema, '/eq/check'),
+      answerCheck: (heard: boolean) => post(EqStatusSchema, '/eq/check/answer', { heard }),
+      cancelCheck: () => post(EqStatusSchema, '/eq/check/cancel'),
     },
 
     settings: {

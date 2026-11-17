@@ -111,6 +111,7 @@ export async function bootstrapStudio(opts: BootstrapOptions): Promise<Bootstrap
     logger: opts.logger,
     log,
     soak: { dir: opts.soakDir ?? join(opts.dataDir, '..', 'soak-reports') },
+    eqDir: join(opts.dataDir, 'eq'),
   });
   log?.info('startup', 'Studio Core started', {
     version: opts.appVersion,
