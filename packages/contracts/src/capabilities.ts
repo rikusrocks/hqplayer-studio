@@ -41,6 +41,8 @@ export const ENGINE_CAPABILITY_KEYS = [
   'dsp.read',
   'dsp.write',
   'library.native',
+  /** Play a live input ("audio:" entry) through HQPlayer — e.g. Apple Music via a virtual cable. */
+  'input.live',
 ] as const;
 export const EngineCapabilityKeySchema = z.enum(ENGINE_CAPABILITY_KEYS);
 export type EngineCapabilityKey = z.infer<typeof EngineCapabilityKeySchema>;

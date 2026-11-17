@@ -4,6 +4,7 @@ import type {
   DspState,
   EngineCapabilities,
   EngineStatus,
+  LiveInputAttempt,
   RepeatMode,
 } from '@hqps/contracts';
 
@@ -55,6 +56,20 @@ export interface EngineQueueSnapshot {
   statusTrackBase?: number | null;
 }
 
+/** What the engine says about its live inputs (HQPlayer `GetInputs`). */
+export interface LiveInputInfo {
+  /** `audio:` URIs found anywhere in the reply, in order. */
+  uris: string[];
+  /** Other names the reply carries (device or input labels), for display. */
+  names: string[];
+}
+
+export interface LiveInputResult {
+  /** The live input that is now playing, or null when none could be started. */
+  uri: string | null;
+  attempts: LiveInputAttempt[];
+}
+
 export type StatusListener = (status: EngineStatus) => void;
 
 /**
@@ -97,4 +112,11 @@ export interface HQPlayerAdapter {
   getDspState?(): Promise<DspState>;
   /** Optional: change mode / filters / modulator / rate / toggles (live adapter, opt-in). */
   setDsp?(change: DspChange): Promise<DspState>;
+  /** Optional, read-only: the live inputs the engine lists. */
+  getLiveInputs?(): Promise<LiveInputInfo>;
+  /**
+   * Optional (opt-in): replace the engine's playlist with ONE live-input entry and play it.
+   * The URIs are tried in order; with none playable the playlist is left empty and stopped.
+   */
+  playLiveInput?(uris: string[]): Promise<LiveInputResult>;
 }

@@ -1,17 +1,21 @@
 import {
   disconnectedStatus,
+  isLiveInputUri,
   type DspChange,
   type DspState,
   type EngineCapabilities,
   type EngineCapabilityKey,
   type EngineIdentity,
   type EngineStatus,
+  type LiveInputAttempt,
   type RepeatMode,
 } from '@hqps/contracts';
 import type {
   EngineQueueEntry,
   EngineQueueSnapshot,
   HQPlayerAdapter,
+  LiveInputInfo,
+  LiveInputResult,
   PlayableTrack,
   ReplaceQueueOptions,
   StatusListener,
@@ -58,6 +62,8 @@ export interface LiveAdapterOptions {
   switchSettleMs?: number;
   /** How often to re-read VolumeRange while connected (default 10 s). */
   volumeRangePollMs?: number;
+  /** How long a live input may take to report "playing" after Play (default 12 s). */
+  liveStartMs?: number;
 }
 
 /**
@@ -455,6 +461,86 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     }
     await conn.request('SelectTrack', { index: toEngineIndex(index) });
     if (play) await conn.request('Play', { last: 0 });
+  }
+
+  /** Read-only: what HQPlayer lists as inputs. The reply's shape is recorded, not assumed. */
+  async getLiveInputs(): Promise<LiveInputInfo> {
+    if (!this.connection?.connected) throw new EngineUnavailableError();
+    const doc = await this.connection.request('GetInputs');
+    const uris: string[] = [];
+    const names: string[] = [];
+    const visit = (el: XmlElement) => {
+      for (const [key, value] of Object.entries(el.attributes)) {
+        if (isLiveInputUri(value)) uris.push(value);
+        else if (key === 'name' && value) names.push(unescapeHqpText(value));
+      }
+      const text = el.text.trim();
+      if (isLiveInputUri(text)) uris.push(text);
+      el.children.forEach(visit);
+    };
+    visit(doc);
+    return { uris: [...new Set(uris)], names: [...new Set(names)] };
+  }
+
+  /**
+   * Put ONE live-input entry in HQPlayer's playlist and play it. Not verified on Desktop 6: each
+   * URI is tried in turn and what HQPlayer answered is returned, so the page can show it. The
+   * playlist is always emptied through the verified stop-then-clear path first — a live entry
+   * that is still playing would otherwise survive the clear.
+   */
+  async playLiveInput(uris: string[]): Promise<LiveInputResult> {
+    const conn = this.requireWrite('input.live');
+    const attempts: LiveInputAttempt[] = [];
+    for (const uri of uris) {
+      if (!isLiveInputUri(uri)) continue;
+      const attempt: LiveInputAttempt = {
+        uri,
+        addAccepted: false,
+        playAccepted: null,
+        reachedPlaying: null,
+        error: null,
+      };
+      attempts.push(attempt);
+      await this.clearPlaylistVerified(conn);
+      try {
+        await conn.request('PlaylistAdd', { uri, queued: 1, clear: 0 });
+        attempt.addAccepted = true;
+      } catch (err) {
+        if (!(err instanceof EngineCommandError)) throw err;
+        attempt.error = err.message;
+        continue;
+      }
+      const loaded = await this.readPlaylist(conn);
+      this.playlist = loaded;
+      this.publishPlaylistCount();
+      if (loaded.entries.length !== 1) {
+        attempt.error = `HQPlayer's playlist has ${loaded.entries.length} item(s) after adding one live input`;
+        continue;
+      }
+      const sentAt = Date.now();
+      try {
+        await conn.request('SelectTrack', { index: toEngineIndex(0) });
+        await conn.request('Play', { last: 0 });
+        attempt.playAccepted = true;
+      } catch (err) {
+        if (!(err instanceof EngineCommandError)) throw err;
+        attempt.playAccepted = false;
+        attempt.error = err.message;
+        continue;
+      }
+      attempt.reachedPlaying = await this.waitForStatus(
+        (s) => s.transport === 'playing' && s.observedAt >= sentAt,
+        this.options.liveStartMs ?? 12_000,
+      );
+      this.log.note(
+        attempt.reachedPlaying ? `live input playing: ${uri}` : `live input did not start: ${uri}`,
+      );
+      if (attempt.reachedPlaying) return { uri, attempts };
+      attempt.error = 'HQPlayer accepted Play but did not report "playing"';
+    }
+    // Nothing worked: do not leave a dead live entry in the playlist.
+    await this.clearPlaylistVerified(conn);
+    return { uri: null, attempts };
   }
 
   /** Stop, and wait until HQPlayer reports it really stopped (its ACK comes earlier). */

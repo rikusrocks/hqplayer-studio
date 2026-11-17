@@ -161,6 +161,13 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     evidence: 'LibraryGetHash answered (probe 2026-11-10); LibraryGet not run',
     note: 'Optional; Studio keeps its own library.',
   },
+  'input.live': {
+    status: 'untested',
+    readOnly: false,
+    evidence:
+      'SDK 6.0.1: PlaylistAdd passes "audio:" URIs through and GetInputs exists; the audio:default/<rate>/<channels> form is forum knowledge from HQPlayer 4/5. Not verified on Desktop 6.',
+    note: 'Experimental: Studio tries it only after the user turns the Apple Music source on, and shows what HQPlayer answered.',
+  },
 };
 
 export interface CapabilityPolicy {
@@ -176,6 +183,12 @@ export interface CapabilityPolicy {
    * both this and `controlEnabled`.
    */
   dspEnabled?: boolean;
+  /**
+   * The user's switch on the Apple Music page (default off). Live input is not verified on
+   * Desktop 6, so this is an explicit "try it on my engine" consent; it also needs
+   * `controlEnabled`.
+   */
+  liveInputEnabled?: boolean;
 }
 
 /** Facts read from the engine at runtime that can further restrict capabilities. */
@@ -189,6 +202,8 @@ export const CONTROL_DISABLED_NOTE = 'control-disabled';
 export const DSP_DISABLED_NOTE = 'dsp-disabled';
 /** volume.set note when HQPlayer's “Fixed volume” is on (VolumeRange enabled="0"). */
 export const FIXED_VOLUME_NOTE = 'fixed-volume';
+/** input.live note while the Apple Music source is switched off. */
+export const LIVE_INPUT_DISABLED_NOTE = 'live-input-disabled';
 
 export function resolveCapabilities(
   evidence: Record<EngineCapabilityKey, CapabilityEvidence>,
@@ -206,6 +221,10 @@ export function resolveCapabilities(
       // its own opt-in on top of the control switch
       usable = e.status === 'confirmed' && Boolean(policy.controlEnabled && policy.dspEnabled);
       if (!usable) note = policy.controlEnabled ? DSP_DISABLED_NOTE : CONTROL_DISABLED_NOTE;
+    } else if (key === 'input.live') {
+      // Unverified on this engine: only the user's own switch enables it (never the evidence).
+      usable = Boolean(policy.controlEnabled && policy.liveInputEnabled);
+      if (!usable) note = policy.controlEnabled ? LIVE_INPUT_DISABLED_NOTE : CONTROL_DISABLED_NOTE;
     } else if (e.readOnly)
       usable = true; // side-effect free reads
     else if (e.status === 'confirmed' || e.status === 'observed') {

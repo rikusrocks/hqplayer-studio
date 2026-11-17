@@ -104,7 +104,7 @@ export function ProgressBar({
   const [drag, setDrag] = useState<number | null>(null);
   const duration = status.durationMs ?? 0;
   const hasTrack = Boolean(status.track) && duration > 0;
-  const seekReason = gate('transport.seek');
+  const seekReason = status.track?.source ? t('player.seekLive') : gate('transport.seek');
   const value = drag ?? clamp(position, 0, duration || 0);
   const pct = duration > 0 ? (value / duration) * 100 : 0;
   const disabled = !hasTrack || !!seekReason || pending.has('seek');

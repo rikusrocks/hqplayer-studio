@@ -192,6 +192,30 @@ afterEach(async () => {
   rmSync(dir, { recursive: true, force: true });
 }, HOOK_TIMEOUT_MS);
 
+describe('online cover for a song outside the library (live source)', () => {
+  it('needs the opt-in, an artist and a matching album, and stores nothing', async () => {
+    net.itunes = [itunesHit()];
+    // off: nothing is asked
+    expect(await server.covers.findOnline('Bare Album', 'Invented Artist')).toBeNull();
+    expect(calls).toEqual([]);
+
+    await api('POST', '/settings/covers', { online: true });
+    calls.length = 0;
+    // a title alone matches far too much: not asked without an artist
+    expect(await server.covers.findOnline('Bare Album', null)).toBeNull();
+    expect(await server.covers.findOnline('  ', 'Invented Artist')).toBeNull();
+    expect(calls).toEqual([]);
+
+    const found = await server.covers.findOnline('Bare Album', 'Invented Artist');
+    expect(found?.mime).toBe('image/jpeg');
+    expect(found?.bytes.byteLength).toBeGreaterThan(0);
+    // a different album is not accepted just because the source returned something
+    expect(await server.covers.findOnline('Another Record', 'Invented Artist')).toBeNull();
+    // nothing was attached to the library album of the same name
+    expect(artworkOf(albumOf('One'))).toBeNull();
+  });
+});
+
 describe('online covers', () => {
   it('are off by default: nothing is ever sent, searching needs the opt-in', async () => {
     const settings = await api<CoverSettings>('GET', '/settings/covers');

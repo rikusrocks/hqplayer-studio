@@ -47,6 +47,19 @@ export interface EngineCommandEvent {
 type CommandListener = (event: EngineCommandEvent) => void;
 
 /**
+ * A live source (Apple Music through a live input). While HQPlayer plays such an input it only
+ * sees an endless stream, so what is playing — and playing / paused — is whatever the other app
+ * reports. The source rewrites the published status accordingly and takes the transport buttons,
+ * which then drive that app instead of HQPlayer.
+ */
+export interface LiveSourceHook {
+  /** Return the status to publish (the same object when the source is not active). */
+  decorate(status: EngineStatus): EngineStatus;
+  /** Handle a transport action; false = not active, let HQPlayer handle it. */
+  transport(action: Exclude<TransportAction, 'toggle'>, status: EngineStatus): Promise<boolean>;
+}
+
+/**
  * Supervises the HQPlayer adapter:
  *  - serialises every engine command (one at a time, in arrival order, across Desktop + Web);
  *  - applies a timeout and reports it — never retries a write (avoids double-queued tracks);
@@ -72,6 +85,9 @@ export class EngineService {
   private lastUri: string | null = null;
   private lastUriTrackId: string | null = null;
   private lastUriArtworkId: string | null = null;
+  private liveSource: LiveSourceHook | null = null;
+  /** The last status as HQPlayer reported it (before a live source rewrote it). */
+  private raw: EngineStatus = disconnectedStatus();
 
   constructor(
     readonly adapter: HQPlayerAdapter,
@@ -88,7 +104,7 @@ export class EngineService {
 
   private remapCurrentTrack(): void {
     this.lastUri = null;
-    const track = this.status.track;
+    const track = this.raw.track;
     if (!track?.uri) return;
     this.resolveUri(track.uri);
     if (
@@ -96,7 +112,7 @@ export class EngineService {
       this.lastUriArtworkId !== (track.artworkId ?? null)
     ) {
       this.publish({
-        ...this.status,
+        ...this.raw,
         track: { ...track, studioTrackId: this.lastUriTrackId, artworkId: this.lastUriArtworkId },
       });
     }
@@ -173,12 +189,34 @@ export class EngineService {
     }
   }
 
-  /** Run an engine command exclusively, with a timeout. */
-  run<T>(label: string, fn: (adapter: HQPlayerAdapter) => Promise<T>): Promise<T> {
+  setLiveSource(hook: LiveSourceHook | null): void {
+    this.liveSource = hook;
+    this.republish();
+  }
+
+  /** Publish the last engine status again (what a live source reports has changed). */
+  republish(): void {
+    this.publish(this.raw);
+  }
+
+  /** The last status exactly as HQPlayer reported it. */
+  getRawStatus(): EngineStatus {
+    return this.raw;
+  }
+
+  /**
+   * Run an engine command exclusively, with a timeout. `timeoutScale` stretches the timeout for
+   * the few commands that are several ordinary ones in a row (trying live inputs one by one).
+   */
+  run<T>(
+    label: string,
+    fn: (adapter: HQPlayerAdapter) => Promise<T>,
+    timeoutScale = 1,
+  ): Promise<T> {
     const exec = async () => {
       if (!this.adapter.isConnected()) throw new EngineUnavailableError();
       // HQPlayer's Stop takes ~3.8 s to acknowledge; a queue load sends many commands.
-      const timeoutMs = this.options.commandTimeoutMs ?? 20_000;
+      const timeoutMs = (this.options.commandTimeoutMs ?? 20_000) * timeoutScale;
       let timer: ReturnType<typeof setTimeout> | undefined;
       const id = ++this.commandSerial;
       const startedAt = Date.now();
@@ -242,12 +280,21 @@ export class EngineService {
     const resolved: Exclude<TransportAction, 'toggle'> =
       action === 'toggle' ? (this.status.transport === 'playing' ? 'pause' : 'play') : action;
     this.require(`transport.${resolved}`);
+    if (this.liveSource && (await this.liveSource.transport(resolved, this.raw))) {
+      return this.status;
+    }
     await this.run(resolved, (a) => a[resolved]());
     return this.status;
   }
 
   async seek(positionMs: number): Promise<EngineStatus> {
     this.require('transport.seek');
+    if (this.status.track?.source) {
+      throw new CapabilityUnavailableError(
+        'transport.seek',
+        'a live input cannot be seeked from Studio',
+      );
+    }
     await this.run('seek', (a) => {
       if (!a.seek) throw new CapabilityUnavailableError('transport.seek', 'adapter has no seek');
       return a.seek(positionMs);
@@ -331,8 +378,17 @@ export class EngineService {
   }
 
   private publish(status: EngineStatus): void {
+    this.raw = status;
+    let shown = status;
+    if (this.liveSource) {
+      try {
+        shown = this.liveSource.decorate(status);
+      } catch {
+        // a live source never breaks status publishing
+      }
+    }
     this.serial += 1;
-    this.status = { ...status, serial: this.serial };
+    this.status = { ...shown, serial: this.serial };
     for (const l of this.listeners) l(this.status);
     this.hub.publish({ type: 'engine.status', status: this.status });
   }

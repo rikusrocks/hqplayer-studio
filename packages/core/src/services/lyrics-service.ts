@@ -1,4 +1,5 @@
 import {
+  LIVE_LYRICS_TRACK_ID,
   type LyricsCandidate,
   type LyricsSettings,
   type LyricsSource,
@@ -14,6 +15,7 @@ import {
   type LibraryContext,
   type LyricsCacheRow,
   type SidecarHints,
+  type TrackSource,
 } from '@hqps/library';
 import {
   createOnlineLyricsProviders,
@@ -64,7 +66,72 @@ export const lrclibUserAgent = studioUserAgent;
  * back-off — never for a whole album, a scan or any other bulk job. Lyric text is never logged or
  * put into errors/diagnostics.
  */
+/** The song a live source (Apple Music) is playing, as far as lyrics are concerned. */
+export interface LiveLyricsTrack {
+  /** Identifies the song; a new key means a new song. */
+  key: string;
+  title: string;
+  artist: string;
+  album: string;
+  durationMs: number | null;
+}
+
+type LyricsRows = Pick<LibraryContext['lyrics'], 'get' | 'save' | 'setOffset' | 'delete'>;
+
+const MAX_LIVE_LYRICS = 100;
+
+/**
+ * Lyrics of live songs: the same rows as the database keeps for library tracks, but in memory
+ * only and per song — nothing about what was heard through a live source is written to disk.
+ * A view is bound to ONE song when it is created, so a lookup that is still waiting for a lyrics
+ * site when the next song starts cannot file its answer under the wrong song.
+ */
+class LiveLyricsRows {
+  private readonly bySong = new Map<string, LyricsCacheRow>();
+
+  clear(): void {
+    this.bySong.clear();
+  }
+
+  bind(key: string): LyricsRows {
+    const bySong = this.bySong;
+    return {
+      get: () => bySong.get(key) ?? null,
+      save: (row) => {
+        const prev = bySong.get(key);
+        const next: LyricsCacheRow = {
+          trackId: row.trackId,
+          source: row.source,
+          type: row.type,
+          content: row.content,
+          offsetMs: row.offsetMs ?? prev?.offsetMs ?? 0,
+          selectedByUser: row.selectedByUser ?? false,
+          lastCheckedAt: row.lastCheckedAt ?? Date.now(),
+        };
+        bySong.delete(key);
+        bySong.set(key, next);
+        if (bySong.size > MAX_LIVE_LYRICS) {
+          const oldest = bySong.keys().next().value;
+          if (oldest !== undefined) bySong.delete(oldest);
+        }
+        return next;
+      },
+      setOffset: (_trackId, offsetMs) => {
+        const row = bySong.get(key);
+        if (!row || row.source === 'none') return false;
+        bySong.set(key, { ...row, offsetMs: Math.round(offsetMs) });
+        return true;
+      },
+      delete: () => {
+        bySong.delete(key);
+      },
+    };
+  }
+}
+
 export class LyricsService {
+  private readonly liveRows = new LiveLyricsRows();
+  private liveTrack: (() => LiveLyricsTrack | null) | null = null;
   private readonly providers: OnlineLyricsProvider[];
   private readonly readSidecar: (p: string, hints?: SidecarHints) => Promise<string | null>;
   private readonly readEmbedded: (p: string) => Promise<EmbeddedLyrics | null>;
@@ -93,6 +160,29 @@ export class LyricsService {
     this.readSidecar = opts.readSidecar ?? readSidecarLyrics;
     this.readEmbedded = opts.readEmbedded ?? readEmbeddedLyrics;
     this.now = opts.now ?? Date.now;
+  }
+
+  /**
+   * Where the song of the live source comes from. Its lyrics are served under
+   * `LIVE_LYRICS_TRACK_ID`: looked up by title and artist through the same opt-in online
+   * sources, with the same manual matching and calibration as a library track.
+   */
+  setLiveTrack(provider: (() => LiveLyricsTrack | null) | null): void {
+    this.liveTrack = provider;
+  }
+
+  private liveKey(): string {
+    return this.liveTrack?.()?.key ?? '';
+  }
+
+  /** The stored lyrics of a track: the database, or the in-memory rows of the live song. */
+  private rows(trackId: string): LyricsRows {
+    return trackId === LIVE_LYRICS_TRACK_ID ? this.liveRows.bind(this.liveKey()) : this.ctx.lyrics;
+  }
+
+  /** Key for per-track bookkeeping; for the live id it changes with the song. */
+  private memoKey(trackId: string): string {
+    return trackId === LIVE_LYRICS_TRACK_ID ? `${trackId}\u0000${this.liveKey()}` : trackId;
   }
 
   onlineEnabled(): boolean {
@@ -154,6 +244,7 @@ export class LyricsService {
   /** Forget online results that were matched automatically (hand-picked lyrics stay). */
   clearOnlineCache(): LyricsSettings {
     this.ctx.lyrics.clearOnline();
+    this.liveRows.clear();
     this.answered.clear();
     this.hub.publish({ type: 'lyrics.changed', trackId: null });
     return this.settings();
@@ -161,7 +252,7 @@ export class LyricsService {
 
   /** Lyrics of a track; concurrent requests for the same track share one lookup. */
   get(trackId: string, opts: { force?: boolean } = {}): Promise<TrackLyrics> {
-    const key = `${trackId}\u0000${opts.force ? 1 : 0}`;
+    const key = `${this.memoKey(trackId)}\u0000${opts.force ? 1 : 0}`;
     let p = this.inflight.get(key);
     if (!p) {
       p = this.resolve(trackId, opts.force === true).finally(() => this.inflight.delete(key));
@@ -172,13 +263,14 @@ export class LyricsService {
 
   setOffset(trackId: string, offsetMs: number): TrackLyrics {
     this.source(trackId); // 404 for unknown tracks
-    if (!this.ctx.lyrics.setOffset(trackId, offsetMs)) {
+    const rows = this.rows(trackId);
+    if (!rows.setOffset(trackId, offsetMs)) {
       throw new HttpError(409, 'conflict', 'This track has no lyrics to calibrate', {
         reason: 'no_lyrics',
       });
     }
     this.hub.publish({ type: 'lyrics.changed', trackId });
-    return this.fromRow(trackId, this.ctx.lyrics.get(trackId));
+    return this.fromRow(trackId, rows.get(trackId));
   }
 
   /**
@@ -220,6 +312,7 @@ export class LyricsService {
     ref: string,
   ): Promise<TrackLyrics> {
     this.source(trackId);
+    const rows = this.rows(trackId); // bound now: the fetch below may outlast a live song
     const source = this.requireOnline().find((p) => p.id === provider);
     if (!source) {
       throw new HttpError(409, 'conflict', 'This lyrics source is turned off', {
@@ -238,7 +331,7 @@ export class LyricsService {
         reason: 'no_lyrics',
       });
     }
-    const row = this.ctx.lyrics.save({
+    const row = rows.save({
       trackId,
       source: provider,
       ...lyricsContent(lyrics),
@@ -252,13 +345,14 @@ export class LyricsService {
   /** Drop the stored match (manual choice, "not found", stale cache) and look again. */
   async reset(trackId: string): Promise<TrackLyrics> {
     this.source(trackId);
-    const prev = this.ctx.lyrics.get(trackId);
-    this.ctx.lyrics.delete(trackId);
+    const rows = this.rows(trackId);
+    const prev = rows.get(trackId);
+    rows.delete(trackId);
     this.noEmbedded.delete(trackId);
-    this.answered.delete(trackId);
+    this.answered.delete(this.memoKey(trackId));
     const res = await this.get(trackId, { force: true });
     if (prev && prev.offsetMs !== 0 && res.state === 'found') {
-      this.ctx.lyrics.setOffset(trackId, prev.offsetMs);
+      rows.setOffset(trackId, prev.offsetMs);
     }
     this.hub.publish({ type: 'lyrics.changed', trackId });
     return prev && res.state === 'found' ? { ...res, offsetMs: prev.offsetMs } : res;
@@ -266,7 +360,28 @@ export class LyricsService {
 
   // ------------------------------------------------------------------------------------------
 
-  private source(trackId: string) {
+  private source(trackId: string): TrackSource {
+    if (trackId === LIVE_LYRICS_TRACK_ID) {
+      const live = this.liveTrack?.() ?? null;
+      if (!live) {
+        throw new HttpError(404, 'not_found', 'Nothing is playing through a live source');
+      }
+      // No file: `available: false` skips the sidecar and tag lookups, leaving the online ones.
+      return {
+        id: trackId,
+        sourcePath: '',
+        title: live.title,
+        artist: live.artist,
+        album: live.album,
+        durationMs: live.durationMs,
+        sampleRate: null,
+        bitDepth: null,
+        channels: null,
+        isDsd: false,
+        available: false,
+        isFixture: false,
+      };
+    }
     const [src] = this.ctx.library.getTrackSources([trackId]); // throws NotFoundError → 404
     return src!;
   }
@@ -289,13 +404,14 @@ export class LyricsService {
 
   private async resolve(trackId: string, force: boolean): Promise<TrackLyrics> {
     const src = this.source(trackId);
-    let row = this.ctx.lyrics.get(trackId);
+    const rows = this.rows(trackId); // bound now: lookups below may outlast a live song
+    let row = rows.get(trackId);
     if (row?.selectedByUser) return this.fromRow(trackId, row);
 
     // Fictional demo library: invented, clearly marked demo lyrics (never sent anywhere).
     if (src.isFixture) {
       if (row?.source !== 'demo') {
-        row = this.ctx.lyrics.save({
+        row = rows.save({
           trackId,
           source: 'demo',
           type: 'lrc',
@@ -312,7 +428,7 @@ export class LyricsService {
       : null;
     if (sidecar !== null) {
       if (row?.source !== 'local' || row.content !== sidecar) {
-        row = this.ctx.lyrics.save({
+        row = rows.save({
           trackId,
           source: 'local',
           type: parseLrc(sidecar).kind === 'synced' ? 'lrc' : 'plain',
@@ -322,7 +438,7 @@ export class LyricsService {
       return this.fromRow(trackId, row);
     }
     if (row?.source === 'local' && src.available) {
-      this.ctx.lyrics.delete(trackId); // the .lrc file is gone
+      rows.delete(trackId); // the .lrc file is gone
       row = null;
     }
 
@@ -332,7 +448,7 @@ export class LyricsService {
       const emb = await this.readEmbedded(src.sourcePath);
       const text = emb ? (emb.synced.length ? toLrcText(emb.synced) : emb.text) : null;
       if (text?.trim()) {
-        row = this.ctx.lyrics.save({
+        row = rows.save({
           trackId,
           source: 'embedded',
           type: parseLrc(text).kind === 'synced' ? 'lrc' : 'plain',
@@ -364,8 +480,8 @@ export class LyricsService {
       albumName: src.album.trim() || null,
       durationSec: src.durationMs ? src.durationMs / 1000 : null,
     };
-    if (force) this.answered.delete(trackId);
-    const answered = this.answered.get(trackId) ?? new Set<OnlineLyricsProviderId>();
+    if (force) this.answered.delete(this.memoKey(trackId));
+    const answered = this.answered.get(this.memoKey(trackId)) ?? new Set<OnlineLyricsProviderId>();
     // Plain lyrics are kept in hand while the remaining sources are asked for synced ones.
     let plain: { provider: OnlineLyricsProviderId; lyrics: OnlineLyrics } | null = null;
     let retryAfterMs: number | null = null;
@@ -386,15 +502,15 @@ export class LyricsService {
       answered.add(provider.id);
       if (!found) continue;
       if (found.synced || found.instrumental) {
-        this.answered.delete(trackId);
-        row = this.ctx.lyrics.save({ trackId, source: provider.id, ...lyricsContent(found) });
+        this.answered.delete(this.memoKey(trackId));
+        row = rows.save({ trackId, source: provider.id, ...lyricsContent(found) });
         return this.fromRow(trackId, row);
       }
       if (found.plain && !plain) plain = { provider: provider.id, lyrics: found };
     }
     if (plain) {
-      this.answered.delete(trackId);
-      row = this.ctx.lyrics.save({
+      this.answered.delete(this.memoKey(trackId));
+      row = rows.save({
         trackId,
         source: plain.provider,
         ...lyricsContent(plain.lyrics),
@@ -404,15 +520,15 @@ export class LyricsService {
     if (retryAfterMs !== null) {
       // Some source could not answer: remember who already did and try the rest after the pause.
       if (this.answered.size > 500) this.answered.clear();
-      this.answered.set(trackId, answered);
+      this.answered.set(this.memoKey(trackId), answered);
       return {
         ...this.empty(trackId, row, enabled, eligible),
         state: 'unavailable',
         online: { enabled, eligible, checkedAt: row?.lastCheckedAt ?? null, retryAfterMs },
       };
     }
-    this.answered.delete(trackId);
-    row = this.ctx.lyrics.save({ trackId, source: 'none', type: 'plain', content: '' });
+    this.answered.delete(this.memoKey(trackId));
+    row = rows.save({ trackId, source: 'none', type: 'plain', content: '' });
     return this.notFound(trackId, row, enabled, eligible);
   }
 
