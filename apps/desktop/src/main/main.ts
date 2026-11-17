@@ -72,11 +72,14 @@ import {
 } from './hqplayer-app';
 import {
   fitToDisplays,
+  growForPanel,
   loadWindowState,
   restoreBounds,
   sameBounds,
   saveWindowState,
+  shrinkAfterPanel,
   validateBounds,
+  type PanelGrowth,
   type WindowState,
 } from './window-state';
 
@@ -103,6 +106,9 @@ type FolderId = keyof typeof FOLDERS;
 let studio: Bootstrapped | null = null;
 let baseUrl = '';
 let mainWindow: BrowserWindow | null = null;
+/** How far the main window is currently extended for the side panel (queue / lyrics). */
+let panelGrowth: PanelGrowth | null = null;
+const MAIN_MIN_WIDTH = 720;
 let miniWindow: BrowserWindow | null = null;
 let windowState: WindowState = {};
 let stateFile = '';
@@ -140,7 +146,7 @@ if (primary) {
       studio?.server.hub.notice(
         'error',
         'internal_error',
-        'An internal error occurred in HQPlayer Studio. Details were saved to the log folder (Settings → Diagnostics).',
+        'An internal error occurred in HQP Studio. Details were saved to the log folder (Settings → Diagnostics).',
         report ? { report } : undefined,
       );
     },
@@ -166,9 +172,9 @@ function createMainWindow(): BrowserWindow {
   const saved = restoreBounds(windowState.main, workAreas(), 'main');
   const win = new BrowserWindow({
     ...(saved ?? { width: 1280, height: 820 }),
-    minWidth: 720,
+    minWidth: MAIN_MIN_WIDTH,
     minHeight: 480,
-    title: 'HQPlayer Studio',
+    title: 'HQP Studio',
     backgroundColor: '#0f1115',
     autoHideMenuBar: true,
     show: false,
@@ -180,7 +186,11 @@ function createMainWindow(): BrowserWindow {
   });
   const remember = () => {
     if (win.isDestroyed()) return;
-    windowState.main = { ...win.getNormalBounds(), maximized: win.isMaximized() };
+    // Remember the size without the side panel's extension: the panel re-extends the window
+    // when it opens, so the saved size must not grow by another panel on every launch.
+    const normal = win.getNormalBounds();
+    const base = panelGrowth ? shrinkAfterPanel(normal, panelGrowth, MAIN_MIN_WIDTH) : normal;
+    windowState.main = { ...base, maximized: win.isMaximized() };
     saveWindowState(stateFile, windowState);
   };
   win.on('resize', remember);
@@ -195,6 +205,7 @@ function createMainWindow(): BrowserWindow {
   });
   win.on('closed', () => {
     mainWindow = null;
+    panelGrowth = null;
     miniWindow?.close();
   });
   win.on('restore', () => revalidateWindows());
@@ -223,7 +234,7 @@ function createMiniWindow(): BrowserWindow {
     maximizable: false,
     fullscreenable: false,
     alwaysOnTop: windowState.miniAlwaysOnTop ?? true,
-    title: 'HQPlayer Studio — Mini',
+    title: 'HQP Studio — Mini',
     backgroundColor: '#0f1115',
     show: false,
     webPreferences: secureWebPreferences(),
@@ -478,7 +489,44 @@ function fromStudio(event: IpcMainEvent | IpcMainInvokeEvent): boolean {
   return baseUrl !== '' && url.startsWith(`${baseUrl}/`);
 }
 
+/**
+ * The side panel is appended to the window's right edge instead of covering the content: opening
+ * it makes the window wider by the panel's width, closing it takes that width back. A maximized
+ * or full-screen window cannot grow, so there the content makes room instead (returns false).
+ */
+function setSidePanel(win: BrowserWindow, open: boolean, width: number): boolean {
+  const resizable = !win.isMaximized() && !win.isFullScreen() && !win.isMinimized();
+  if (open) {
+    if (panelGrowth) return true;
+    const extra = Math.min(600, Math.max(0, Math.round(width)));
+    if (!resizable || extra === 0) return false;
+    const current = win.getBounds();
+    const { bounds, growth } = growForPanel(
+      current,
+      extra,
+      screen.getDisplayMatching(current).workArea,
+    );
+    if (growth.width === 0) return false;
+    // Set before resizing: the resize handler saves the size without this extension.
+    panelGrowth = growth;
+    win.setBounds(bounds);
+    return true;
+  }
+  const growth = panelGrowth;
+  panelGrowth = null;
+  if (!growth) return false;
+  if (resizable) win.setBounds(shrinkAfterPanel(win.getBounds(), growth, MAIN_MIN_WIDTH));
+  return false;
+}
+
 function registerIpc(): void {
+  ipcMain.handle('studio:set-side-panel', (event, open: unknown, width: unknown) => {
+    if (!fromStudio(event)) return false;
+    const win = mainWindow;
+    // only the main window's own page may resize it (not the Mini Player)
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return false;
+    return setSidePanel(win, open === true, typeof width === 'number' ? width : 0);
+  });
   ipcMain.on('studio:toggle-mini', (event) => {
     if (!fromStudio(event)) return;
     toggleMini();
@@ -892,8 +940,8 @@ async function offerOlderBackup(err: DatabaseTooNewError): Promise<boolean> {
     'pre-restore': '恢复前的数据',
   };
   const message = zh
-    ? '这个数据库来自更新版本的 HQPlayer Studio'
-    : 'This database is from a newer version of HQPlayer Studio';
+    ? '这个数据库来自更新版本的 HQP Studio'
+    : 'This database is from a newer version of HQP Studio';
   const detail = zh
     ? `数据库版本 ${err.dbVersion}，此版本（${app.getVersion()}）只支持到 ${err.supportedVersion}。为避免损坏，数据库没有被打开或修改。
 
@@ -916,7 +964,7 @@ async function offerOlderBackup(err: DatabaseTooNewError): Promise<boolean> {
       : ['Open backup folder', 'Quit'];
   const { response } = await dialog.showMessageBox({
     type: 'warning',
-    title: 'HQPlayer Studio',
+    title: 'HQP Studio',
     message,
     detail,
     buttons,
@@ -951,7 +999,7 @@ async function startCoreOrExplain(): Promise<Bootstrapped | null> {
   }
   log.crash('core-start-failed', { error: failure });
   dialog.showErrorBox(
-    'HQPlayer Studio',
+    'HQP Studio',
     `Studio Core failed to start:\n${log.redact((failure as Error).message)}\n\nDetails: ${FOLDERS.logs}`,
   );
   return null;

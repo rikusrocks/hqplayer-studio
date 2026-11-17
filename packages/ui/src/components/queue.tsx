@@ -5,7 +5,7 @@ import { useCapabilityGate, useStudio } from '../data/StudioProvider';
 import { formatDuration } from '../format';
 import { useT } from '../i18n/I18nProvider';
 import { Icon } from './Icon';
-import { Artwork, EmptyState, Spinner } from './basics';
+import { Artwork, EmptyState, EqBars, Spinner } from './basics';
 
 /**
  * Shown when Studio's planned queue and what HQPlayer actually plays disagree.
@@ -75,7 +75,8 @@ export function QueueSyncBanner() {
 
 /** The Now Playing queue (shared by Desktop side panel and Remote). */
 export function QueueList({ large = false }: { large?: boolean }) {
-  const { queue, queueJump, queueRemove, queueClear, pending } = useStudio();
+  const { queue, queueJump, queueRemove, queueClear, pending, status } = useStudio();
+  const playing = status.transport === 'playing';
   const gate = useCapabilityGate();
   const { confirm } = useDialogs();
   const t = useT();
@@ -152,11 +153,7 @@ export function QueueList({ large = false }: { large?: boolean }) {
                   <span className="hq-queue__artist">{item.track.artist}</span>
                 </span>
                 <span className="hq-queue__dur">
-                  {isCurrent ? (
-                    <Icon name="volume" size={14} className="hq-accent" />
-                  ) : (
-                    formatDuration(item.track.durationMs)
-                  )}
+                  {isCurrent ? <EqBars playing={playing} /> : formatDuration(item.track.durationMs)}
                 </span>
               </button>
               <button
@@ -184,6 +181,7 @@ export function QueueList({ large = false }: { large?: boolean }) {
 function EmptyOrEngineQueue({ large }: { large: boolean }) {
   const { client, status, capabilities, isMock } = useStudio();
   const t = useT();
+  const playing = status.transport === 'playing';
   const [engineQueue, setEngineQueue] = useState<EngineQueue | null>(null);
   const live = !isMock && status.connection === 'connected' && canUse(capabilities, 'queue.read');
   const trackKey = `${status.trackIndex}|${status.trackCount}|${status.track?.uri ?? status.track?.title ?? ''}`;
@@ -211,7 +209,7 @@ function EmptyOrEngineQueue({ large }: { large: boolean }) {
     return (
       <div className="hq-queue">
         <QueueSyncBanner />
-        <EmptyState icon="queue" title={t('queue.empty')} hint={t('queue.emptyHint')} />
+        <EmptyState icon="queue" title={t('queue.empty')} />
       </div>
     );
   }
@@ -249,11 +247,7 @@ function EmptyOrEngineQueue({ large }: { large: boolean }) {
                   <span className="hq-queue__artist">{e.artist ?? ''}</span>
                 </span>
                 <span className="hq-queue__dur">
-                  {isCurrent ? (
-                    <Icon name="volume" size={14} className="hq-accent" />
-                  ) : (
-                    formatDuration(e.durationMs)
-                  )}
+                  {isCurrent ? <EqBars playing={playing} /> : formatDuration(e.durationMs)}
                 </span>
               </div>
             </li>

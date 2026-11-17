@@ -38,7 +38,7 @@ export function MiniPlayer() {
   }, [shell]);
 
   return (
-    <div className="mini">
+    <div className="mini on-rail">
       {/* part of the window's drag area (Electron drag regions receive no clicks) */}
       <div className="mini__art">
         <Artwork artworkId={now.artworkId} />

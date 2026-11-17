@@ -3,6 +3,9 @@ productName: HQPlayer Studio
 copyright: Copyright © 2026 HQPlayer Studio contributors. Not affiliated with Signalyst.
 directories:
   output: release
+  buildResources: build
+# The H·Q·S monogram. Regenerate with `pnpm icons` (apps/desktop/scripts/make-icons.mjs).
+icon: build/icon.png
 files:
   - dist/**/*
   - package.json

@@ -23,18 +23,18 @@ import {
   useAsync,
   useDialogs,
   useI18n,
+  THEMES,
   useStudio,
   useTheme,
   useToasts,
   type IconName,
   type Locale,
   type MessageKey,
-  type Theme,
 } from '@hqps/ui';
 import { useEffect, useState } from 'react';
 import { getShell, type HqpAppState, type HqpRunReport } from '../shell';
 import { describeReport, describeSearchStep } from './hqpReport';
-import { ViewHeader } from './common';
+import { Segmented, ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
 import { BackupSettings, LogsCard, SoakTestCard } from './MaintenanceSettings';
 import {
@@ -45,7 +45,7 @@ import {
   LayerTag,
   LyricsSettings,
   OutputSettings,
-  SettingsLegend,
+  Switch,
 } from './SettingsSections';
 
 const SECTIONS: Array<{ id: string; label: MessageKey; icon: IconName }> = [
@@ -79,8 +79,7 @@ export function SettingsView({ section }: { section: string }) {
             </a>
           ))}
         </nav>
-        <div className="settings__panel">
-          <h2 className="settings__title">{t(current.label)}</h2>
+        <div className="settings__panel" key={current.id}>
           {current.id === 'general' && <GeneralSettings />}
           {current.id === 'library' && <LibrarySettings />}
           {current.id === 'playback' && <PlaybackSettings />}
@@ -89,7 +88,6 @@ export function SettingsView({ section }: { section: string }) {
           {current.id === 'lyrics' && <LyricsSettings />}
           {current.id === 'remote' && <RemoteSettings />}
           {current.id === 'diagnostics' && <Diagnostics />}
-          <SettingsLegend />
         </div>
       </div>
     </div>
@@ -102,33 +100,45 @@ function GeneralSettings() {
   return (
     <div className="settings-stack">
       <div className="settings-block">
-        <BlockHead title={t('settings.appearance')} layer="studio" />
-        <div className="form-grid">
-          <label className="hq-field">
-            <span className="hq-field__label">{t('settings.language')}</span>
-            <select
-              className="hq-select"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
+        <BlockHead title={t('settings.theme')} layer="studio" />
+        {/* each tile previews its own colours: click one to switch */}
+        <div className="theme-grid" role="radiogroup" aria-label={t('settings.theme')}>
+          {THEMES.map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={theme === id}
+              className={`theme-tile${theme === id ? ' is-active' : ''}`}
+              onClick={() => setTheme(id)}
             >
-              {LOCALES.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="hq-field">
-            <span className="hq-field__label">{t('settings.theme')}</span>
-            <select
-              className="hq-select"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as Theme)}
-            >
-              <option value="dark">{t('settings.theme.dark')}</option>
-              <option value="light">{t('settings.theme.light')}</option>
-            </select>
-          </label>
+              <span className="theme-tile__in" data-theme={id}>
+                <span className="theme-tile__preview" aria-hidden="true">
+                  <span className="theme-tile__rail" />
+                  <span className="theme-tile__ground">
+                    <i />
+                    <i />
+                    <b />
+                    <em />
+                  </span>
+                </span>
+                <span className="theme-tile__bar" aria-hidden="true" />
+                <span className="theme-tile__name">
+                  {t(`settings.theme.${id}`)}
+                  <Icon name="check" size={16} />
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="setting-row">
+          <span className="setting-row__label">{t('settings.language')}</span>
+          <Segmented<Locale>
+            label={t('settings.language')}
+            value={locale}
+            options={LOCALES.map((l) => ({ id: l.id, label: l.label }))}
+            onChange={setLocale}
+          />
         </div>
       </div>
       <DesktopIntegration />
@@ -206,8 +216,6 @@ function LibrarySettings() {
 
   return (
     <div className="settings-stack">
-      <p className="hint">{t('settings.libraryHint')}</p>
-
       <div className="settings-block">
         <div className="settings-block__head">
           <h3 className="settings-block__title">
@@ -278,10 +286,6 @@ function LibrarySettings() {
           </div>
         </form>
       )}
-      <p className="hint hq-muted">
-        {formatNumber(roots.data?.reduce((n, r) => n + r.trackCount, 0) ?? 0, locale)}{' '}
-        {t('home.statsTracks')}
-      </p>
       {trusted && <CoverSettings />}
       {trusted && <LibraryCleanupCard />}
     </div>
@@ -313,12 +317,22 @@ function LibraryCleanupCard() {
     [p.root, p.folder].filter(Boolean).join(' / ');
   return (
     <div className="settings-block">
-      <BlockHead title={t('library.duplicates.title')} layer="studio" />
-      <p className="hint">
-        {data.duplicates.length === 0
-          ? t('library.duplicates.none')
-          : t('library.duplicates.found', { count: data.duplicates.length })}
-      </p>
+      <BlockHead
+        title={t('library.duplicates.title')}
+        layer="studio"
+        aside={
+          <span
+            className={`hq-badge${data.duplicates.length ? ' hq-badge--warn' : ''}`}
+            title={
+              data.duplicates.length
+                ? t('library.duplicates.found', { count: data.duplicates.length })
+                : t('library.duplicates.none')
+            }
+          >
+            {data.duplicates.length}
+          </span>
+        }
+      />
       {data.duplicates.length > 0 && (
         <ul className="dup-list">
           {data.duplicates.slice(0, 50).map((d) => (
@@ -334,19 +348,13 @@ function LibraryCleanupCard() {
           ))}
         </ul>
       )}
-      <label className="engine-option engine-control">
-        <input
-          type="checkbox"
-          role="switch"
-          checked={online.enabled}
-          disabled={busy}
-          onChange={(e) => void toggle(e.target.checked)}
-        />
-        <span>
-          <strong>{t('library.online.title')}</strong>
-          <span className="hint">{t('library.online.hint')}</span>
-        </span>
-      </label>
+      <Switch
+        checked={online.enabled}
+        disabled={busy}
+        onChange={(v) => void toggle(v)}
+        title={t('library.online.title')}
+        hint={t('library.online.hint')}
+      />
       {online.enabled && (
         <p className="hint hq-muted">
           {online.running
@@ -455,7 +463,6 @@ function PlaybackSettings() {
         {t('settings.capabilities')}
         <LayerTag layer="readonly" />
       </h3>
-      <p className="hint">{t('settings.capabilitiesHint')}</p>
       <div className="kv">
         <span>{t('diag.adapter')}</span>
         <strong>{capabilities.adapter}</strong>
@@ -569,8 +576,7 @@ function Diagnostics() {
 
       {isMock && (
         <div className="settings-block">
-          <h3>{t('diag.mockControls')}</h3>
-          <p className="hint">{t('diag.mockHint')}</p>
+          <h3 title={t('diag.mockHint')}>{t('diag.mockControls')}</h3>
           <div className="button-row">
             {MOCK_ACTIONS.map((m) => (
               <button
@@ -610,7 +616,7 @@ function EngineModeCard() {
     if (res) setSettings(res);
   };
   const option = (adapter: AdapterKind, label: string, hint?: string) => (
-    <label className="engine-option">
+    <label className="engine-option" title={hint}>
       <input
         type="radio"
         name="engine-adapter"
@@ -618,15 +624,23 @@ function EngineModeCard() {
         checked={current.preferredAdapter === adapter}
         onChange={() => void choose(adapter)}
       />
-      <span>
-        <strong>{label}</strong>
-        {hint && <span className="hint">{hint}</span>}
-      </span>
+      <strong>{label}</strong>
     </label>
   );
   return (
     <div className="settings-block">
-      <BlockHead title={t('engine.mode.title')} layer="studio" />
+      <BlockHead
+        title={t('engine.mode.title')}
+        layer="studio"
+        aside={
+          <span
+            className="hq-badge"
+            title={t('engine.mode.active', { adapter: current.activeAdapter })}
+          >
+            {current.activeAdapter}
+          </span>
+        }
+      />
       <div className="engine-options" role="radiogroup" aria-label={t('engine.mode.title')}>
         {option('mock', t('engine.mode.mock'))}
         {option(
@@ -638,7 +652,6 @@ function EngineModeCard() {
           }),
         )}
       </div>
-      <p className="hint">{t('engine.mode.active', { adapter: current.activeAdapter })}</p>
       {current.source === 'override' && (
         <div className="hq-banner hq-banner--muted">
           <Icon name="info" size={16} />
@@ -687,21 +700,13 @@ function ControlSwitch({
     if (res) onChange(res);
   };
   return (
-    <label className={`engine-option engine-control${live ? '' : ' is-disabled'}`}>
-      <input
-        type="checkbox"
-        role="switch"
-        checked={live && settings.allowControl}
-        disabled={!live}
-        onChange={(e) => void toggle(e.target.checked)}
-      />
-      <span>
-        <strong>{t('engine.control.title')}</strong>
-        <span className="hint">
-          {live ? t('engine.control.hint') : t('engine.control.mockOnly')}
-        </span>
-      </span>
-    </label>
+    <Switch
+      checked={live && settings.allowControl}
+      disabled={!live}
+      onChange={(v) => void toggle(v)}
+      title={t('engine.control.title')}
+      hint={live ? t('engine.control.hint') : t('engine.control.mockOnly')}
+    />
   );
 }
 
@@ -751,7 +756,6 @@ function HqplayerAppCard() {
   return (
     <div className="settings-block">
       <BlockHead title={t('hqpApp.title')} layer="studio" />
-      <p className="hint">{t('hqpApp.hint')}</p>
       <div className="kv">
         <span>{t('hqpApp.program')}</span>
         <span className="kv__list">
@@ -790,34 +794,25 @@ function HqplayerAppCard() {
       {state.windowsError && (
         <p className="hint hqp-warn">{t('hqpApp.windowsError', { error: state.windowsError })}</p>
       )}
-      <label className="engine-option engine-control">
-        <input
-          type="checkbox"
-          role="switch"
-          checked={state.prefs.autoStart}
-          disabled={busy}
-          onChange={(e) => void act(() => api.set({ autoStart: e.target.checked }))}
-        />
-        <span>
-          <strong>{t('hqpApp.autoStart')}</strong>
-          <span className="hint">{t('hqpApp.autoStartHint')}</span>
-        </span>
-      </label>
-      <div className="button-row">
-        <span>{t('hqpApp.windowMode')}</span>
-        <select
+      <Switch
+        checked={state.prefs.autoStart}
+        disabled={busy}
+        onChange={(v) => void act(() => api.set({ autoStart: v }))}
+        title={t('hqpApp.autoStart')}
+        hint={t('hqpApp.autoStartHint')}
+      />
+      <div className="setting-row">
+        <span className="setting-row__label">{t('hqpApp.windowMode')}</span>
+        <Segmented<HqpAppState['prefs']['windowMode']>
+          label={t('hqpApp.windowMode')}
           value={state.prefs.windowMode}
           disabled={busy}
-          onChange={(e) =>
-            void act(() =>
-              api.set({ windowMode: e.target.value as HqpAppState['prefs']['windowMode'] }),
-            )
-          }
-        >
-          <option value="normal">{t('hqpApp.mode.normal')}</option>
-          <option value="minimized">{t('hqpApp.mode.minimized')}</option>
-          <option value="hidden">{t('hqpApp.mode.hidden')}</option>
-        </select>
+          options={(['normal', 'minimized', 'hidden'] as const).map((id) => ({
+            id,
+            label: t(`hqpApp.mode.${id}`),
+          }))}
+          onChange={(next) => void act(() => api.set({ windowMode: next }))}
+        />
       </div>
       <div className="button-row">
         {!state.running && (
@@ -932,9 +927,14 @@ function CopyDiagnostics() {
   return (
     <div className="settings-block">
       <h3>{t('diag.report')}</h3>
-      <p className="hint">{t('diag.reportHint')}</p>
       <div className="button-row">
-        <button type="button" className="hq-btn" onClick={() => void copy()} disabled={busy}>
+        <button
+          type="button"
+          className="hq-btn"
+          onClick={() => void copy()}
+          disabled={busy}
+          title={t('diag.reportHint')}
+        >
           {busy ? <Spinner size={14} /> : <Icon name="copy" size={14} />}
           {t('diag.copy')}
         </button>
@@ -956,8 +956,7 @@ function EngineQueueCard() {
   };
   return (
     <div className="settings-block">
-      <h3>{t('engine.queue.title')}</h3>
-      <p className="hint">{t('engine.queue.hint')}</p>
+      <h3 title={t('engine.queue.hint')}>{t('engine.queue.title')}</h3>
       <div className="button-row">
         <button type="button" className="hq-btn" onClick={() => void load()} disabled={loading}>
           {loading ? <Spinner size={14} /> : <Icon name="refresh" size={14} />}

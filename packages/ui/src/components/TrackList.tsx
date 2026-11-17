@@ -1,9 +1,11 @@
 import type { QueueSource, Track } from '@hqps/contracts';
 import { Fragment } from 'react';
 import { formatDuration } from '../format';
+import { useStudio } from '../data/StudioProvider';
 import { useNowPlaying } from '../hooks/useNowPlaying';
 import { useT } from '../i18n/I18nProvider';
 import { Icon } from './Icon';
+import { EqBars } from './basics';
 import { TrackActionsMenu } from './trackActions';
 
 export interface TrackListProps {
@@ -32,6 +34,8 @@ export function TrackList({
 }: TrackListProps) {
   const t = useT();
   const now = useNowPlaying();
+  const { status } = useStudio();
+  const playing = status.transport === 'playing';
   const currentId = now.libraryTrack?.id ?? null;
   const discs = new Set(tracks.map((tr) => tr.discNumber ?? 1));
   const showDiscHeaders = groupByDisc && discs.size > 1;
@@ -80,7 +84,19 @@ export function TrackList({
               onDoubleClick={() => onPlay?.(track, i)}
             >
               <span className="hq-tracklist__num" role="cell">
-                {isCurrent ? <Icon name="volume" size={14} className="hq-accent" /> : num}
+                {/* the number turns into a play button on hover */}
+                <button
+                  type="button"
+                  className="hq-rowplay"
+                  onClick={() => onPlay?.(track, i)}
+                  disabled={!onPlay}
+                  aria-label={`${t('common.play')}: ${track.title}`}
+                >
+                  <span className="hq-rowplay__idle">
+                    {isCurrent ? <EqBars playing={playing} /> : num}
+                  </span>
+                  <Icon name="play" size={14} className="hq-rowplay__icon" />
+                </button>
               </span>
               <span className="hq-tracklist__title" role="cell">
                 <button

@@ -97,7 +97,7 @@ export function shellLocaleOf(locale: string | null | undefined): ShellLocale {
 
 const LABELS = {
   'zh-CN': {
-    tooltip: 'HQPlayer Studio',
+    tooltip: 'HQP Studio',
     nothing: '当前没有播放',
     play: '播放',
     pause: '暂停',
@@ -105,11 +105,11 @@ const LABELS = {
     next: '下一首',
     controlOff: '播放控制未开启（设置 → 播放与引擎）',
     mini: '迷你播放器',
-    show: '显示 HQPlayer Studio',
-    quit: '退出 HQPlayer Studio',
+    show: '显示 HQP Studio',
+    quit: '退出 HQP Studio',
   },
   en: {
-    tooltip: 'HQPlayer Studio',
+    tooltip: 'HQP Studio',
     nothing: 'Nothing playing',
     play: 'Play',
     pause: 'Pause',
@@ -117,8 +117,8 @@ const LABELS = {
     next: 'Next',
     controlOff: 'Playback control is off (Settings → Playback & engine)',
     mini: 'Mini Player',
-    show: 'Show HQPlayer Studio',
-    quit: 'Quit HQPlayer Studio',
+    show: 'Show HQP Studio',
+    quit: 'Quit HQP Studio',
   },
 } as const;
 

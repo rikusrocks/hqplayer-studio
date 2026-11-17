@@ -10,6 +10,12 @@ export interface StudioShell {
   toggleMiniPlayer(): void;
   showMainWindow(): void;
   closeMiniPlayer(): void;
+  /**
+   * The side panel (queue / lyrics) opened or closed: the window grows by `width` px on its
+   * right edge, or gives that back, so the panel never covers the content. Resolves to whether
+   * the window is extended (false when it is maximized: the content makes room instead).
+   */
+  setSidePanel(open: boolean, width: number): Promise<boolean>;
   /** Saved “always on top” of the Mini Player. */
   getAlwaysOnTop(): Promise<boolean>;
   /** Tray menu labels follow the UI language. */

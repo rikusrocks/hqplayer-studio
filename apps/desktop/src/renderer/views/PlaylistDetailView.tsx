@@ -2,6 +2,7 @@ import { StudioApiError } from '@hqps/api-client';
 import type { PlaylistDetail, PlaylistItem } from '@hqps/contracts';
 import {
   EmptyState,
+  EqBars,
   ErrorBlock,
   Icon,
   LoadingBlock,
@@ -30,7 +31,8 @@ function move<T>(list: T[], from: number, to: number): T[] {
 
 export function PlaylistDetailView({ playlistId }: { playlistId: string }) {
   const { t, locale } = useI18n();
-  const { client, playlistsVersion, libraryVersion, playPlaylist, run, pending } = useStudio();
+  const { client, playlistsVersion, libraryVersion, playPlaylist, run, pending, status } =
+    useStudio();
   const gate = useCapabilityGate();
   const actions = usePlaylistActions();
   const now = useNowPlaying();
@@ -127,14 +129,9 @@ export function PlaylistDetailView({ playlistId }: { playlistId: string }) {
       </div>
 
       {items.length === 0 ? (
-        <EmptyState
-          icon="playlist"
-          title={t('playlist.emptyItems')}
-          hint={t('playlist.emptyItemsHint')}
-        />
+        <EmptyState icon="playlist" title={t('playlist.emptyItems')} />
       ) : (
         <>
-          <p className="hint">{t('playlist.dragHint')}</p>
           <ol className="pl-items" aria-busy={busy}>
             {items.map((item, index) => {
               const isCurrent = now.libraryTrack?.id === item.track.id;
@@ -176,7 +173,22 @@ export function PlaylistDetailView({ playlistId }: { playlistId: string }) {
                     <Icon name="drag" size={14} />
                   </span>
                   <span className="pl-item__num">
-                    {isCurrent ? <Icon name="volume" size={14} className="hq-accent" /> : index + 1}
+                    <button
+                      type="button"
+                      className="hq-rowplay"
+                      onClick={() => void playPlaylist(pl.id, item.itemId)}
+                      disabled={!!playReason}
+                      aria-label={`${t('common.play')}: ${item.track.title}`}
+                    >
+                      <span className="hq-rowplay__idle">
+                        {isCurrent ? (
+                          <EqBars playing={status.transport === 'playing'} />
+                        ) : (
+                          index + 1
+                        )}
+                      </span>
+                      <Icon name="play" size={14} className="hq-rowplay__icon" />
+                    </button>
                   </span>
                   <span className="pl-item__title">
                     <button

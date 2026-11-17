@@ -1,6 +1,6 @@
 import { StudioApiError, createStudioClient } from '@hqps/api-client';
 import { normalizePairingCode, PAIRING_CODE_LENGTH } from '@hqps/contracts';
-import { Icon, Spinner, hasMessage, useT } from '@hqps/ui';
+import { BrandMark, Icon, Spinner, hasMessage, useT } from '@hqps/ui';
 import { useEffect, useRef, useState } from 'react';
 
 /** A friendly default name for the device list on the computer. */
@@ -103,7 +103,7 @@ export function PairingView({
         }}
       >
         <div className="rm-pair__logo" aria-hidden="true">
-          <Icon name="wave" size={28} />
+          <BrandMark size={40} />
         </div>
         <h1>{t('pair.title')}</h1>
         {revoked && (

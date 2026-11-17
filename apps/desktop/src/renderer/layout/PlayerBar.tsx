@@ -28,7 +28,7 @@ export function PlayerBar({
     : null;
 
   return (
-    <footer className="playerbar">
+    <footer className="playerbar on-rail">
       <div className="playerbar__now">
         {albumHref ? (
           <a href={albumHref} className="playerbar__art" aria-label={now.album ?? ''}>

@@ -13,6 +13,11 @@ const STROKE = {
   playlist:
     'M4 6.5h11 M4 11.5h11 M4 16.5h6 M18.5 19a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M18.5 19v-8l2.5-.8',
   queue: 'M4 6.5h16 M4 12h16 M4 17.5h10',
+  queueAdd: 'M4 6.5h16 M4 12h9 M4 17.5h7 M18 13.5v7 M14.5 17h7',
+  playNext: 'M4 6.5h16 M4 12h8 M4 17.5h6 M15.5 12.2v8.6l6-4.3z',
+  list: 'M8 6.5h12 M8 12h12 M8 17.5h12 M4 6.5h.01 M4 12h.01 M4 17.5h.01',
+  chevronsLeft: 'M11 7l-5 5 5 5 M18 7l-5 5 5 5',
+  chevronsRight: 'M13 7l5 5-5 5 M6 7l5 5-5 5',
   settings: 'M4 7h9 M17 7h3 M4 17h3 M11 17h9 M15 4.5v5 M9 14.5v5',
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4',
   plus: 'M12 5v14 M5 12h14',

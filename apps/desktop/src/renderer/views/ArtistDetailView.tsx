@@ -1,18 +1,17 @@
 import { StudioApiError } from '@hqps/api-client';
 import {
-  AlbumCard,
   AlbumGrid,
   Artwork,
   EmptyState,
   ErrorBlock,
   Icon,
   LoadingBlock,
-  buildHref,
   useAsync,
   useCapabilityGate,
   useI18n,
   useStudio,
 } from '@hqps/ui';
+import { AlbumTile } from './AlbumTile';
 import { Section } from './common';
 
 export function ArtistDetailView({ artistId }: { artistId: string }) {
@@ -73,8 +72,8 @@ export function ArtistDetailView({ artistId }: { artistId: string }) {
       </div>
       <Section title={t('artist.albums')}>
         <AlbumGrid>
-          {a.albums.map((al) => (
-            <AlbumCard key={al.id} album={al} href={buildHref('/albums', al.id)} />
+          {a.albums.map((al, i) => (
+            <AlbumTile key={al.id} album={al} index={i} />
           ))}
         </AlbumGrid>
       </Section>

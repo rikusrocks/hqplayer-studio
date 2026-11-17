@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('studioShell', {
   toggleMiniPlayer: (): void => ipcRenderer.send('studio:toggle-mini'),
   showMainWindow: (): void => ipcRenderer.send('studio:show-main'),
   closeMiniPlayer: (): void => ipcRenderer.send('studio:close-mini'),
+  setSidePanel: (open: boolean, width: number): Promise<boolean> =>
+    ipcRenderer.invoke('studio:set-side-panel', open === true, Number(width)) as Promise<boolean>,
   getAlwaysOnTop: (): Promise<boolean> =>
     ipcRenderer.invoke('studio:get-always-on-top') as Promise<boolean>,
   setLocale: (locale: string): void => ipcRenderer.send('studio:set-locale', String(locale)),
