@@ -1,0 +1,242 @@
+# HQPlayer Studio 用户指南 / User guide
+
+适用版本 / For version **0.5.0**. [中文](#中文) · [English](#english)
+
+HQPlayer Studio 是 **HQPlayer Desktop 6** 的第三方音乐库、播放列表和遥控器，与 Signalyst 没有任何隶属关系。
+声音、DSP、升频（例如 PCM → DSD512）、CUDA 和 DAC 输出始终由 HQPlayer 完成；Studio 只负责找音乐、排队和遥控。
+
+---
+
+## 中文
+
+### 1. 安装、升级、卸载
+
+从 GitHub 的 **Releases**（正式版本）或 **Actions → Windows build → Artifacts**（每次修改后的测试版本）下载：
+
+| 文件                                     | 用途                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `HQPlayerStudio-<版本>-setup-x64.exe`    | **安装版（推荐）**。安装到当前用户，不需要管理员权限；有开始菜单和桌面快捷方式 |
+| `HQPlayerStudio-<版本>-portable-x64.exe` | 免安装版：双击即运行，什么都不安装                                             |
+| `HQPlayerStudio-<版本>-win-x64.zip`      | 解压即用的程序文件夹                                                           |
+
+- 程序没有数字签名。第一次运行时如果 Windows 提示“已保护你的电脑”，点 **更多信息 → 仍要运行**。
+- 三种方式共用同一个数据文件夹 `%APPDATA%\HQPlayer Studio`：音乐库索引、播放列表、设置、备份、日志都在这里。
+  换用另一种方式、升级或卸载都不会丢失这些数据（卸载程序不会删除数据文件夹）。
+- **升级**：直接安装新版本（或换用新的免安装 exe）。如果新版本需要改动数据库，会先自动做一份“升级前自动备份”。
+- Studio 不会自动更新自己，也不会更新、重装或修改 HQPlayer。
+
+### 2. 第一次使用：连接 HQPlayer
+
+1. 第一次打开时 Studio 使用 **Mock 引擎**和一个虚构的演示音乐库，不会碰 HQPlayer。
+2. **设置 → 播放与引擎能力 → 引擎连接**：选择“真实 HQPlayer（实验）”，点“立即重启”。Studio 只连接本机的
+   `127.0.0.1:4321`，先只读取状态。
+3. 想用 Studio 播放、暂停、切歌、装载专辑：在同一页打开 **允许 Studio 控制 HQPlayer**。只有在你的 HQPlayer 上验证过的
+   命令才会开放；不支持的功能会写明原因，不会显示假按钮。
+4. 可选：同一页的 **HQPlayer 程序** —— “启动 Studio 时自动启动 HQPlayer”，以及 HQPlayer 窗口“正常 / 最小化 / 隐藏”。
+   “最近一次结果”会显示每一步发生了什么。
+5. HQPlayer 断开后，Studio 会自动重连，**只重新读取状态**：不会自动播放、不会改音量或 DSP。
+
+### 3. 音乐库
+
+- **设置 → 音乐库 → 添加目录**，选择音乐文件夹后点“扫描”。支持本地盘、USB 盘和网络共享（NAS）。
+- 之后 Studio 会监听文件夹的变化，只重新扫描改动过的文件夹；另有每天一次的兜底扫描。播放时扫描会主动放慢，
+  不与 HQPlayer 争抢磁盘或 CPU。
+- 扫描只读文件。文件暂时找不到（例如 NAS 关机）只标记为“不可用”，不会删除；被播放列表引用的曲目永远不会被删除。
+- 封面优先用文件夹里的图片和文件内嵌图片。在线封面（iTunes / Deezer / MusicBrainz）默认关闭，在 **设置 → 音乐库 → 封面** 开启。
+
+### 4. 播放、队列、播放列表
+
+- 在专辑、播放列表或歌曲上点播放：Studio 先停止 HQPlayer，再把曲目放进 HQPlayer 的播放列表并开始播放。
+- 右侧“队列”是 Studio 安排的即时队列；保存的播放列表与队列分开，播放不会改动播放列表。
+- 如果有人在 HQPlayer 自己的窗口里换了歌，Studio 会显示“队列不一致”，由你选择：**以 HQPlayer 为准**（Studio 跟随，
+  不向 HQPlayer 发命令）或 **用 Studio 队列替换 HQPlayer**（不会自动开始播放）。Studio 从不静默覆盖。
+
+### 5. 迷你播放器、媒体键、托盘、歌词
+
+- 播放条上的迷你播放器按钮打开一个小窗口（可置顶，记住位置，多显示器会自动拉回屏幕内）。
+- **设置 → 常规 → 桌面集成**：媒体键（Windows）、托盘图标、关闭窗口时最小化到托盘。
+- 歌词优先使用本地文件（与音乐同名的 `.lrc`、`Lyrics` 子文件夹等）和文件内嵌歌词。在线歌词来源（LRCLIB、网易云、酷狗、
+  lyrics.ovh）默认关闭，在 **设置 → 歌词** 逐个开启；开启后只为正在播放的那一首查询。每首歌可以用 − / + 校准时间。
+
+### 6. 手机 / iPad 遥控
+
+1. **设置 → 网页遥控**：开启局域网访问，选择家里的网络（只会在家庭局域网地址上监听）。
+2. 手机浏览器打开页面上显示的地址（或扫二维码），输入电脑上显示的 6 位配对码。
+3. 设备列表里可以随时取消某台设备的配对。手机能浏览、播放、切歌、改队列，但永远拿不到设置、诊断、文件夹管理或文件路径。
+   请不要把这个端口映射到公网。
+
+### 7. DSP 设置
+
+**设置 → DSP**：在开启“允许 Studio 控制 HQPlayer”之后，再开启“允许 Studio 修改 HQPlayer DSP 设置”，就可以改模式、1x / Nx
+滤波器、调制器 / 噪声整形、输出采样率、反相和自适应音量。每次更改都会从 HQPlayer 读回确认。播放中更改会有短暂中断，
+约 5 秒内生效。输出设备、缓冲、卷积、矩阵、CUDA 等只能在 HQPlayer 自己的设置窗口里改。
+
+### 8. 数据备份与恢复
+
+**设置 → 常规 → 数据备份**
+
+- 备份内容：音乐库索引、播放列表、队列、Studio 的设置（不含音乐文件，也不含封面缓存）。备份只保存在这台电脑上：
+  `%APPDATA%\HQPlayer Studio\data\backups`。
+- 自动备份：每次升级改动数据库**之前**一份（“升级前自动备份”）；每天一份（播放时会等到暂停，最多推迟一天）。
+  每种只保留最近几份（每日 7 份、升级前 5 份、手动 10 份、恢复前的数据 5 份）。
+- **立即备份**：随时手动备份一份。
+- **恢复…**：选一份备份 → 确认 → Studio 重新启动并换上这份备份。当前数据会先另存为“恢复前的数据”，所以恢复也可以撤销。
+  HQPlayer 不受影响。
+
+### 9. 退回旧版本
+
+1. 退出 Studio，安装（或运行）旧版本。
+2. 如果新版本改过数据库，旧版本（0.5.0 及以后）启动时会提示 **“这个数据库来自更新版本的 HQPlayer Studio”**，
+   不会打开或改动它，并提供“恢复这个备份”：这是新版本升级前自动做的那份备份。点它即可，当前（新版本的）数据库会
+   另存为备份，之后再换回新版本时还能恢复。
+3. 注意：升级之后才做的改动（新建的播放列表等）不在升级前的备份里。
+4. 0.5.0 没有改动数据库结构，所以从 0.5.0 退回 0.4.x 可以直接运行；0.4.x 及更早的版本还没有上面的保护。
+
+### 10. 日志、崩溃报告、诊断信息
+
+- Studio 把运行记录写在 `%APPDATA%\HQPlayer Studio\logs`：`studio.log`（满 2 MB 轮换，保留 5 个文件）、
+  崩溃报告 `crash-*.txt`。写入前会去掉文件路径、文件名、曲名、歌手、专辑、电脑名、用户名和局域网地址。不会上传到任何地方。
+- 如果 Studio 上次没有正常退出（崩溃、被强制结束或断电），下次启动时会记录下来，并在 **设置 → 诊断 → 日志与崩溃报告** 显示。
+- 界面窗口如果崩溃，Studio 会自动重新载入（10 分钟内最多 3 次）并记录原因。
+- 遇到问题：**设置 → 诊断 → 复制诊断信息**，把内容发给开发者。里面包括连接状态、最近与 HQPlayer 的通信（已脱敏）、
+  最近的警告与错误、数据库与备份状态、长时间播放测试的结论。需要更多细节时可以点“打开日志文件夹”，把 `studio.log`
+  和 `crash-*.txt` 一起发回。
+
+### 11. 长时间播放测试（检验 Studio 会不会影响播放）
+
+这个测试只“旁听”：记录 HQPlayer 的状态是否中断、播放是否在 Studio 没有发命令时停止或跳曲、扫描音乐库时是否出问题、
+Studio 自己是否卡顿。它不会向 HQPlayer 发送任何命令，也不会改任何设置。
+
+1. 确认 Studio 已连接真实 HQPlayer（**设置 → 播放与引擎能力**），并开启了“允许 Studio 控制 HQPlayer”。
+2. **设置 → 诊断 → 长时间播放测试**：选择时长（例如“8 小时”或“直到我停止”），点 **开始测试**。
+3. 在 Studio 里播放专辑或播放列表，按平常的方式听（最好用你常用的 DSD512 设置）。测试期间可以照常使用 Studio 和手机遥控。
+4. 为了检验“扫描时播放是否受影响”，测试期间请至少做一次：
+   - 往音乐文件夹里复制一张新专辑（触发文件夹监听扫描），以及
+   - **设置 → 音乐库** 点一次“扫描”（完整的增量扫描）。
+5. 如果听到任何问题（爆音、断音、停止、跳曲），记下大概时间。
+6. 结束时回到同一页点 **停止并保存报告**（选了时长的会自动结束；退出 Studio 也会保存）。页面会显示结论：
+   - “没有记录到异常”；
+   - “记录到异常，发生时 Studio 都没有在做任何事”；
+   - “其中 N 次发生时 Studio 正在发命令、扫描或卡顿” —— 请务必把报告发回。
+7. 点 **打开报告文件夹**（`%APPDATA%\HQPlayer Studio\soak-reports`），把 `soak-<时间>.json` 发给开发者，
+   再附上 **复制诊断信息** 的内容和你记下的时间。报告里没有曲名、歌手、专辑、文件名、路径、电脑名或用户名，
+   只有曲目序号、时长、播放状态、输出格式（例如 DSD512）和时间。
+
+注意：测试期间请不要让电脑睡眠；测试中 Studio 每分钟保存一次报告，即使 Studio 意外退出，已记录的部分也会保留。
+
+### 12. 隐私
+
+- Studio 不上传任何数据。只有你开启的在线歌词 / 封面来源会收到歌名、歌手、专辑名（从不发送路径）。
+- 日志、崩溃报告、诊断信息和测试报告都留在这台电脑上，内容已脱敏；是否发给别人由你决定。
+
+---
+
+## English
+
+### 1. Install, update, uninstall
+
+Download from GitHub **Releases** (official versions) or **Actions → Windows build → Artifacts** (test builds):
+
+| File                                        | Use                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `HQPlayerStudio-<version>-setup-x64.exe`    | **Installer (recommended)**: per-user, no admin rights, Start menu + desktop shortcut |
+| `HQPlayerStudio-<version>-portable-x64.exe` | Portable: double-click to run, nothing installed                                      |
+| `HQPlayerStudio-<version>-win-x64.zip`      | The unpacked app                                                                      |
+
+- The program is not code-signed: if Windows SmartScreen appears, choose **More info → Run anyway**.
+- All three share one data folder, `%APPDATA%\HQPlayer Studio` (library index, playlists, settings, backups, logs).
+  Switching, updating or uninstalling keeps it.
+- **Updating**: install the new version. If it needs to change the database, it first makes a "before update" backup.
+- Studio never updates itself and never updates, reinstalls or reconfigures HQPlayer.
+
+### 2. First start: connecting HQPlayer
+
+1. The first start uses the **mock engine** and a fictional demo library; HQPlayer is not touched.
+2. **Settings → Playback & engine capabilities → Engine connection**: choose "Real HQPlayer (experimental)", then "Restart now". Studio only talks to
+   `127.0.0.1:4321` and starts read-only.
+3. To play / pause / skip / load albums from Studio, turn on **Allow Studio to control HQPlayer** on the same page. Only
+   commands verified on your HQPlayer are offered.
+4. Optional: **HQPlayer program** — start HQPlayer with Studio, and show / minimize / hide its window.
+5. After a lost connection Studio reconnects and only reads the state again: it never starts playback or changes volume or DSP by itself.
+
+### 3. Library
+
+- **Settings → Library → Add folder**, then "Scan". Local disks, USB drives and network shares work.
+- Studio then watches the folders and rescans only what changed, plus a daily fallback scan. Scans slow down while music plays.
+- Scans only read. Missing files are marked unavailable, never deleted; tracks used by a playlist are never deleted.
+- Covers come from the album folder and the files first; online covers are opt-in (**Settings → Library → Covers**).
+
+### 4. Playing, queue, playlists
+
+- Playing an album, playlist or track stops HQPlayer, loads the tracks into HQPlayer's playlist and starts playback.
+- The queue is separate from saved playlists. If someone changes tracks in HQPlayer's own window, Studio shows "out of sync"
+  and lets you choose **Follow HQPlayer** or **Replace HQPlayer's queue** (no autoplay). Nothing is overwritten silently.
+
+### 5. Mini Player, media keys, tray, lyrics
+
+- The Mini Player (always on top optional, remembers its place). **Settings → General → Desktop integration**: media keys, tray icon, close to tray.
+- Lyrics: local files and embedded lyrics first; online sources (LRCLIB, NetEase, Kugou, lyrics.ovh) are off until you enable
+  them one by one in **Settings → Lyrics**, and then only the playing track is looked up.
+
+### 6. Phone / tablet remote
+
+**Settings → Web Remote**: enable LAN access on your home network, open the shown address on the phone (or scan the QR code)
+and type the 6-digit pairing code. Devices can be unpaired at any time. Phones never get settings, diagnostics, folder management or paths.
+
+### 7. DSP settings
+
+With control allowed, turn on "Allow Studio to change HQPlayer DSP settings" in **Settings → DSP** to change mode, 1x / Nx
+filters, modulator / noise shaping, output rate, invert and adaptive volume. Every change is read back from HQPlayer. Output
+device, buffers, convolution, matrix and CUDA stay in HQPlayer's own settings.
+
+### 8. Backups and restore
+
+**Settings → General → Data backups**
+
+- A backup holds the library index, playlists, queue and Studio's settings (not music files or the cover cache). Backups stay in
+  `%APPDATA%\HQPlayer Studio\data\backups`.
+- Automatic: one **before** every update that changes the database, one a day (waits for a pause in playback, at most a day).
+  Kept: 7 daily, 5 before-update, 10 manual, 5 data-before-restore.
+- **Back up now** makes one immediately. **Restore…** restarts Studio with the chosen backup; the current data is kept as a
+  "data before restore" backup first, so a restore can be undone. HQPlayer is not affected.
+
+### 9. Going back to an older version
+
+1. Quit Studio and install (or run) the older version.
+2. If the newer version changed the database, the older one (0.5.0 or later) says **"This database is from a newer version of
+   HQPlayer Studio"**, leaves it untouched and offers **Restore this backup** — the backup the newer version made right before
+   it upgraded. The newer database is kept as a backup, so it can be restored after updating again.
+3. Changes made after the update (new playlists etc.) are not in the before-update backup.
+4. 0.5.0 does not change the database structure, so going from 0.5.0 back to 0.4.x just works; 0.4.x and older do not have this protection.
+
+### 10. Logs, crash reports, diagnostics
+
+- Log: `%APPDATA%\HQPlayer Studio\logs\studio.log` (rotates at 2 MB, 5 files kept) and crash reports `crash-*.txt`. Paths, file
+  names, track / artist / album names, the computer name, the user name and LAN addresses are removed before anything is written.
+  Nothing is uploaded.
+- An unclean end of the previous run (crash, forced quit, power loss) is recorded and shown in **Settings → Diagnostics → Logs and crash reports**.
+  A crashed window is reloaded automatically (at most 3 times in 10 minutes).
+- For a problem: **Settings → Diagnostics → Copy diagnostics** and send it. It includes the connection state, the recent (redacted)
+  conversation with HQPlayer, recent warnings and errors, database / backup state and the long-listening-test result. "Open log folder" for `studio.log` and `crash-*.txt`.
+
+### 11. Long listening test (does Studio affect playback?)
+
+The test only listens in: gaps in HQPlayer's status, playback stopping or skipping without a Studio command, problems while the
+library is scanned, and Studio's own stalls. It sends nothing to HQPlayer and changes no setting.
+
+1. Connect Studio to the real HQPlayer and allow control (**Settings → Playback & engine capabilities**).
+2. **Settings → Diagnostics → Long listening test**: choose a duration (e.g. 8 hours, or until stopped) and **Start test**.
+3. Play albums or playlists from Studio and listen as usual (ideally with your usual DSD512 settings); use Studio and the phone remote normally.
+4. At least once during the test: copy a new album into a music folder (folder-watch rescan) **and** press "Scan" in **Settings → Library**.
+5. Note the time of anything you hear (clicks, dropouts, stops, skips).
+6. **Stop and save report** (a chosen duration ends by itself; quitting Studio also saves). The page shows the verdict.
+7. **Open report folder** (`%APPDATA%\HQPlayer Studio\soak-reports`) and send `soak-<time>.json`, the **Copy diagnostics** text
+   and your notes. The report contains no titles, artists, albums, file names, paths, computer or user names — only track numbers,
+   durations, states, output formats (e.g. DSD512) and timings.
+
+Keep the PC from sleeping during the test. The report is saved every minute, so an unexpected exit keeps what was recorded.
+
+### 12. Privacy
+
+Studio uploads nothing. Only online lyrics / cover sources you enable receive track or album names (never paths). Logs, crash
+reports, diagnostics and test reports stay on this computer, redacted; sending them is your choice.

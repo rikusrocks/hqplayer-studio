@@ -1,7 +1,8 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { migrate } from './migrations';
+import { backupDatabase, type BackupFile } from './backups';
+import { assertSchemaSupported, migrate, schemaState } from './migrations';
 
 export type Database = DatabaseSync;
 export type SqlValue = null | number | bigint | string | Uint8Array;
@@ -9,23 +10,71 @@ export type SqlValue = null | number | bigint | string | Uint8Array;
 export interface OpenDatabaseOptions {
   /** Skip running migrations (tests that exercise migrate() directly). */
   skipMigrations?: boolean;
+  /**
+   * Before migrations change an existing database, copy it here (a `pre-migration` backup —
+   * the way back if the user returns to the previous app version).
+   */
+  backup?: { dir: string; appVersion: string };
+}
+
+export interface OpenedDatabase {
+  db: Database;
+  /** Migrations applied by this open. */
+  migrated: number[];
+  /** The `pre-migration` backup made by this open, if any. */
+  preMigrationBackup: BackupFile | null;
 }
 
 /**
  * Open (and migrate) the Studio database. Uses Node's built-in `node:sqlite` — available in
  * Node ≥ 22.13 and in Electron 45 (verified 2026-11-10: Electron 45.2.3 ships SQLite 3.53 with
  * FTS5) — so there is no native addon to rebuild for Electron/Windows.
+ *
+ * Throws `DatabaseTooNewError` (and leaves the file untouched) when the database was written by
+ * a newer Studio.
  */
-export function openDatabase(file: string, options: OpenDatabaseOptions = {}): Database {
+export function openDatabaseWithInfo(
+  file: string,
+  options: OpenDatabaseOptions = {},
+): OpenedDatabase {
   if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file, { enableForeignKeyConstraints: true });
-  db.exec('PRAGMA busy_timeout = 5000');
-  if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
-  db.exec('PRAGMA synchronous = NORMAL');
-  db.exec('PRAGMA foreign_keys = ON');
-  if (!options.skipMigrations) migrate(db);
+  let preMigrationBackup: BackupFile | null = null;
+  let migrated: number[] = [];
+  try {
+    db.exec('PRAGMA busy_timeout = 5000');
+    // Check before anything writes (journal mode included): a newer app's database stays as is.
+    assertSchemaSupported(db);
+    if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
+    db.exec('PRAGMA synchronous = NORMAL');
+    db.exec('PRAGMA foreign_keys = ON');
+    if (!options.skipMigrations) {
+      const state = schemaState(db);
+      if (
+        options.backup &&
+        file !== ':memory:' &&
+        state.applied.length > 0 &&
+        state.pending.length > 0
+      ) {
+        preMigrationBackup = backupDatabase(
+          db,
+          options.backup.dir,
+          'pre-migration',
+          options.backup.appVersion,
+        );
+      }
+      migrated = migrate(db);
+    }
+  } catch (err) {
+    db.close();
+    throw err;
+  }
   cacheStatements(db);
-  return db;
+  return { db, migrated, preMigrationBackup };
+}
+
+export function openDatabase(file: string, options: OpenDatabaseOptions = {}): Database {
+  return openDatabaseWithInfo(file, options).db;
 }
 
 /**

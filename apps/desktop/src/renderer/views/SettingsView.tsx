@@ -36,6 +36,7 @@ import { getShell, type HqpAppState, type HqpRunReport } from '../shell';
 import { describeReport, describeSearchStep } from './hqpReport';
 import { ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
+import { BackupSettings, LogsCard, SoakTestCard } from './MaintenanceSettings';
 import {
   BlockHead,
   CoverSettings,
@@ -131,6 +132,7 @@ function GeneralSettings() {
         </div>
       </div>
       <DesktopIntegration />
+      <BackupSettings />
       <p className="hint">{t('app.disclaimer')}</p>
     </div>
   );
@@ -560,6 +562,10 @@ function Diagnostics() {
       {canUse(capabilities, 'queue.read') && <EngineQueueCard />}
 
       <CopyDiagnostics />
+
+      <LogsCard />
+
+      <SoakTestCard />
 
       {isMock && (
         <div className="settings-block">

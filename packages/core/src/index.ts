@@ -9,3 +9,8 @@ export * from './services/cover-service';
 export * from './services/cover-sources';
 export { toApiError, HttpError } from './http/errors';
 export { HTML_CSP, isLoopbackAddress } from './http/security';
+export * from './services/backup-service';
+export * from './services/soak-recorder';
+export * from './logging/studio-log';
+export * from './logging/redact';
+export * from './logging/crash-handlers';

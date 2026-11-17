@@ -47,6 +47,7 @@ import type { StudioServices } from '../server';
 import { HttpError } from './errors';
 import { registerCoverRoutes } from './cover-routes';
 import { registerLyricsRoutes } from './lyrics-routes';
+import { logInfo, registerMaintenanceRoutes } from './maintenance-routes';
 import { registerRemoteRoutes } from './remote-routes';
 import { isTrustedRequest } from './security';
 
@@ -205,6 +206,51 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
             lyrics: s.lyrics.settings(),
             covers: s.covers.settings(),
             protocol: adapter.getProtocolLog?.() ?? null,
+            // Phase 5: database, local log (already redacted) and the soak test
+            database: (() => {
+              const b = s.backups.state();
+              return {
+                schemaVersion: b.schemaVersion,
+                supportedSchemaVersion: b.supportedSchemaVersion,
+                backups: b.backups.length,
+                newestBackup: b.backups[0]
+                  ? { kind: b.backups[0].kind, at: new Date(b.backups[0].createdAt).toISOString() }
+                  : null,
+                lastDailyAt: b.lastDailyAt ? new Date(b.lastDailyAt).toISOString() : null,
+                lastError: b.lastError ? scrub.sanitize(b.lastError) : null,
+                lastRestore: b.lastRestore
+                  ? { ok: b.lastRestore.ok, at: new Date(b.lastRestore.at).toISOString() }
+                  : null,
+              };
+            })(),
+            log: (() => {
+              const l = logInfo(s);
+              return {
+                enabled: l.enabled,
+                since: l.since,
+                counts: l.counts,
+                recentProblems: l.problems.slice(-20),
+                crashReports: l.crashReports.map((c) => ({
+                  at: c.at,
+                  kind: c.kind,
+                  summary: c.summary,
+                })),
+                previousSessionUnclean: l.previousSessionUnclean,
+              };
+            })(),
+            soak: (() => {
+              const k = s.soak.snapshot();
+              return k.startedAt === null
+                ? null
+                : {
+                    running: k.running,
+                    hours: Math.round((k.elapsedMs / 3600_000) * 10) / 10,
+                    verdict: k.verdict,
+                    warnings: k.warnings,
+                    warningsWithStudioActivity: k.warningsWithStudioActivity,
+                    incidentCounts: k.incidentCounts,
+                  };
+            })(),
           };
         });
         api.get('/settings/engine', async () => engineSettings(s));
@@ -421,6 +467,9 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
           body(PlayPlaylistRequestSchema, req).startItemId,
         ),
       );
+
+      // --- backups, logs, soak test (this computer only)
+      registerMaintenanceRoutes(api, s);
 
       // --- lyrics
       registerLyricsRoutes(api, s);

@@ -1,5 +1,6 @@
 export * from './db/database';
 export * from './db/migrations';
+export * from './db/backups';
 export * from './errors';
 export * from './format';
 export * from './normalize';
@@ -22,7 +23,15 @@ export * from './seed/demo-seed';
 
 import { join } from 'node:path';
 import { ArtworkStore } from './artwork/artwork-store';
-import { openDatabase, type Database } from './db/database';
+import {
+  applyPendingRestore,
+  BACKUP_DIR_NAME,
+  DB_FILE_NAME,
+  type BackupFile,
+  type RestoreResult,
+} from './db/backups';
+import { openDatabaseWithInfo, type Database } from './db/database';
+import { schemaVersion } from './db/migrations';
 import { LibraryRepository } from './repositories/library-repo';
 import { PlaylistRepository } from './repositories/playlist-repo';
 import { QueueRepository } from './repositories/queue-repo';
@@ -39,12 +48,48 @@ export interface LibraryContext {
   remoteDevices: RemoteDeviceRepository;
   lyrics: LyricsRepository;
   artwork: ArtworkStore;
+  /** Where the database lives and what happened when it was opened (null for `:memory:`). */
+  storage: LibraryStorage | null;
   close(): void;
 }
 
-/** Open the database in `dataDir` (or memory) and wire up all repositories. */
-export function openLibrary(dataDir: string | ':memory:', artworkDir?: string): LibraryContext {
-  const db = openDatabase(dataDir === ':memory:' ? ':memory:' : join(dataDir, 'studio.sqlite'));
+export interface LibraryStorage {
+  dataDir: string;
+  dbFile: string;
+  backupDir: string;
+  schemaVersion: number;
+  migrated: number[];
+  preMigrationBackup: BackupFile | null;
+  /** A restore that was applied while opening (requested in Settings before a restart). */
+  restore: RestoreResult | null;
+}
+
+export interface OpenLibraryOptions {
+  /** Written into backup names; backups before migrations / restores are made only with it. */
+  appVersion?: string;
+}
+
+/**
+ * Open the database in `dataDir` (or memory) and wire up all repositories. A restore requested
+ * before the last restart is applied first; migrations of an existing database are preceded by
+ * a `pre-migration` backup in `<dataDir>/backups`.
+ */
+export function openLibrary(
+  dataDir: string | ':memory:',
+  artworkDir?: string,
+  options: OpenLibraryOptions = {},
+): LibraryContext {
+  const file = dataDir === ':memory:' ? ':memory:' : join(dataDir, DB_FILE_NAME);
+  const backupDir = dataDir === ':memory:' ? null : join(dataDir, BACKUP_DIR_NAME);
+  const appVersion = options.appVersion ?? 'unknown';
+  const restore =
+    dataDir !== ':memory:' && backupDir
+      ? applyPendingRestore(dataDir, backupDir, appVersion)
+      : null;
+  const opened = openDatabaseWithInfo(file, {
+    backup: backupDir ? { dir: backupDir, appVersion } : undefined,
+  });
+  const { db } = opened;
   const library = new LibraryRepository(db);
   const playlists = new PlaylistRepository(db, library);
   const queue = new QueueRepository(db);
@@ -67,6 +112,18 @@ export function openLibrary(dataDir: string | ':memory:', artworkDir?: string): 
     remoteDevices,
     lyrics,
     artwork,
+    storage:
+      dataDir === ':memory:' || !backupDir
+        ? null
+        : {
+            dataDir,
+            dbFile: file,
+            backupDir,
+            schemaVersion: schemaVersion(db),
+            migrated: opened.migrated,
+            preMigrationBackup: opened.preMigrationBackup,
+            restore,
+          },
     close: () => db.close(),
   };
 }

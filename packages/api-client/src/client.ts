@@ -4,6 +4,9 @@ import {
   AlbumDetailSchema,
   AlbumPageSchema,
   ApiErrorSchema,
+  BackupStateSchema,
+  LogInfoSchema,
+  SoakStatusSchema,
   ArtistDetailSchema,
   ArtistPageSchema,
   CoverCandidateSchema,
@@ -214,6 +217,20 @@ export function createStudioClient(options: StudioClientOptions = {}) {
         post(EngineSettingsSchema, '/settings/engine', { allowControl }),
       setDspAllowed: (allowDsp: boolean) =>
         post(EngineSettingsSchema, '/settings/engine', { allowDsp }),
+    },
+
+    /** Backups, local log, soak test (this computer only). */
+    maintenance: {
+      backups: () => get(BackupStateSchema, '/maintenance/backups'),
+      backupNow: () => post(BackupStateSchema, '/maintenance/backups'),
+      /** Restore at the next start (the app must be restarted afterwards). */
+      restore: (id: string) => post(BackupStateSchema, '/maintenance/backups/restore', { id }),
+      cancelRestore: () => post(BackupStateSchema, '/maintenance/backups/restore/cancel'),
+      logs: () => get(LogInfoSchema, '/maintenance/logs'),
+      soak: () => get(SoakStatusSchema, '/maintenance/soak'),
+      startSoak: (durationHours: number | null) =>
+        post(SoakStatusSchema, '/maintenance/soak/start', { durationHours }),
+      stopSoak: () => post(SoakStatusSchema, '/maintenance/soak/stop'),
     },
 
     remote: {

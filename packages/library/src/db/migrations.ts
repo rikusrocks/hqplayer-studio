@@ -242,7 +242,57 @@ DROP TABLE _album_artwork;`,
   },
 ];
 
+/** Highest schema version this build understands. A database above it is from a newer app. */
+export const SUPPORTED_SCHEMA_VERSION = Math.max(...MIGRATIONS.map((m) => m.id));
+
+/** The database was written by a newer HQPlayer Studio; opening it here could damage it. */
+export class DatabaseTooNewError extends Error {
+  constructor(
+    readonly dbVersion: number,
+    readonly supportedVersion: number,
+  ) {
+    super(
+      `This database was created by a newer version of HQPlayer Studio (database version ${dbVersion}; this version supports up to ${supportedVersion}). It was not changed.`,
+    );
+    this.name = 'DatabaseTooNewError';
+  }
+}
+
+/** Applied migrations this build knows, does not know (newer app), and has not applied yet. */
+export function schemaState(db: DatabaseSync): {
+  applied: number[];
+  unknown: number[];
+  pending: number[];
+} {
+  const table = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'")
+    .get();
+  const applied = table
+    ? (db.prepare('SELECT id FROM schema_migrations ORDER BY id').all() as { id: number }[]).map(
+        (r) => r.id,
+      )
+    : [];
+  const known = new Set(MIGRATIONS.map((m) => m.id));
+  const done = new Set(applied);
+  return {
+    applied,
+    unknown: applied.filter((id) => !known.has(id)),
+    pending: MIGRATIONS.filter((m) => !done.has(m.id)).map((m) => m.id),
+  };
+}
+
+/** Refuse a database that has migrations this build does not know (written by a newer app). */
+export function assertSchemaSupported(db: DatabaseSync): void {
+  const { applied, unknown } = schemaState(db);
+  if (unknown.length > 0) {
+    throw new DatabaseTooNewError(Math.max(...applied), SUPPORTED_SCHEMA_VERSION);
+  }
+}
+
 export function migrate(db: DatabaseSync): number[] {
+  // Never "upgrade" a database from a newer app: its tables may look different (handoff §10
+  // Phase 5: rolling back to an older version must be safe).
+  assertSchemaSupported(db);
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,

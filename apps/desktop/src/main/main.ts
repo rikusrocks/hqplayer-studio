@@ -6,8 +6,8 @@
  * `window.studioShell`. Audio never passes through this app: HQPlayer keeps the whole chain.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   app,
   BrowserWindow,
@@ -25,9 +25,15 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron';
 import { canUse, type EngineCapabilities, type EngineCapabilityKey } from '@hqps/contracts';
-import { bootstrapStudio, type Bootstrapped } from '@hqps/core';
+import { bootstrapStudio, FileLog, installCrashHandlers, type Bootstrapped } from '@hqps/core';
 import { CapabilityUnavailableError } from '@hqps/hqplayer-adapter';
-import { legacyDecodingAvailable } from '@hqps/library';
+import {
+  DatabaseTooNewError,
+  SUPPORTED_SCHEMA_VERSION,
+  legacyDecodingAvailable,
+  listBackups,
+  requestRestore,
+} from '@hqps/library';
 import {
   normalizeShellPrefs,
   shellLocaleOf,
@@ -84,6 +90,15 @@ const ADAPTER: 'mock' | 'live' | undefined = process.argv.includes('--adapter=li
       ? process.env.STUDIO_ADAPTER
       : undefined;
 const distDir = join(import.meta.dirname, '..');
+/** Studio's data: database, artwork cache, backups (`<userData>/data`). */
+const dataDir = join(app.getPath('userData'), SMOKE ? 'smoke-data' : 'data');
+/** Folders the user can open from Settings (never a path that came from the page). */
+const FOLDERS = {
+  logs: join(app.getPath('userData'), SMOKE ? 'smoke-logs' : 'logs'),
+  backups: join(dataDir, 'backups'),
+  soak: join(app.getPath('userData'), SMOKE ? 'smoke-soak-reports' : 'soak-reports'),
+} as const;
+type FolderId = keyof typeof FOLDERS;
 
 let studio: Bootstrapped | null = null;
 let baseUrl = '';
@@ -94,8 +109,42 @@ let stateFile = '';
 /** Set once quitting starts, so "close to tray" does not swallow the final close. */
 let quitting = false;
 
-if (!SMOKE && !app.requestSingleInstanceLock()) {
-  app.quit();
+/** A second copy only hands over to the first one (and must not start Core or a log session). */
+const primary = SMOKE || app.requestSingleInstanceLock();
+if (!primary) app.quit();
+
+/**
+ * Local log + crash reports (Phase 5): one privacy-filtered file shared with Core, in
+ * `<userData>/logs`. Nothing is uploaded; Settings → 诊断 opens the folder.
+ */
+const log = new FileLog({
+  dir: FOLDERS.logs,
+  appVersion: app.getVersion(),
+  // Studio's own install folder becomes "<app>" in stack traces; other paths are removed.
+  appRoots: [app.getAppPath(), process.resourcesPath, dirname(process.execPath)].filter(
+    (p): p is string => typeof p === 'string' && p.length > 0,
+  ),
+});
+if (primary) {
+  log.startSession();
+  log.info('app', 'starting', {
+    version: app.getVersion(),
+    electron: process.versions.electron,
+    platform: `${process.platform}-${process.arch}`,
+    portable: Boolean(process.env.PORTABLE_EXECUTABLE_FILE),
+    smoke: SMOKE || undefined,
+  });
+  installCrashHandlers(log, {
+    // Like Electron's default, keep running; tell the user once where the details are.
+    onUncaught: (_err, report) => {
+      studio?.server.hub.notice(
+        'error',
+        'internal_error',
+        'An internal error occurred in HQPlayer Studio. Details were saved to the log folder (Settings → Diagnostics).',
+        report ? { report } : undefined,
+      );
+    },
+  });
 }
 
 app.on('second-instance', () => showMain());
@@ -149,9 +198,14 @@ function createMainWindow(): BrowserWindow {
     miniWindow?.close();
   });
   win.on('restore', () => revalidateWindows());
-  // Windows logoff/shutdown: never let "close to tray" hold it up.
+  win.on('unresponsive', () => log.warn('window', 'main window not responding'));
+  win.on('responsive', () => log.info('window', 'main window responding again'));
+  // Windows logoff/shutdown: never let "close to tray" hold it up, and do not report the
+  // shutdown as a crash at the next start (Windows may end the process before "before-quit").
   win.on('session-end', () => {
     quitting = true;
+    log.info('app', 'Windows is logging off or shutting down');
+    log.endSession();
   });
   void win.loadURL(`${baseUrl}/`);
   return win;
@@ -456,6 +510,16 @@ function registerIpc(): void {
     miniWindow?.setAlwaysOnTop(value);
     return value;
   });
+  ipcMain.handle('studio:open-folder', async (event, which: unknown) => {
+    if (!fromStudio(event) || typeof which !== 'string' || !(which in FOLDERS)) return 'invalid';
+    const dir = FOLDERS[which as FolderId];
+    try {
+      mkdirSync(dir, { recursive: true });
+    } catch {
+      // openPath reports the problem
+    }
+    return shell.openPath(dir); // '' on success, otherwise Windows' error text
+  });
   ipcMain.handle('studio:pick-folder', async (event) => {
     if (!fromStudio(event)) return null;
     const parent = BrowserWindow.fromWebContents(event.sender) ?? undefined;
@@ -593,6 +657,7 @@ async function hqpEnsure(
           // "HQPlayer connected" checks that found nothing to do are not worth a line
           if (r.trigger === 'connected' && r.process.status !== 'running') return;
           hqpReports = rememberReport(hqpReports, r);
+          logHqpReport(r);
         },
       },
     );
@@ -606,6 +671,28 @@ async function hqpEnsure(
     release();
     throw err;
   }
+}
+
+/** One log line per start / hide run (statuses only; errors pass the privacy filter). */
+const loggedHqpReports = new Map<number, string>();
+function logHqpReport(r: HqpRunReport): void {
+  const key = `${r.process.status}|${r.window.status}`;
+  if (loggedHqpReports.get(r.id) === key) return;
+  loggedHqpReports.set(r.id, key);
+  if (loggedHqpReports.size > 50) loggedHqpReports.delete(loggedHqpReports.keys().next().value!);
+  const failed =
+    r.process.status === 'start-failed' ||
+    r.process.status === 'no-exe' ||
+    r.window.status === 'failed';
+  (failed ? log.warn : log.info).call(log, 'hqplayer-app', `run ${r.trigger}`, {
+    exe: r.exe.status,
+    source: r.exe.source ?? undefined,
+    process: r.process.status,
+    method: r.process.method,
+    window: r.window.status,
+    mode: r.windowMode,
+    error: r.process.error ?? r.window.error ?? undefined,
+  });
 }
 
 /** Resolves when the main window can show a toast (set at startup). */
@@ -723,6 +810,33 @@ function lockDown(): void {
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
     callback(false),
   );
+  // A crashed page is reloaded (a few times at most) instead of leaving a blank window.
+  const reloads: number[] = [];
+  app.on('render-process-gone', (_e, contents, details) => {
+    const page = contents.getURL().includes('#/mini') ? 'mini player' : 'main window';
+    log.crash('renderer-gone', {
+      info: { page, reason: details.reason, exitCode: details.exitCode },
+    });
+    if (details.reason === 'clean-exit' || quitting || SMOKE) return;
+    const now = Date.now();
+    while (reloads.length && now - reloads[0]! > 10 * 60_000) reloads.shift();
+    if (reloads.length >= 3) return;
+    reloads.push(now);
+    setTimeout(() => {
+      if (!contents.isDestroyed()) contents.reload();
+    }, 1000);
+  });
+  app.on('child-process-gone', (_e, details) => {
+    if (details.reason === 'clean-exit' || details.reason === 'killed') return;
+    log.crash('child-process-gone', {
+      info: {
+        type: details.type,
+        name: details.name ?? undefined,
+        reason: details.reason,
+        exitCode: details.exitCode,
+      },
+    });
+  });
   app.on('web-contents-created', (_e, contents) => {
     contents.setWindowOpenHandler(({ url }) => {
       if (/^https:\/\//.test(url)) void shell.openExternal(url);
@@ -737,12 +851,14 @@ function lockDown(): void {
 
 async function startCore(): Promise<Bootstrapped> {
   const opts = {
-    dataDir: join(app.getPath('userData'), SMOKE ? 'smoke-data' : 'data'),
+    dataDir,
     appVersion: app.getVersion(),
     adapter: SMOKE ? 'mock' : ADAPTER,
     staticDirs: { desktop: join(distDir, 'renderer'), remote: join(distDir, 'remote') },
     demo: true,
     resetData: SMOKE,
+    log,
+    soakDir: FOLDERS.soak,
   };
   try {
     return await bootstrapStudio({ ...opts, port: 47321 });
@@ -750,6 +866,95 @@ async function startCore(): Promise<Bootstrapped> {
     if ((err as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw err;
     return bootstrapStudio({ ...opts, port: 0 }); // another instance / dev server owns 47321
   }
+}
+
+/**
+ * The database was written by a newer Studio (the user went back to an older version). Nothing
+ * was changed; offer the newest backup this version can read — normally the one the newer
+ * version made right before it upgraded the database — and keep the newer data as a backup.
+ */
+async function offerOlderBackup(err: DatabaseTooNewError): Promise<boolean> {
+  const zh = shellLocaleOf(app.getLocale()) === 'zh-CN';
+  const usable = listBackups(FOLDERS.backups).filter(
+    (b) => b.schemaVersion <= SUPPORTED_SCHEMA_VERSION,
+  );
+  const best = usable[0];
+  log.warn('database', 'database is from a newer Studio', {
+    dbVersion: err.dbVersion,
+    supported: err.supportedVersion,
+    usableBackups: usable.length,
+  });
+  const when = best ? new Date(best.createdAt).toLocaleString(app.getLocale()) : '';
+  const kindZh: Record<string, string> = {
+    'pre-migration': '升级前自动备份',
+    daily: '每日自动备份',
+    manual: '手动备份',
+    'pre-restore': '恢复前的数据',
+  };
+  const message = zh
+    ? '这个数据库来自更新版本的 HQPlayer Studio'
+    : 'This database is from a newer version of HQPlayer Studio';
+  const detail = zh
+    ? `数据库版本 ${err.dbVersion}，此版本（${app.getVersion()}）只支持到 ${err.supportedVersion}。为避免损坏，数据库没有被打开或修改。
+
+` +
+      (best
+        ? `可以恢复 ${when} 的备份（${kindZh[best.kind] ?? best.kind}，v${best.appVersion}）。当前数据库会先另存为备份，之后换回新版本时仍可恢复。`
+        : '没有找到此版本可用的备份。请换回新版本，或打开备份文件夹查看。')
+    : `Database version ${err.dbVersion}; this version (${app.getVersion()}) supports up to ${err.supportedVersion}. To avoid damage it was not opened or changed.
+
+` +
+      (best
+        ? `You can restore the backup from ${when} (${best.kind}, v${best.appVersion}). The current database is kept as a backup first, so the newer version can still restore it later.`
+        : 'No backup this version can use was found. Go back to the newer version, or open the backup folder.');
+  const buttons = best
+    ? zh
+      ? ['恢复这个备份', '打开备份文件夹', '退出']
+      : ['Restore this backup', 'Open backup folder', 'Quit']
+    : zh
+      ? ['打开备份文件夹', '退出']
+      : ['Open backup folder', 'Quit'];
+  const { response } = await dialog.showMessageBox({
+    type: 'warning',
+    title: 'HQPlayer Studio',
+    message,
+    detail,
+    buttons,
+    defaultId: 0,
+    cancelId: buttons.length - 1,
+    noLink: true,
+  });
+  const choice = buttons[response];
+  if (best && response === 0) {
+    requestRestore(dataDir, FOLDERS.backups, best.id);
+    log.warn('database', 'restoring an older backup after a version rollback', { backup: best.id });
+    return true;
+  }
+  if (choice && choice !== buttons[buttons.length - 1]) await shell.openPath(FOLDERS.backups);
+  return false;
+}
+
+async function startCoreOrExplain(): Promise<Bootstrapped | null> {
+  let failure: unknown;
+  try {
+    return await startCore();
+  } catch (err) {
+    failure = err;
+  }
+  if (failure instanceof DatabaseTooNewError && !SMOKE) {
+    if (!(await offerOlderBackup(failure))) return null;
+    try {
+      return await startCore();
+    } catch (again) {
+      failure = again;
+    }
+  }
+  log.crash('core-start-failed', { error: failure });
+  dialog.showErrorBox(
+    'HQPlayer Studio',
+    `Studio Core failed to start:\n${log.redact((failure as Error).message)}\n\nDetails: ${FOLDERS.logs}`,
+  );
+  return null;
 }
 
 async function runSmokeTest(): Promise<void> {
@@ -790,9 +995,34 @@ async function runSmokeTest(): Promise<void> {
   const lan = (await (await fetch(`${baseUrl}/api/v1/remote/settings`)).json()) as {
     state: string;
   };
+  // Phase 5: a backup from the worker thread (node:sqlite inside Electron's worker), the local
+  // log, and a short soak-test run that writes its report.
+  const post = (path: string, body: unknown = {}) =>
+    fetch(`${baseUrl}/api/v1${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const backupRes = await post('/maintenance/backups');
+  const backups = (await backupRes.json()) as { backups?: { kind: string; sizeBytes: number }[] };
+  const logs = (await (await fetch(`${baseUrl}/api/v1/maintenance/logs`)).json()) as {
+    enabled: boolean;
+    files: { name: string }[];
+  };
+  await post('/maintenance/soak/start', { durationHours: null });
+  const soak = (await (await post('/maintenance/soak/stop')).json()) as {
+    reportFile: string | null;
+  };
+  const soakWritten = Boolean(soak.reportFile && existsSync(join(FOLDERS.soak, soak.reportFile)));
   const result = {
     page: JSON.parse(page),
     health,
+    backup:
+      backupRes.status === 200 && backups.backups?.[0]?.kind === 'manual'
+        ? `${backups.backups[0].sizeBytes}B`
+        : `failed (${backupRes.status})`,
+    log: logs.enabled && logs.files.some((f) => f.name === 'studio.log'),
+    soakReport: soakWritten,
     albums: albums.total,
     remoteStatus: remote.status,
     lanState: lan.state,
@@ -811,30 +1041,31 @@ async function runSmokeTest(): Promise<void> {
     lan.state === 'off' &&
     lyricsSettings.online === false &&
     result.lyrics === 'found/demo' &&
-    result.legacyDecoding;
+    result.legacyDecoding &&
+    result.backup.endsWith('B') &&
+    result.log &&
+    result.soakReport;
   const line = `${ok ? 'SMOKE_OK' : 'SMOKE_FAIL'} ${JSON.stringify(result)}`;
   console.log(line);
   // GUI-subsystem builds on Windows may not have a console: also write the result to a file.
   if (process.env.STUDIO_SMOKE_OUT) writeFileSync(process.env.STUDIO_SMOKE_OUT, `${line}\n`);
   clearTimeout(timer);
   await studio?.server.close();
+  log.endSession();
   app.exit(ok ? 0 : 1);
 }
 
 app.whenReady().then(async () => {
+  if (!primary) return;
   stateFile = join(app.getPath('userData'), 'window-state.json');
   windowState = loadWindowState(stateFile);
   lockDown();
   registerIpc();
   registerHqplayerIpc();
   registerShellIpc();
-  try {
-    studio = await startCore();
-  } catch (err) {
-    dialog.showErrorBox(
-      'HQPlayer Studio',
-      `Studio Core failed to start:\n${(err as Error).message}`,
-    );
+  studio = await startCoreOrExplain();
+  if (!studio) {
+    log.endSession();
     app.exit(1);
     return;
   }
@@ -873,8 +1104,10 @@ app.on('before-quit', (event) => {
   quitting = true;
   tray?.destroy();
   tray = null;
+  log.info('app', 'quitting');
   void studio.server.close().finally(() => {
     studio?.ctx.close();
+    log.endSession();
     app.quit();
   });
 });

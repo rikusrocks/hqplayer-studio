@@ -13,12 +13,32 @@ npmRebuild: false
 nodeGypRebuild: false
 buildDependenciesFromSource: false
 win:
+  # nsis = installer (Start menu / desktop shortcut, uninstaller); portable = one .exe that runs
+  # without installing; zip = the unpacked app. All three use the same data folder
+  # (%APPDATA%\HQPlayer Studio), so switching between them keeps the library and settings.
   target:
+    - target: nsis
+      arch: [x64]
     - target: portable
       arch: [x64]
     - target: zip
       arch: [x64]
   artifactName: HQPlayerStudio-${version}-win-${arch}.${ext}
+nsis:
+  artifactName: HQPlayerStudio-${version}-setup-${arch}.exe
+  # Assisted installer: per-user by default (no administrator rights needed), folder can be changed.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: HQPlayer Studio
+  uninstallDisplayName: HQPlayer Studio
+  runAfterFinish: true
+  # Uninstalling never deletes the library, playlists, backups or logs.
+  deleteAppDataOnUninstall: false
+  # No auto-update channel: Studio never updates itself (handoff §12.10).
+  differentialPackage: false
 portable:
   artifactName: HQPlayerStudio-${version}-portable-${arch}.exe
 mac:
