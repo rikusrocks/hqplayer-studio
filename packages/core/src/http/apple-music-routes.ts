@@ -1,6 +1,7 @@
 import {
   AppleMusicControlRequestSchema,
   UpdateAppleMusicSettingsRequestSchema,
+  UpdateSoundGuardRequestSchema,
   type AppleMusicState,
 } from '@hqps/contracts';
 import type { FastifyInstance } from 'fastify';
@@ -30,6 +31,13 @@ export function registerAppleMusicRoutes(api: FastifyInstance, s: StudioServices
   api.post('/apple-music/control', async (req): Promise<AppleMusicState> =>
     am.control(AppleMusicControlRequestSchema.parse(req.body ?? {}).action),
   );
+  // Windows' default sound output: read it, choose the everyday output, switch and put back.
+  api.post('/apple-music/guard/refresh', async (): Promise<AppleMusicState> => am.refreshGuard());
+  api.post('/apple-music/guard', async (req): Promise<AppleMusicState> =>
+    am.updateGuard(UpdateSoundGuardRequestSchema.parse(req.body ?? {})),
+  );
+  api.post('/apple-music/guard/protect', async (): Promise<AppleMusicState> => am.protectSound());
+  api.post('/apple-music/guard/restore', async (): Promise<AppleMusicState> => am.restoreSound());
   api.post('/apple-music/open', async (req) => {
     await am.open(OpenRequestSchema.parse(req.body ?? {}).target);
     return { ok: true as const };

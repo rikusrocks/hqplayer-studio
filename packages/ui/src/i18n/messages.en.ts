@@ -901,6 +901,8 @@ export const en: Record<MessageKey, string> = {
   'cap.key.input.live': 'Live input (Apple Music)',
   'notice.applemusic_start_failed':
     'HQPlayer could not open a live input. The Apple Music page shows what it answered.',
+  'notice.applemusic_guard_failed':
+    'Studio could not switch Windows’ default sound output. The Apple Music page shows why.',
   'queue.live.title': 'Apple Music',
   'queue.live.badge': 'Live input',
   'queue.live.hint':
@@ -1009,6 +1011,34 @@ export const en: Record<MessageKey, string> = {
   'am.advanced.save': 'Save',
   'am.advanced.saved': 'Saved',
   'am.advanced.inUse': 'In use: {uri}',
+  'am.guard.title': 'Keep other sounds out',
+  'am.guard.why':
+    'A sound from another app (a WeChat message, a Windows beep) must not reach the DAC or the cable while HQPlayer plays: that causes a burst of noise and then silence. Windows sends such sounds to its default output, so that should be an everyday output — not the DAC and not the cable.',
+  'am.guard.now': 'Windows’ default output',
+  'am.guard.calls': 'For calls and chat apps',
+  'am.guard.unknown': 'Not read yet',
+  'am.guard.none': 'none',
+  'am.guard.refresh': 'Read again',
+  'am.guard.cableDefault':
+    'The virtual cable is Windows’ default output: every app’s sound is mixed into the music.',
+  'am.guard.protected': 'Other apps’ sounds go to {name}.',
+  'am.guard.unprotected': 'Not switched: other apps’ sounds still go to {name}.',
+  'am.guard.output': 'Everyday output',
+  'am.guard.output.hint':
+    'Where other apps’ sounds should go. Pick one that is NOT your DAC. An output with nothing plugged in is fine: those sounds are then simply not heard.',
+  'am.guard.output.choose': 'Choose…',
+  'am.guard.output.missing': 'The output chosen earlier is not in Windows right now.',
+  'am.guard.auto': 'Switch automatically',
+  'am.guard.auto.hint':
+    'When Apple Music mode starts, Studio makes the everyday output Windows’ default. When it stops, Studio puts the previous one back.',
+  'am.guard.protect': 'Switch now',
+  'am.guard.restore': 'Put Windows back',
+  'am.guard.switched': 'Other apps’ sounds now go to the everyday output',
+  'am.guard.restored': 'Windows’ default output is back as it was',
+  'am.guard.held': 'Studio switched it {time}. Before: {name}.',
+  'am.guard.error': 'Windows refused: {error}',
+  'am.guard.tip':
+    'Tip: keeping the everyday output as Windows’ default all the time protects ordinary library playback too.',
   'am.limits.title': 'Good to know',
   'am.limits.protected':
     'Apple Music’s tracks are copy-protected, so HQPlayer cannot open them as files. This route passes the sound the Apple Music app plays.',

@@ -92,6 +92,7 @@ export function AppleMusicView() {
         )}
         <NowPlaying state={state} outputDelayMs={status.outputDelayMs} act={act} />
         <EnableBlock state={state} act={act} />
+        {state.guard.supported && <GuardBlock state={state} act={act} />}
         <SetupBlock state={state} act={act} />
         <LastStart state={state} />
         <Advanced state={state} act={act} />
@@ -318,6 +319,166 @@ function EnableBlock({ state, act }: { state: AppleMusicState; act: Act }) {
         hint={t('am.enable.hint')}
         note={<span className="hq-badge hq-badge--warn">beta</span>}
       />
+    </div>
+  );
+}
+
+/**
+ * Windows' default sound output. Other apps' sounds go there, so it must be neither the DAC
+ * (HQPlayer drives it through ASIO) nor the cable. Studio can switch it by button or by itself.
+ */
+function GuardBlock({ state, act }: { state: AppleMusicState; act: Act }) {
+  const { t, locale } = useI18n();
+  const { client } = useStudio();
+  const g = state.guard;
+  const [busy, setBusy] = useState(false);
+  const going = async (fn: () => Promise<AppleMusicState>, success?: string) => {
+    setBusy(true);
+    await act(fn, success);
+    setBusy(false);
+  };
+  // Read Windows once when the page opens; "Read again" repeats it.
+  const unread = g.outputs === null;
+  useEffect(() => {
+    if (unread) void client.appleMusic.guard.refresh().catch(() => undefined);
+  }, [client, unread]);
+
+  const outputs = g.outputs ?? [];
+  const nameOf = (id: string | null): string =>
+    id === null
+      ? t('am.guard.none')
+      : (outputs.find((o) => o.id === id)?.name ?? t('common.unknown'));
+  const d = g.defaults;
+  const current = d ? [d.console, d.multimedia, d.communications] : [];
+  const chosen = g.outputId;
+  const chosenExists = chosen !== null && outputs.some((o) => o.id === chosen);
+  const isProtected = chosen !== null && d !== null && current.every((id) => id === chosen);
+  const cableIsDefault = current.some(
+    (id) => id !== null && outputs.some((o) => o.id === id && o.cable),
+  );
+  const choices = outputs.filter((o) => !o.cable);
+
+  return (
+    <div className="settings-block">
+      <BlockHead
+        title={t('am.guard.title')}
+        layer="studio"
+        aside={
+          <button
+            type="button"
+            className="hq-btn hq-btn--sm"
+            disabled={busy}
+            onClick={() => void going(() => client.appleMusic.guard.refresh())}
+          >
+            {busy ? <Spinner size={12} /> : <Icon name="refresh" size={14} />}
+            {t('am.guard.refresh')}
+          </button>
+        }
+      />
+      <p className="hint">{t('am.guard.why')}</p>
+      {d === null ? (
+        <p className="hint">{t('am.guard.unknown')}</p>
+      ) : (
+        <>
+          <div className="kv">
+            <span>{t('am.guard.now')}</span>
+            <span>{nameOf(d.console)}</span>
+          </div>
+          {d.communications !== d.console && (
+            <div className="kv">
+              <span>{t('am.guard.calls')}</span>
+              <span>{nameOf(d.communications)}</span>
+            </div>
+          )}
+          {isProtected ? (
+            <div className="hq-banner hq-banner--muted">
+              <Icon name="check" size={16} />
+              <span>{t('am.guard.protected', { name: nameOf(chosen) })}</span>
+            </div>
+          ) : cableIsDefault ? (
+            <div className="hq-banner hq-banner--warn">
+              <Icon name="warning" size={16} />
+              <span>{t('am.guard.cableDefault')}</span>
+            </div>
+          ) : chosen !== null ? (
+            <div className="hq-banner hq-banner--warn">
+              <Icon name="warning" size={16} />
+              <span>{t('am.guard.unprotected', { name: nameOf(d.console) })}</span>
+            </div>
+          ) : null}
+        </>
+      )}
+      <div className="kv">
+        <span>{t('am.guard.output')}</span>
+        <select
+          className="hq-select"
+          value={chosenExists ? (chosen ?? '') : ''}
+          disabled={busy || choices.length === 0}
+          aria-label={t('am.guard.output')}
+          onChange={(e) =>
+            void going(() => client.appleMusic.guard.update({ outputId: e.target.value || null }))
+          }
+        >
+          <option value="">{t('am.guard.output.choose')}</option>
+          {choices.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="hint">
+        {chosen !== null && !chosenExists && g.outputs !== null
+          ? t('am.guard.output.missing')
+          : t('am.guard.output.hint')}
+      </p>
+      <Switch
+        checked={g.auto}
+        disabled={busy || (!g.auto && chosen === null)}
+        onChange={(v) => void going(() => client.appleMusic.guard.update({ auto: v }))}
+        title={t('am.guard.auto')}
+        hint={t('am.guard.auto.hint')}
+      />
+      <p className="hint">{t('am.guard.auto.hint')}</p>
+      <div className="button-row">
+        <button
+          type="button"
+          className="hq-btn"
+          disabled={busy || !chosenExists || isProtected}
+          onClick={() =>
+            void going(() => client.appleMusic.guard.protect(), t('am.guard.switched'))
+          }
+        >
+          {t('am.guard.protect')}
+        </button>
+        {g.held && (
+          <button
+            type="button"
+            className="hq-btn"
+            disabled={busy}
+            onClick={() =>
+              void going(() => client.appleMusic.guard.restore(), t('am.guard.restored'))
+            }
+          >
+            {t('am.guard.restore')}
+          </button>
+        )}
+      </div>
+      {g.held && (
+        <p className="hint">
+          {t('am.guard.held', {
+            time: clock(g.held.at, locale),
+            name: nameOf(g.held.previous.console),
+          })}
+        </p>
+      )}
+      {g.error && (
+        <div className="hq-banner hq-banner--warn">
+          <Icon name="warning" size={16} />
+          <span>{t('am.guard.error', { error: g.error })}</span>
+        </div>
+      )}
+      <p className="hint">{t('am.guard.tip')}</p>
     </div>
   );
 }

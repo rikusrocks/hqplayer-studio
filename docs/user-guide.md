@@ -154,6 +154,12 @@ Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打�
 歌词与队列：歌词按曲名和歌手从“设置 → 歌词”里已打开的在线来源查找（Apple Music 自己的歌词读不到），只保存在内存里；
 校准和手动匹配与音乐库曲目一样。队列面板显示“开始”之后播放过的歌曲——Apple Music 自己的“待播清单”无法从应用外读取。
 
+隔离其他声音：HQPlayer 通过 ASIO 独占 DAC。如果 DAC（或虚拟声卡）同时是 Windows 的“默认输出”，其他应用的提示音
+（例如微信消息）会让 Windows 去打开同一个设备，音乐就会变成一阵噪音然后无声，而 HQPlayer 仍显示“正在播放”。
+Apple Music 页面的“隔离其他声音”会显示 Windows 当前的默认输出；选一个“日常输出”（不是 DAC，也不是虚拟声卡；
+没接音箱的输出也可以），然后点“立即切换”，或打开“自动切换”——开始时 Studio 把默认输出改成日常输出，停止时恢复原样。
+平时一直把日常输出设为默认，播放本地音乐库时同样受保护。
+
 限制：不是逐位精确（Apple Music 的 Windows 应用不会按曲目切换采样率）；声音比 Apple Music 应用晚几秒；
 选歌、搜索、拖动进度仍在 Apple Music 应用里。Studio 不读取、不保存 Apple Music 的音频。
 
@@ -292,6 +298,13 @@ without titles or paths.
 Lyrics and queue: lyrics are looked up by title and artist in the online sources you enabled under Settings → Lyrics (Apple
 Music's own lyrics cannot be read) and are kept in memory only; calibration and manual matching work as for library tracks.
 The queue panel lists the songs played since Start — Apple Music's own Playing Next list cannot be read from outside the app.
+
+Keep other sounds out: HQPlayer drives the DAC through ASIO. If the DAC (or the virtual cable) is also Windows' default
+output, another app's sound (a WeChat message, for example) makes Windows open the same device, and the music turns into a
+burst of noise and then silence while HQPlayer still says "playing". "Keep other sounds out" on the Apple Music page shows
+Windows' current default output. Pick an "everyday output" (not the DAC, not the cable; one with nothing plugged in is fine),
+then press "Switch now" or turn on "Switch automatically": on Start Studio makes the everyday output Windows' default, on
+Stop it puts the previous one back. Keeping the everyday output as the default all the time protects library playback too.
 
 Limits: not bit-perfect (the Windows app does not switch sample rate per track); the sound is a few seconds behind the Apple
 Music app; choosing music, search and seeking stay in the Apple Music app. Studio never reads or stores Apple Music's audio.

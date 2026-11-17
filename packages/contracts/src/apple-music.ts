@@ -119,6 +119,64 @@ export const AppleMusicBlockSchema = z.enum([
 ]);
 export type AppleMusicBlock = z.infer<typeof AppleMusicBlockSchema>;
 
+/** Windows' default playback device per role (endpoint ids; null = none / not read). */
+export const SoundDefaultsSchema = z.object({
+  /** "Default Device": system sounds and most apps. */
+  console: z.string().nullable(),
+  multimedia: z.string().nullable(),
+  /** "Default Communication Device": calls and chat apps. */
+  communications: z.string().nullable(),
+});
+export type SoundDefaults = z.infer<typeof SoundDefaultsSchema>;
+
+/**
+ * Keeping other apps' sounds away from the DAC and the cable.
+ *
+ * HQPlayer drives the DAC through ASIO; when the DAC (or the virtual cable) is also Windows'
+ * default output, a message sound from another app collides with the music. Studio can switch
+ * Windows' default output to an "everyday" output the user picks — by button, or by itself
+ * when the live input starts — and put the previous one back afterwards.
+ */
+export const SoundGuardSchema = z.object({
+  /** Windows' sound outputs can be read and switched on this computer. */
+  supported: z.boolean(),
+  /** Switch when the live input starts and put Windows back when it ends. */
+  auto: z.boolean(),
+  /** The everyday output the user picked (endpoint id); null = not chosen yet. */
+  outputId: z.string().nullable(),
+  /** Windows' active playback outputs; null = not read yet. `cable` = looks like a virtual cable. */
+  outputs: z.array(z.object({ id: z.string(), name: z.string(), cable: z.boolean() })).nullable(),
+  /** Which output is Windows' default right now; null = not read yet. */
+  defaults: SoundDefaultsSchema.nullable(),
+  /** What Studio replaced and will put back (null = Studio changed nothing). */
+  held: z.object({ at: z.number(), previous: SoundDefaultsSchema }).nullable(),
+  /** The last read or switch failed (Windows' own words). */
+  error: z.string().nullable(),
+});
+export type SoundGuard = z.infer<typeof SoundGuardSchema>;
+
+export const UpdateSoundGuardRequestSchema = z
+  .object({
+    auto: z.boolean().optional(),
+    outputId: z.string().max(120).nullable().optional(),
+  })
+  .refine((v) => v.auto !== undefined || v.outputId !== undefined, {
+    message: 'Nothing to update',
+  });
+export type UpdateSoundGuardRequest = z.infer<typeof UpdateSoundGuardRequestSchema>;
+
+export function idleSoundGuard(): SoundGuard {
+  return {
+    supported: false,
+    auto: false,
+    outputId: null,
+    outputs: null,
+    defaults: null,
+    held: null,
+    error: null,
+  };
+}
+
 export const AppleMusicStateSchema = z.object({
   /** Windows media sessions are available on this computer (false on macOS / Linux). */
   supported: z.boolean(),
@@ -164,6 +222,8 @@ export const AppleMusicStateSchema = z.object({
    * be read from outside the app, so this is what Studio can show instead of a queue.
    */
   history: z.array(LivePlayedSongSchema),
+  /** Windows' default output and Studio's hold on it (see `SoundGuardSchema`). */
+  guard: SoundGuardSchema,
 });
 export type AppleMusicState = z.infer<typeof AppleMusicStateSchema>;
 
@@ -198,5 +258,6 @@ export function idleAppleMusicState(): AppleMusicState {
     setup: null,
     artwork: { source: null, error: null, onlineEnabled: false },
     history: [],
+    guard: idleSoundGuard(),
   };
 }

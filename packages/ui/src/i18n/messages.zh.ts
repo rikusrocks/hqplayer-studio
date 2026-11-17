@@ -865,6 +865,8 @@ export const zh = {
   'queue.sync.live_input': 'HQPlayer 正在播放 Apple Music；你的队列已保留，停止后会回来。',
   'cap.key.input.live': '实时输入（Apple Music）',
   'notice.applemusic_start_failed': 'HQPlayer 无法打开实时输入。Apple Music 页面上有它的回答。',
+  'notice.applemusic_guard_failed':
+    'Studio 无法切换 Windows 的默认声音输出。原因见 Apple Music 页面。',
   'queue.live.title': 'Apple Music',
   'queue.live.badge': '实时输入',
   'queue.live.hint':
@@ -969,6 +971,32 @@ export const zh = {
   'am.advanced.save': '保存',
   'am.advanced.saved': '已保存',
   'am.advanced.inUse': '正在使用：{uri}',
+  'am.guard.title': '隔离其他声音',
+  'am.guard.why':
+    'HQPlayer 播放时，其他应用的声音（微信消息提示音、Windows 系统声音）不能进入 DAC 或虚拟声卡，否则会出现一阵噪音然后无声。Windows 会把这些声音送到“默认输出”，所以默认输出应当是一个日常输出：不是 DAC，也不是虚拟声卡。',
+  'am.guard.now': 'Windows 默认输出',
+  'am.guard.calls': '通话 / 聊天应用',
+  'am.guard.unknown': '尚未读取',
+  'am.guard.none': '无',
+  'am.guard.refresh': '重新读取',
+  'am.guard.cableDefault': '虚拟声卡是 Windows 的默认输出：所有应用的声音都会混进音乐。',
+  'am.guard.protected': '其他应用的声音会送到 {name}。',
+  'am.guard.unprotected': '尚未切换：其他应用的声音仍会送到 {name}。',
+  'am.guard.output': '日常输出',
+  'am.guard.output.hint':
+    '其他应用的声音送到哪里。请选一个不是 DAC 的输出；没接音箱的输出也可以，只是听不到这些声音。',
+  'am.guard.output.choose': '请选择…',
+  'am.guard.output.missing': '之前选的输出现在不在 Windows 里。',
+  'am.guard.auto': '自动切换',
+  'am.guard.auto.hint':
+    'Apple Music 模式开始时，Studio 把日常输出设为 Windows 默认输出；停止时恢复原来的设置。',
+  'am.guard.protect': '立即切换',
+  'am.guard.restore': '恢复 Windows 设置',
+  'am.guard.switched': '其他应用的声音现在送到日常输出',
+  'am.guard.restored': 'Windows 默认输出已恢复',
+  'am.guard.held': 'Studio 于 {time} 切换。之前：{name}。',
+  'am.guard.error': 'Windows 拒绝了：{error}',
+  'am.guard.tip': '提示：平时也一直把日常输出设为 Windows 默认输出，播放本地音乐库时同样受保护。',
   'am.limits.title': '需要知道的',
   'am.limits.protected':
     'Apple Music 的曲目有版权保护，HQPlayer 不能把它们当文件打开。这条路传递的是 Apple Music 应用播放出来的声音。',

@@ -13,6 +13,7 @@ import {
   type LivePlayedSong,
   type TransportAction,
   type UpdateAppleMusicSettingsRequest,
+  type UpdateSoundGuardRequest,
 } from '@hqps/contracts';
 import { CapabilityUnavailableError, LiveHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { ConflictError, type LibraryContext } from '@hqps/library';
@@ -20,6 +21,7 @@ import type { EventHub } from '../event-hub';
 import type { StudioLog } from '../logging/studio-log';
 import type { EngineService, LiveSourceHook } from './engine-service';
 import type { QueueService } from './queue-service';
+import { SoundGuard } from './sound-guard';
 import {
   isAppleMusicApp,
   looksLikeVirtualCable,
@@ -29,6 +31,7 @@ import {
   type SystemAudioInfo,
   type WindowsMedia,
 } from './windows-media';
+import type { WindowsSound } from './windows-sound';
 
 /** The switch on the Apple Music page (boolean, default false). */
 export const APPLE_MUSIC_ENABLED_SETTING = 'appleMusic.enabled';
@@ -104,6 +107,10 @@ export class AppleMusicService implements LiveSourceHook {
   private songKey = '';
   private history: LivePlayedSong[] = [];
   private offStatus: (() => void) | null = null;
+  /** Windows' default output: kept away from the DAC and the cable while the live input plays. */
+  private readonly guard: SoundGuard;
+  /** The first engine status after a start of Studio has been looked at (see `onEngineStatus`). */
+  private guardSettled = false;
 
   constructor(
     private readonly engine: EngineService,
@@ -112,9 +119,13 @@ export class AppleMusicService implements LiveSourceHook {
     private readonly settings: LibraryContext['settings'],
     private readonly media: WindowsMedia,
     private readonly log: StudioLog,
-  ) {}
+    sound: WindowsSound,
+  ) {
+    this.guard = new SoundGuard(sound, settings, log, () => this.publish());
+  }
 
   init(): void {
+    this.guard.init();
     this.enabled = this.settings.get<boolean>(APPLE_MUSIC_ENABLED_SETTING, false);
     this.preferredUri = this.settings.get<string | null>(APPLE_MUSIC_URI_SETTING, null);
     this.liveUri = this.settings.get<string | null>(APPLE_MUSIC_LAST_URI_SETTING, null);
@@ -150,7 +161,46 @@ export class AppleMusicService implements LiveSourceHook {
         onlineEnabled: this.coverLookup?.enabled() ?? false,
       },
       history: this.history,
+      guard: this.guard.get(),
     };
+  }
+
+  // --- Windows' default output (the sound guard) --------------------------------------------------
+
+  /** Ask Windows which outputs exist and which is the default; read-only. */
+  async refreshGuard(): Promise<AppleMusicState> {
+    await this.guard.refresh();
+    return this.get();
+  }
+
+  async updateGuard(patch: UpdateSoundGuardRequest): Promise<AppleMusicState> {
+    await this.guard.update(patch);
+    // Switched to automatic while the live input is already playing: act now, not next time.
+    if (patch.auto === true && this.phase === 'active')
+      await this.noteGuard(this.guard.liveStarted());
+    return this.get();
+  }
+
+  /** Make the chosen everyday output Windows' default now. */
+  async protectSound(): Promise<AppleMusicState> {
+    await this.guard.protect();
+    return this.get();
+  }
+
+  /** Put back the default output Studio replaced. */
+  async restoreSound(): Promise<AppleMusicState> {
+    await this.guard.restore();
+    return this.get();
+  }
+
+  /** An automatic switch that failed must not pass unnoticed: the music is unprotected. */
+  private async noteGuard(result: Promise<boolean>): Promise<void> {
+    if (await result) return;
+    this.hub.notice(
+      'warning',
+      'applemusic_guard_failed',
+      'Studio could not switch Windows’ default sound output. The Apple Music page shows why.',
+    );
   }
 
   async updateSettings(patch: UpdateAppleMusicSettingsRequest): Promise<AppleMusicState> {
@@ -270,6 +320,8 @@ export class AppleMusicService implements LiveSourceHook {
     this.phase = 'starting';
     this.publish();
     const at = Date.now();
+    // Before HQPlayer opens the input: other apps' sounds are out of the way from the first second.
+    await this.noteGuard(this.guard.liveStarted());
     try {
       let listed: string[] = [];
       try {
@@ -313,12 +365,14 @@ export class AppleMusicService implements LiveSourceHook {
           'applemusic_start_failed',
           'HQPlayer could not open a live input. The Apple Music page shows what it answered.',
         );
+        await this.guard.liveEnded();
       }
     } catch (err) {
       this.phase = 'idle';
       this.lastStart = { at, ok: false, attempts: [], error: (err as Error).message };
       this.log.warn('apple-music', 'start failed', { error: (err as Error).name });
       await this.restoreQueue().catch(() => undefined);
+      await this.guard.liveEnded();
       throw err;
     } finally {
       this.publish();
@@ -340,6 +394,7 @@ export class AppleMusicService implements LiveSourceHook {
       await this.restoreQueue();
       this.log.info('apple-music', 'live input stopped');
     } finally {
+      await this.guard.liveEnded();
       this.phase = 'idle';
       this.queue.resumeFromLive();
       this.publish();
@@ -546,6 +601,7 @@ export class AppleMusicService implements LiveSourceHook {
     this.phase = 'idle';
     this.queue.resumeFromLive();
     this.log.info('apple-music', 'live input replaced');
+    void this.guard.liveEnded();
     this.publish();
     queueMicrotask(() => this.engine.republish());
   }
@@ -561,8 +617,15 @@ export class AppleMusicService implements LiveSourceHook {
       this.phase = 'active';
       this.liveUri = uri;
       this.queue.suspendForLive(() => this.released());
+      void this.noteGuard(this.guard.liveStarted());
       this.publish();
       queueMicrotask(() => this.engine.republish());
+    }
+    if (!this.guardSettled) {
+      this.guardSettled = true;
+      // Studio was closed while it held Windows' default output and the live input has ended
+      // since: put Windows back now (automatic mode only; otherwise the page offers the button).
+      if (this.phase === 'idle') void this.guard.liveEnded();
     }
   }
 

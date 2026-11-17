@@ -3,6 +3,7 @@ import {
   AppleMusicStateSchema,
   type AppleMusicControlAction,
   type UpdateAppleMusicSettingsRequest,
+  type UpdateSoundGuardRequest,
   AlbumCoverSchema,
   AlbumDetailSchema,
   AlbumPageSchema,
@@ -338,6 +339,14 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       stop: () => post(AppleMusicStateSchema, '/apple-music/stop'),
       control: (action: AppleMusicControlAction) =>
         post(AppleMusicStateSchema, '/apple-music/control', { action }),
+      /** Windows' default sound output: keep other apps' sounds off the DAC and the cable. */
+      guard: {
+        refresh: () => post(AppleMusicStateSchema, '/apple-music/guard/refresh'),
+        update: (patch: UpdateSoundGuardRequest) =>
+          post(AppleMusicStateSchema, '/apple-music/guard', patch),
+        protect: () => post(AppleMusicStateSchema, '/apple-music/guard/protect'),
+        restore: () => post(AppleMusicStateSchema, '/apple-music/guard/restore'),
+      },
       /** Open a Windows settings page, the cable maker's site or the Apple Music app. */
       open: (target: 'sound' | 'app-volume' | 'microphone' | 'cable-site' | 'apple-music') =>
         post(z.object({ ok: z.literal(true) }), '/apple-music/open', { target }),

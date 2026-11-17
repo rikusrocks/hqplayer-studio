@@ -28,6 +28,7 @@ import { BackupService, type BackupServiceOptions } from './services/backup-serv
 import { SoakRecorder, type SoakRecorderOptions } from './services/soak-recorder';
 import { DspPresetService } from './services/dsp-presets';
 import { AppleMusicService } from './services/apple-music-service';
+import { SimulatedSound, windowsSound, type WindowsSound } from './services/windows-sound';
 import { SimulatedMedia, windowsMedia, type WindowsMedia } from './services/windows-media';
 import { attachActivityLog } from './logging/activity-log';
 import { nullLog, type StudioLog } from './logging/studio-log';
@@ -58,7 +59,7 @@ export interface StudioServerOptions {
   /** Soak-test recorder; `dir` = where its reports go (null = memory only). */
   soak?: Partial<Omit<SoakRecorderOptions, 'appVersion' | 'log'>>;
   /** Windows media sessions for the Apple Music source — tests inject a fake. */
-  appleMusic?: { media?: WindowsMedia };
+  appleMusic?: { media?: WindowsMedia; sound?: WindowsSound };
   /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
   scanPaceWhilePlayingMs?: number;
   /** Web Remote LAN listener (off unless enabled in Settings → 网页遥控). */
@@ -140,6 +141,8 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     opts.appleMusic?.media ??
       (opts.adapter.kind === 'mock' ? new SimulatedMedia() : windowsMedia()),
     log,
+    opts.appleMusic?.sound ??
+      (opts.adapter.kind === 'mock' ? new SimulatedSound() : windowsSound()),
   );
   const paceMs = opts.scanPaceWhilePlayingMs ?? 25;
   // One MusicBrainz client for the album check and the cover lookups (one request per second
