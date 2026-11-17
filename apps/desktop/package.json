@@ -1,6 +1,6 @@
 {
   "name": "@hqps/desktop",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "productName": "HQPlayer Studio",
@@ -14,7 +14,7 @@
     "build": "pnpm build:renderer && pnpm build:main && node scripts/copy-remote.mjs",
     "build:renderer": "vite build --config vite.config.ts",
     "build:main": "node scripts/build-main.mjs",
-    "package:win": "electron-builder --win portable zip --x64 --publish never",
+    "package:win": "electron-builder --win nsis portable zip --x64 --publish never",
     "start": "electron .",
     "typecheck": "tsc -p tsconfig.json"
   },

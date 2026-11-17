@@ -400,6 +400,20 @@ describe('Web Remote LAN listener', () => {
       ['POST', '/library/albums/x/cover/select'],
       ['POST', '/library/albums/x/cover/reset'],
       ['GET', '/covers/preview?provider=deezer&ref=0123456789abcdef0123456789abcdef'],
+      // Phase 5: backups, logs and the soak test are this-computer-only
+      ['GET', '/maintenance/backups'],
+      ['POST', '/maintenance/backups'],
+      ['POST', '/maintenance/backups/restore'],
+      ['POST', '/maintenance/backups/restore/cancel'],
+      ['GET', '/maintenance/logs'],
+      ['GET', '/maintenance/soak'],
+      ['POST', '/maintenance/soak/start'],
+      ['POST', '/maintenance/soak/stop'],
+      // DSP presets are changed from this computer only (like DSP itself)
+      ['GET', '/engine/dsp/presets'],
+      ['POST', '/engine/dsp/presets'],
+      ['DELETE', '/engine/dsp/presets/x'],
+      ['POST', '/engine/dsp/presets/x/apply'],
     ] as const) {
       const r = await lan(method, url, {
         token,

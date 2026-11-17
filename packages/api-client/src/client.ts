@@ -4,11 +4,15 @@ import {
   AlbumDetailSchema,
   AlbumPageSchema,
   ApiErrorSchema,
+  BackupStateSchema,
+  LogInfoSchema,
+  SoakStatusSchema,
   ArtistDetailSchema,
   ArtistPageSchema,
   CoverCandidateSchema,
   CoverSettingsSchema,
   DspStateSchema,
+  DspPresetListSchema,
   type DspChange,
   EngineCapabilitiesSchema,
   EngineCommandResultSchema,
@@ -194,6 +198,11 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       dsp: () => get(DspStateSchema, '/engine/dsp'),
       /** Change DSP selections (list indexes from `dsp()`); needs both switches on. */
       setDsp: (change: DspChange) => post(DspStateSchema, '/engine/dsp', change),
+      /** Named DSP presets (this computer only). */
+      dspPresets: () => get(DspPresetListSchema, '/engine/dsp/presets'),
+      saveDspPreset: (name: string) => post(DspPresetListSchema, '/engine/dsp/presets', { name }),
+      deleteDspPreset: (id: string) => del(DspPresetListSchema, `/engine/dsp/presets/${enc(id)}`),
+      applyDspPreset: (id: string) => post(DspStateSchema, `/engine/dsp/presets/${enc(id)}/apply`),
       /** HQPlayer's own playlist, read-only. */
       queue: () => get(EngineQueueSchema, '/engine/queue'),
       /** Privacy-safe diagnostics (this computer only): status + recent HQPlayer conversation. */
@@ -214,6 +223,20 @@ export function createStudioClient(options: StudioClientOptions = {}) {
         post(EngineSettingsSchema, '/settings/engine', { allowControl }),
       setDspAllowed: (allowDsp: boolean) =>
         post(EngineSettingsSchema, '/settings/engine', { allowDsp }),
+    },
+
+    /** Backups, local log, soak test (this computer only). */
+    maintenance: {
+      backups: () => get(BackupStateSchema, '/maintenance/backups'),
+      backupNow: () => post(BackupStateSchema, '/maintenance/backups'),
+      /** Restore at the next start (the app must be restarted afterwards). */
+      restore: (id: string) => post(BackupStateSchema, '/maintenance/backups/restore', { id }),
+      cancelRestore: () => post(BackupStateSchema, '/maintenance/backups/restore/cancel'),
+      logs: () => get(LogInfoSchema, '/maintenance/logs'),
+      soak: () => get(SoakStatusSchema, '/maintenance/soak'),
+      startSoak: (durationHours: number | null) =>
+        post(SoakStatusSchema, '/maintenance/soak/start', { durationHours }),
+      stopSoak: () => post(SoakStatusSchema, '/maintenance/soak/stop'),
     },
 
     remote: {

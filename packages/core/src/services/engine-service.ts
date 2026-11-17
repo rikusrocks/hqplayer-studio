@@ -24,6 +24,28 @@ export interface EngineServiceOptions {
 
 type StatusListener = (status: EngineStatus) => void;
 
+/** Commands that only read from HQPlayer (everything else may change what it plays). */
+export const READ_ONLY_ENGINE_COMMANDS: ReadonlySet<string> = new Set([
+  'getDspState',
+  'getEngineQueue',
+]);
+
+/** One engine command Studio sent (for the log and the soak-test recorder). */
+export interface EngineCommandEvent {
+  id: number;
+  label: string;
+  phase: 'start' | 'end';
+  at: number;
+  /** Set on `end`. */
+  ok?: boolean;
+  durationMs?: number;
+  /** Error class name and message on failure. */
+  errorName?: string;
+  error?: string;
+}
+
+type CommandListener = (event: EngineCommandEvent) => void;
+
 /**
  * Supervises the HQPlayer adapter:
  *  - serialises every engine command (one at a time, in arrival order, across Desktop + Web);
@@ -45,6 +67,8 @@ export class EngineService {
   private stopped = true;
   private unsubscribe: (() => void) | null = null;
   private readonly listeners = new Set<StatusListener>();
+  private readonly commandListeners = new Set<CommandListener>();
+  private commandSerial = 0;
   private lastUri: string | null = null;
   private lastUriTrackId: string | null = null;
   private lastUriArtworkId: string | null = null;
@@ -133,6 +157,22 @@ export class EngineService {
     return () => this.listeners.delete(listener);
   }
 
+  /** Observe the commands Studio sends (start and end of each). */
+  onCommand(listener: CommandListener): () => void {
+    this.commandListeners.add(listener);
+    return () => this.commandListeners.delete(listener);
+  }
+
+  private emitCommand(event: EngineCommandEvent): void {
+    for (const l of this.commandListeners) {
+      try {
+        l(event);
+      } catch {
+        // observers never break a command
+      }
+    }
+  }
+
   /** Run an engine command exclusively, with a timeout. */
   run<T>(label: string, fn: (adapter: HQPlayerAdapter) => Promise<T>): Promise<T> {
     const exec = async () => {
@@ -140,15 +180,44 @@ export class EngineService {
       // HQPlayer's Stop takes ~3.8 s to acknowledge; a queue load sends many commands.
       const timeoutMs = this.options.commandTimeoutMs ?? 20_000;
       let timer: ReturnType<typeof setTimeout> | undefined;
+      const id = ++this.commandSerial;
+      const startedAt = Date.now();
+      if (this.commandListeners.size > 0) {
+        this.emitCommand({ id, label, phase: 'start', at: startedAt });
+      }
+      let ok = false;
+      let failure: unknown;
       try {
-        return await Promise.race([
+        const result = await Promise.race([
           fn(this.adapter),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new EngineTimeoutError(label, timeoutMs)), timeoutMs);
           }),
         ]);
+        ok = true;
+        return result;
+      } catch (err) {
+        failure = err;
+        throw err;
       } finally {
         clearTimeout(timer);
+        if (this.commandListeners.size > 0) {
+          const at = Date.now();
+          this.emitCommand({
+            id,
+            label,
+            phase: 'end',
+            at,
+            ok,
+            durationMs: at - startedAt,
+            ...(ok
+              ? {}
+              : {
+                  errorName: (failure as Error | undefined)?.name ?? 'Error',
+                  error: (failure as Error | undefined)?.message ?? String(failure),
+                }),
+          });
+        }
       }
     };
     const p = this.chain.then(exec, exec);

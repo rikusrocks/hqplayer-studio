@@ -24,6 +24,11 @@ import { MusicBrainzClient, OnlineAlbumChecker } from './services/online-albums'
 import { CoverService, type CoverServiceOptions } from './services/cover-service';
 import { LyricsService, type LyricsServiceOptions } from './services/lyrics-service';
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
+import { BackupService, type BackupServiceOptions } from './services/backup-service';
+import { SoakRecorder, type SoakRecorderOptions } from './services/soak-recorder';
+import { DspPresetService } from './services/dsp-presets';
+import { attachActivityLog } from './logging/activity-log';
+import { nullLog, type StudioLog } from './logging/studio-log';
 
 export interface StudioServerOptions {
   adapter: HQPlayerAdapter;
@@ -44,6 +49,12 @@ export interface StudioServerOptions {
   lyrics?: Omit<LyricsServiceOptions, 'appVersion'>;
   /** Online covers (sources, fetch) — tests inject fakes. */
   covers?: Partial<Omit<CoverServiceOptions, 'appVersion'>>;
+  /** Local log (app data folder). Default: no log. */
+  log?: StudioLog;
+  /** Database backups while running (daily / manual). */
+  backups?: Partial<Omit<BackupServiceOptions, 'appVersion' | 'log'>>;
+  /** Soak-test recorder; `dir` = where its reports go (null = memory only). */
+  soak?: Partial<Omit<SoakRecorderOptions, 'appVersion' | 'log'>>;
   /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
   scanPaceWhilePlayingMs?: number;
   /** Web Remote LAN listener (off unless enabled in Settings → 网页遥控). */
@@ -72,6 +83,10 @@ export interface StudioServices {
   remote: RemoteAccessService;
   lyrics: LyricsService;
   covers: CoverService;
+  backups: BackupService;
+  soak: SoakRecorder;
+  dspPresets: DspPresetService;
+  log: StudioLog;
   ctx: LibraryContext;
 }
 
@@ -94,7 +109,21 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     );
   }
   const hub = new EventHub();
+  const log = opts.log ?? nullLog();
   const engine = new EngineService(opts.adapter, hub, opts.ctx.library, opts.engine);
+  const backups = new BackupService(opts.ctx, {
+    appVersion: opts.appVersion,
+    log,
+    // daily backups wait for a pause in playback (they run in a worker, but stay polite)
+    isPlaying: () => engine.getStatus().transport === 'playing',
+    ...opts.backups,
+  });
+  const soak = new SoakRecorder(engine, hub, {
+    dir: null,
+    ...opts.soak,
+    appVersion: opts.appVersion,
+    log,
+  });
   const queue = new QueueService(engine, opts.ctx, hub, opts.queue);
   const paceMs = opts.scanPaceWhilePlayingMs ?? 25;
   // One MusicBrainz client for the album check and the cover lookups (one request per second
@@ -159,6 +188,10 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     remote,
     lyrics,
     covers,
+    backups,
+    soak,
+    dspPresets: new DspPresetService(engine, opts.ctx.settings, log),
+    log,
     ctx: opts.ctx,
   };
 
@@ -168,13 +201,16 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   });
 
   queue.init();
+  let detachLog: (() => void) | null = null;
 
   return {
     ...services,
     app,
     async listen() {
+      detachLog = attachActivityLog(engine, hub, log);
       await engine.start();
       library.start();
+      backups.start();
       const address = await app.listen({ host, port: opts.port ?? DEFAULT_PORT });
       const url = new URL(address);
       // LAN listener only if the user turned it on (never fails start-up; errors show in Settings).
@@ -185,12 +221,16 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
       };
     },
     async close() {
+      if (soak.isRunning()) soak.stop('app-quit');
       queue.dispose();
+      await backups.stop();
       await remote.stop();
       await covers.stop();
       await library.stop();
       await engine.stop();
       await app.close();
+      detachLog?.();
+      detachLog = null;
     },
   };
 }
@@ -234,7 +274,18 @@ export async function buildStudioApp(
     });
     app.addHook('preSerialization', async (_req, _reply, payload) => sanitizeForLan(payload));
   } else {
-    app.setErrorHandler(errorHandler);
+    app.setErrorHandler((err, req, reply) => {
+      if (toApiError(err).status === 500) {
+        services.log.error(
+          'http',
+          `${req.method} ${req.routeOptions.url ?? 'unknown route'} failed`,
+          {
+            error: (err as Error)?.message ?? String(err),
+          },
+        );
+      }
+      errorHandler(err, req, reply);
+    });
     registerSecurity(app);
   }
   await app.register(fastifyWebsocket, {

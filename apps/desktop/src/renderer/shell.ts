@@ -23,6 +23,8 @@ export interface StudioShell {
   relaunch(): void;
   setAlwaysOnTop(on: boolean): Promise<boolean>;
   pickFolder(): Promise<string | null>;
+  /** Open one of Studio's own folders in Explorer: '' when it opened, otherwise the error. */
+  openFolder(which: 'logs' | 'backups' | 'soak'): Promise<string>;
   /** Start / show / hide HQPlayer Desktop (Windows). */
   hqplayerApp: {
     get(): Promise<HqpAppState | null>;

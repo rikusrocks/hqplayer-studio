@@ -72,11 +72,22 @@ On the Mac the same Core runs standalone (`pnpm dev:core`) with `MockHQPlayerAda
 
 ## Data locations
 
-| Context  | Location                                                                              |
-| -------- | ------------------------------------------------------------------------------------- |
-| Mac dev  | `<repo>/.data/dev/studio.sqlite` (+ `artwork/`) — `pnpm demo:reset` wipes and reseeds |
-| Electron | `app.getPath('userData')/data` (Windows: `%APPDATA%\HQPlayer Studio\data`)            |
-| Probe    | report JSON next to `hqp-probe.exe` (fallback: Desktop, then temp)                    |
+| Context  | Location                                                                                                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Mac dev  | `<repo>/.data/dev/studio.sqlite` (+ `artwork/`, `backups/`, `logs/`, `soak-reports/`) — `pnpm demo:reset` wipes and reseeds |
+| Electron | `app.getPath('userData')/data` (Windows: `%APPDATA%\HQPlayer Studio\data`): `studio.sqlite`, `artwork/`, `backups/`         |
+| Electron | `%APPDATA%\HQPlayer Studio\logs` (`studio.log` + 4 rotated, `crash-*.txt`, `session.json`), `…\soak-reports`                |
+| Probe    | report JSON next to `hqp-probe.exe` (fallback: Desktop, then temp)                                                          |
+
+## Stability (Phase 5)
+
+- **Backups** (`packages/library/src/db/backups.ts`, `BackupService`): `VACUUM INTO` copies named `studio-<UTC>-<kind>-s<schema>-v<app>.sqlite` in `data/backups` — `pre-migration` (synchronously, before `migrate()` changes an existing database), `daily` (worker thread with its own read-only connection; waits for a pause in playback, at most 48 h), `manual`, `pre-restore`. Pruned per kind (7 / 5 / 10 / 5).
+- **Downgrade guard**: `migrate()` / `openDatabaseWithInfo` throw `DatabaseTooNewError` before writing anything when the database has migrations this build does not know. Electron offers the newest backup with `schema ≤ SUPPORTED_SCHEMA_VERSION`.
+- **Restore**: `POST /maintenance/backups/restore` writes `data/restore-pending.json`; the next `openLibrary` keeps the current file as a `pre-restore` backup, swaps in the backup, records `restore-result.json`. The request is consumed even if it fails (no restore loops).
+- **Log**: `FileLog` (`packages/core/src/logging`) — one file for Core and Electron main, synchronous appends, 2 MB × 5 rotation, repeats collapsed, every line through `createRedactor` (HQPlayer XML attributes → labels as in diagnostics, Studio's own folders → `<app>`, other paths → `<path>`, media file names, host / user names, LAN IPs, tokens). Core logs state changes (`attachActivityLog`: connection, transport, track number, commands, scans, warnings), never per-status traffic or metadata. Crash reports: uncaught exceptions, renderer / child process gone, Core start failure, and an unclean previous session (`session.json` heartbeat).
+- **Soak recorder** (`SoakRecorder`): passive; observes `EngineService.onStatus` / `onCommand`, `library.scan` and `queue.changed` events and the main-thread delay (`monitorEventLoopDelay`); incidents carry what Studio was doing (command within 15 s, scans, stall) and the report goes to `soak-reports/soak-<UTC>.json` every minute. Sends nothing to HQPlayer.
+- All `/maintenance/*` routes are loopback-only (not registered on the LAN app) and require a trusted client.
+- **Packaging**: electron-builder `nsis` (per-user, assisted, keeps app data on uninstall) + `portable` + `zip`; CI smoke-tests the unpacked app and a silent install. `v*` tags produce a draft GitHub Release with SHA256SUMS.
 
 ## Lyrics (Phase 4)
 

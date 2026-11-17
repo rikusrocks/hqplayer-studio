@@ -1,8 +1,12 @@
 name: Windows build
 
-# Produces the artifacts the user runs on the Windows PC (no dev tools needed there):
-#   - HQPlayerStudio portable .exe + .zip (Electron, mock engine in Phase 0)
-#   - hqp-probe-windows-x64.zip (read-only HQPlayer API probe, single .exe)
+# Produces what the user runs on the Windows PC (no dev tools needed there):
+#   - HQPlayerStudio-windows-x64-setup     installer (.exe, per-user, uninstaller)
+#   - HQPlayerStudio-windows-x64-portable  one .exe that runs without installing
+#   - HQPlayerStudio-windows-x64-zip       the unpacked app as a .zip
+#   - hqp-probe-windows-x64                hqp-probe / hqp-gatec / hqp-dspgate .exe + README
+# On a `v*` tag the release job collects them into a draft GitHub Release (with SHA256SUMS);
+# a manual run ("Run workflow") builds the same release folder as an artifact, without a release.
 on:
   push:
     branches: [main]
@@ -15,7 +19,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -29,13 +33,13 @@ jobs:
       - name: Build remote, desktop and probe
         run: pnpm build
 
-      - name: Package Electron app (portable + zip)
+      - name: Package Electron app (installer + portable + zip)
         working-directory: apps/desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: pnpm exec electron-builder --win portable zip --x64 --publish never
+        run: pnpm exec electron-builder --win nsis portable zip --x64 --publish never
 
-      - name: Smoke-test packaged app (node:sqlite in Electron, preload bridge, UI served)
+      - name: Smoke-test packaged app (node:sqlite in Electron, preload bridge, UI served, backup worker, log, soak report)
         shell: pwsh
         working-directory: apps/desktop/release/win-unpacked
         run: |
@@ -44,6 +48,36 @@ jobs:
           Get-Content $env:STUDIO_SMOKE_OUT
           if ($p.ExitCode -ne 0) { throw "smoke test failed with exit code $($p.ExitCode)" }
           if (-not (Select-String -Path $env:STUDIO_SMOKE_OUT -Pattern '^SMOKE_OK' -Quiet)) { throw 'smoke test did not report SMOKE_OK' }
+
+      - name: Smoke-test installer (silent per-user install, then the installed app)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem apps/desktop/release -Filter 'HQPlayerStudio-*-setup-x64.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'installer not found' }
+          $dest = Join-Path $env:RUNNER_TEMP 'hqps-installed'
+          $p = Start-Process -FilePath $setup.FullName -ArgumentList '/S', "/D=$dest" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
+          $exe = Join-Path $dest 'HQPlayer Studio.exe'
+          if (-not (Test-Path $exe)) { throw "installed app not found in $dest" }
+          if (-not (Test-Path (Join-Path $dest 'Uninstall HQPlayer Studio.exe'))) { throw 'uninstaller missing' }
+          $env:STUDIO_SMOKE_OUT = Join-Path $env:RUNNER_TEMP 'smoke-installed.txt'
+          $q = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -Wait -PassThru
+          Get-Content $env:STUDIO_SMOKE_OUT
+          if ($q.ExitCode -ne 0) { throw "installed app smoke test failed with exit code $($q.ExitCode)" }
+          if (-not (Select-String -Path $env:STUDIO_SMOKE_OUT -Pattern '^SMOKE_OK' -Quiet)) { throw 'installed app did not report SMOKE_OK' }
+          Write-Host "installer OK: $($setup.Name)"
+
+      - name: Uninstall (keeps the data folder)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:RUNNER_TEMP 'hqps-installed'
+          $un = Join-Path $dest 'Uninstall HQPlayer Studio.exe'
+          $p = Start-Process -FilePath $un -ArgumentList '/S', "_?=$dest" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "uninstaller exit code $($p.ExitCode)" }
+          if (Test-Path (Join-Path $dest 'HQPlayer Studio.exe')) { throw 'app still installed' }
+          if (-not (Test-Path (Join-Path $env:APPDATA 'HQPlayer Studio'))) { throw 'uninstall removed the data folder' }
+          Write-Host 'uninstall OK, data folder kept'
 
       - name: Smoke-test probe (no HQPlayer on the runner -> must still write a report)
         shell: pwsh
@@ -76,45 +110,111 @@ jobs:
           if ((Get-ChildItem dspgate-smoke | Measure-Object).Count -ne 0) { throw 'dspgate wrote files without a connection' }
           Write-Host 'dspgate smoke OK'
 
-      - name: Assemble probe zip
+      # The artifact itself is downloaded as a .zip: upload the files, not a zip of them.
+      - name: Collect probe files
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force out | Out-Null
-          Copy-Item scripts/hqp-probe/dist/hqp-probe.exe out/
-          Copy-Item scripts/hqp-probe/dist/hqp-gatec.exe out/
-          Copy-Item scripts/hqp-probe/dist/hqp-dspgate.exe out/
-          Copy-Item scripts/hqp-probe/README-WINDOWS.txt out/
-          Compress-Archive -Path out/* -DestinationPath hqp-probe-windows-x64.zip -Force
+          New-Item -ItemType Directory -Force probe-out | Out-Null
+          Copy-Item scripts/hqp-probe/dist/hqp-probe.exe probe-out/
+          Copy-Item scripts/hqp-probe/dist/hqp-gatec.exe probe-out/
+          Copy-Item scripts/hqp-probe/dist/hqp-dspgate.exe probe-out/
+          Copy-Item scripts/hqp-probe/README-WINDOWS.txt probe-out/
 
       - uses: actions/upload-artifact@v7
         with:
-          name: HQPlayerStudio-windows-x64
-          path: |
-            apps/desktop/release/*.exe
-            apps/desktop/release/*.zip
+          name: HQPlayerStudio-windows-x64-setup
+          path: apps/desktop/release/HQPlayerStudio-*-setup-x64.exe
           retention-days: 30
           if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: HQPlayerStudio-windows-x64-portable
+          path: apps/desktop/release/HQPlayerStudio-*-portable-x64.exe
+          retention-days: 30
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: HQPlayerStudio-windows-x64-zip
+          path: apps/desktop/release/HQPlayerStudio-*-win-x64.zip
+          retention-days: 30
+          if-no-files-found: error
+          # already compressed
+          compression-level: 0
 
       - uses: actions/upload-artifact@v7
         with:
           name: hqp-probe-windows-x64
-          path: hqp-probe-windows-x64.zip
+          path: probe-out/
           retention-days: 30
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     needs: windows
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+
+      - name: Version
+        id: version
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          root=$(node -p "require('./package.json').version")
+          if [ "$version" != "$root" ]; then
+            echo "::error::package.json ($root) and apps/desktop/package.json ($version) disagree"; exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "v$version" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match the app version v$version"; exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=false" >> "$GITHUB_OUTPUT" ;; esac
+
       - uses: actions/download-artifact@v7
         with:
           path: artifacts
-      - uses: softprops/action-gh-release@v3
+
+      - name: Collect release files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          cp artifacts/HQPlayerStudio-windows-x64-setup/HQPlayerStudio-${VERSION}-setup-x64.exe release/
+          cp artifacts/HQPlayerStudio-windows-x64-portable/HQPlayerStudio-${VERSION}-portable-x64.exe release/
+          cp artifacts/HQPlayerStudio-windows-x64-zip/HQPlayerStudio-${VERSION}-win-x64.zip release/
+          (cd artifacts/hqp-probe-windows-x64 && zip -9 -q -r "../../release/hqp-probe-${VERSION}-windows-x64.zip" .)
+          (cd release && sha256sum * > SHA256SUMS.txt)
+          sed "s/{{VERSION}}/${VERSION}/g" .github/release-notes.md > release-notes.md
+          ls -la release
+          cat release/SHA256SUMS.txt
+
+      # Manual run: the same files as an artifact, nothing is published.
+      - if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-preview
+          path: |
+            release/
+            release-notes.md
+          retention-days: 7
+          compression-level: 0
+
+      # Tag: a draft release — review it on GitHub and press "Publish release".
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
+          prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
+          name: HQPlayer Studio ${{ github.ref_name }}
+          body_path: release-notes.md
+          fail_on_unmatched_files: true
           files: |
-            artifacts/HQPlayerStudio-windows-x64/*
-            artifacts/hqp-probe-windows-x64/*
+            release/HQPlayerStudio-*-setup-x64.exe
+            release/HQPlayerStudio-*-portable-x64.exe
+            release/HQPlayerStudio-*-win-x64.zip
+            release/hqp-probe-*-windows-x64.zip
+            release/SHA256SUMS.txt

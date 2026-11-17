@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('studioShell', {
     ipcRenderer.invoke('studio:set-always-on-top', on === true) as Promise<boolean>,
   pickFolder: (): Promise<string | null> =>
     ipcRenderer.invoke('studio:pick-folder') as Promise<string | null>,
+  openFolder: (which: 'logs' | 'backups' | 'soak'): Promise<string> =>
+    ipcRenderer.invoke('studio:open-folder', String(which)) as Promise<string>,
   hqplayerApp: {
     get: () => ipcRenderer.invoke('studio:hqp-app:get'),
     set: (patch: Record<string, unknown>) => ipcRenderer.invoke('studio:hqp-app:set', patch),

@@ -9,3 +9,5 @@ export * from './remote';
 export * from './paths';
 export * from './lyrics';
 export * from './covers';
+export * from './maintenance';
+export * from './dsp-presets';
