@@ -139,7 +139,6 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           <Icon name="info" size={14} />
           {t('remote.noAudio')}
         </p>
-        <p className="rm-note rm-note--small">{t('app.disclaimer')}</p>
       </div>
     </div>
   );

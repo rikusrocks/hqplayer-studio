@@ -399,6 +399,10 @@ describe('Apple Music through a live input', () => {
     expect(byId.appRouting).toMatchObject({ status: 'manual' });
     expect(byId.hqplayerInput?.detail).toContain('audio:default/0/2');
     expect(checked.body.setup!.listedInputs).toEqual(['audio:default/0/2']);
+    // the mock reports the rate it plays at, not which list entry is selected
+    expect(byId.outputRate?.status).toBe('manual');
+    expect(byId.outputRate?.detail).toMatch(/MHz$/);
+    expect(byId.liveInputAddress).toMatchObject({ status: 'manual', detail: null });
     expect((await adapter.getStatus()).transport).toBe((await before).transport);
 
     media.session = null;
@@ -414,6 +418,49 @@ describe('Apple Music through a live input', () => {
     expect(next.appleMusicApp).toMatchObject({ status: 'missing', detail: 'not_running' });
     expect(next.virtualCable).toMatchObject({ status: 'missing' });
     expect(next.microphoneAccess).toMatchObject({ status: 'missing' });
+
+    // a saved address shows up in the last check at once
+    const saved = await api<AppleMusicState>('POST', '/apple-music/settings', {
+      preferredUri: 'audio:default/48000/2',
+    });
+    expect(saved.body.setup!.checks.find((c) => c.id === 'liveInputAddress')).toMatchObject({
+      status: 'ok',
+      detail: 'audio:default/48000/2',
+    });
+
+    // HQPlayer's output rate on Auto (rate 0) is flagged; a fixed rate passes
+    const real = adapter.getDspState.bind(adapter);
+    const withRate = (rate: number) =>
+      vi.spyOn(adapter, 'getDspState').mockImplementation(async () => ({
+        ...(await real()),
+        rates: [
+          { index: 0, rate: 0 },
+          { index: 1, rate: 705600 },
+        ],
+        selected: {
+          mode: null,
+          filter1x: null,
+          filterNx: null,
+          shaper: null,
+          rate,
+          invert: null,
+          adaptiveVolume: null,
+          convolution: null,
+        },
+      }));
+    withRate(0);
+    const auto = await api<AppleMusicState>('POST', '/apple-music/check');
+    expect(auto.body.setup!.checks.find((c) => c.id === 'outputRate')).toMatchObject({
+      status: 'missing',
+      detail: 'rate_auto',
+    });
+    withRate(1);
+    const fixed = await api<AppleMusicState>('POST', '/apple-music/check');
+    expect(fixed.body.setup!.checks.find((c) => c.id === 'outputRate')).toMatchObject({
+      status: 'ok',
+      detail: '705.6 kHz',
+    });
+    vi.restoreAllMocks();
 
     expect((await api('POST', '/apple-music/open', { target: 'app-volume' })).status).toBe(200);
     expect(media.calls).toContain('open:app-volume');

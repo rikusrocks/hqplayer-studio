@@ -39,6 +39,7 @@ import { RemoteSettings } from './RemoteSettings';
 import { BackupSettings, LogsCard, SoakTestCard } from './MaintenanceSettings';
 import { EqSettings } from './EqSettings';
 import { openSetupWizard } from './SetupWizard';
+import { AboutSettings } from './AboutSettings';
 import {
   BlockHead,
   CoverSettings,
@@ -60,6 +61,7 @@ const SECTIONS: Array<{ id: string; label: MessageKey; icon: IconName }> = [
   { id: 'lyrics', label: 'settings.lyrics', icon: 'lyrics' },
   { id: 'remote', label: 'settings.remote', icon: 'remote' },
   { id: 'diagnostics', label: 'settings.diagnostics', icon: 'activity' },
+  { id: 'about', label: 'settings.about', icon: 'info' },
 ];
 
 export function SettingsView({ section }: { section: string }) {
@@ -92,6 +94,7 @@ export function SettingsView({ section }: { section: string }) {
           {current.id === 'lyrics' && <LyricsSettings />}
           {current.id === 'remote' && <RemoteSettings />}
           {current.id === 'diagnostics' && <Diagnostics />}
+          {current.id === 'about' && <AboutSettings />}
         </div>
       </div>
     </div>
@@ -159,7 +162,6 @@ function GeneralSettings() {
       </div>
       <DesktopIntegration />
       <BackupSettings />
-      <p className="hint">{t('app.disclaimer')}</p>
     </div>
   );
 }

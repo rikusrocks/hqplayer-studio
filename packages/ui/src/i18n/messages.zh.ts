@@ -1,7 +1,6 @@
 /** Simplified Chinese (default locale). Keys must stay identical to messages.en.ts. */
 export const zh = {
   'app.name': 'HQP Studio',
-  'app.disclaimer': '第三方客户端，与 Signalyst / HQPlayer 官方无隶属关系',
 
   'nav.home': '首页',
   'nav.albums': '专辑',
@@ -241,6 +240,24 @@ export const zh = {
   'settings.dsp': 'DSP',
   'settings.remote': '网页遥控',
   'settings.diagnostics': '诊断',
+  'settings.about': '关于',
+  'about.version': '版本 {version}',
+  'about.tagline': 'HQPlayer 的音乐库、播放队列和歌词前端。',
+  'about.links': '链接',
+  'about.repo': 'GitHub 上的源代码',
+  'about.repoHint': '版本发布、问题反馈和入门指南',
+  'about.site': 'rikus.rocks',
+  'about.siteHint': 'HQP Studio 网站和下载',
+  'about.license': 'MIT 许可证——见仓库中的 LICENSE 与 THIRD_PARTY_NOTICES.md。',
+  'about.disclaimer': '免责声明',
+  'about.d.unofficial':
+    '本项目是非官方的第三方软件，与 Signalyst 没有任何隶属、合作或认可关系。HQPlayer 是 Signalyst 的产品和商标，需要你自行购买并取得合法授权。',
+  'about.d.asIs':
+    '本软件按“原样”提供，不附带任何形式的担保。使用本软件造成的任何损失（包括数据丢失或设备问题），作者概不负责。',
+  'about.d.drm':
+    'Studio 不修改 HQPlayer 的许可证，也不会去除任何音乐的版权保护（DRM）；只有在你允许时才会更改 HQPlayer 的 DSP 选项。Apple Music 功能只通过系统音频路由工作，请遵守相关服务条款。',
+  'about.d.online': '在线歌词和封面来自第三方服务，版权归原权利人所有，仅供个人使用。',
+  'about.d.unsigned': '程序未签名，首次运行时 Windows SmartScreen 可能会提示。',
   'settings.language': '语言',
   'settings.theme': '主题',
   'settings.theme.dark': '深色',
@@ -945,6 +962,14 @@ export const zh = {
   'am.detail.not_installed': '未安装',
   'am.detail.not_running': '已安装，未运行',
   'am.detail.no_session': '正在运行，但还没有播放过',
+  'am.check.outputRate': 'HQPlayer 输出采样率是固定值',
+  'am.check.outputRate.hint':
+    '设为“自动（Auto）”时，HQPlayer 有时无法启动实时输入。请在 Studio（设置 → DSP）或 HQPlayer 主窗口选一个固定的输出采样率，再按“开始”。',
+  'am.check.liveInputAddress': '实时输入地址',
+  'am.check.liveInputAddress.hint':
+    '通常会自动找到。如果“开始”失败，请保存 HQPlayer 需要的地址——地址里的采样率应与 Windows 声音设置中虚拟声卡的采样率一致。',
+  'am.detail.rate_auto': '自动（Auto）',
+  'am.link.dsp': '在 Studio 设置采样率',
   'am.detail.nothingListed': 'HQPlayer 没有列出任何输入',
   'am.open.sound': '声音设置',
   'am.open.app-volume': '音量合成器',
@@ -963,9 +988,9 @@ export const zh = {
   'am.last.noPlay': '已加入，但没有进入播放状态',
   'am.last.copy': '复制给开发者',
   'am.last.copied': '已复制（不含曲名或路径）',
-  'am.advanced.title': '实时输入地址',
   'am.advanced.hint':
-    '除非 HQPlayer 需要特定的地址，否则留空。格式：audio:设备/采样率/声道数，例如 audio:default/0/2。',
+    '格式：audio:设备/采样率/声道数（采样率 0 = 自动识别）。Studio 会先试这个地址；留空则试 HQPlayer 列出的和常用的地址。',
+  'am.advanced.try': '试试：',
   'am.advanced.save': '保存',
   'am.advanced.saved': '已保存',
   'am.advanced.inUse': '正在使用：{uri}',

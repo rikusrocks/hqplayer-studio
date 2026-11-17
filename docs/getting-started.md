@@ -156,7 +156,8 @@ Studio 把你画的 EQ 曲线写成一个滤波器文件，由 HQPlayer 自己�
 
 侧栏 **Apple Music**：让 Apple Music 应用的声音经过 HQPlayer 升频。需要：Windows 上的 Apple Music 应用、一个虚拟声卡
 （例如 VB-Audio 的虚拟线缆，需要自己安装）、在 HQPlayer 设置里把输入设为这个虚拟声卡。页面上的 **检查这台电脑** 会逐项告诉你
-缺什么，并提供打开 Windows 声音设置 / 音量合成器 / 隐私设置的按钮。这不是逐位精确播放（声音经过 Windows 混音器），
+缺什么，并提供打开 Windows 声音设置 / 音量合成器 / 隐私设置的按钮；它也会检查 HQPlayer 的输出采样率是不是固定值
+（“自动”时实时输入有时启动不了），并可在“实时输入地址”一行填写 HQPlayer 需要的地址。这不是逐位精确播放（声音经过 Windows 混音器），
 声音会比 Apple Music 应用晚几秒。
 
 ### 10. 备份、升级、卸载
@@ -336,7 +337,9 @@ Studio turns your EQ curve into a filter file that HQPlayer plays through its ow
 
 **Apple Music** in the sidebar sends the Apple Music app's sound through HQPlayer. You need the Apple Music app for Windows, a
 virtual audio cable (e.g. VB-Audio's, installed by you) and HQPlayer's input set to that cable in HQPlayer's settings.
-**Check this PC** on that page lists what is missing and opens the right Windows settings. It is not bit-perfect (the sound
+**Check this PC** on that page lists what is missing and opens the right Windows settings; it also checks that HQPlayer's
+output rate is a fixed rate (on "Auto" the live input sometimes does not start), and its "Live input address" line takes the
+address HQPlayer needs. It is not bit-perfect (the sound
 passes the Windows mixer) and is a few seconds behind the Apple Music app.
 
 ### 10. Backups, updates, uninstalling

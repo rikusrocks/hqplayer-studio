@@ -3,7 +3,6 @@ import type { MessageKey } from './messages.zh';
 /** English. TypeScript enforces the exact same key set as messages.zh.ts. */
 export const en: Record<MessageKey, string> = {
   'app.name': 'HQP Studio',
-  'app.disclaimer': 'Third-party client — not affiliated with Signalyst / HQPlayer',
 
   'nav.home': 'Home',
   'nav.albums': 'Albums',
@@ -247,6 +246,25 @@ export const en: Record<MessageKey, string> = {
   'settings.dsp': 'DSP',
   'settings.remote': 'Web Remote',
   'settings.diagnostics': 'Diagnostics',
+  'settings.about': 'About',
+  'about.version': 'Version {version}',
+  'about.tagline': 'A library, queue and lyrics front end for HQPlayer.',
+  'about.links': 'Links',
+  'about.repo': 'Source code on GitHub',
+  'about.repoHint': 'Releases, issues and the getting-started guide',
+  'about.site': 'rikus.rocks',
+  'about.siteHint': 'The HQP Studio website and downloads',
+  'about.license': 'MIT License — see LICENSE and THIRD_PARTY_NOTICES.md in the repository.',
+  'about.disclaimer': 'Disclaimer',
+  'about.d.unofficial':
+    'This is unofficial third-party software. It is not affiliated with, endorsed by, or supported by Signalyst. HQPlayer is a product and trademark of Signalyst; you need your own licensed copy.',
+  'about.d.asIs':
+    'The software is provided “as is”, without warranty of any kind. The authors are not liable for any loss or damage arising from its use, including data loss or equipment issues.',
+  'about.d.drm':
+    'Studio never changes HQPlayer’s licence and never removes copy protection (DRM) from any music; it changes HQPlayer’s DSP selections only when you allow it. The Apple Music feature works only through system audio routing — follow the terms of the services you use.',
+  'about.d.online':
+    'Online lyrics and cover art come from third-party services and belong to their rights holders; for personal use only.',
+  'about.d.unsigned': 'Builds are unsigned, so Windows SmartScreen may warn on first run.',
   'settings.language': 'Language',
   'settings.theme': 'Theme',
   'settings.theme.dark': 'Dark',
@@ -980,6 +998,14 @@ export const en: Record<MessageKey, string> = {
   'am.check.hqplayerInput': 'HQPlayer’s input is the cable',
   'am.check.hqplayerInput.hint':
     'HQPlayer → Settings → Input. Studio cannot change this; below is what HQPlayer lists.',
+  'am.check.outputRate': 'HQPlayer output rate is a fixed rate',
+  'am.check.outputRate.hint':
+    'On “Auto” HQPlayer sometimes will not start a live input. Pick a fixed output rate in Studio (Settings → DSP) or in HQPlayer’s main window, then press Start again.',
+  'am.check.liveInputAddress': 'Live input address',
+  'am.check.liveInputAddress.hint':
+    'Usually found by itself. If Start fails, save the address HQPlayer needs — the rate in it should match the cable’s rate in Windows Sound settings.',
+  'am.detail.rate_auto': 'Auto',
+  'am.link.dsp': 'Output rate in Studio',
   'am.detail.engine_offline': 'HQPlayer is not connected',
   'am.detail.control_disabled': 'Control is switched off',
   'am.detail.not_installed': 'Not installed',
@@ -1003,9 +1029,9 @@ export const en: Record<MessageKey, string> = {
   'am.last.noPlay': 'Added, never reached “playing”',
   'am.last.copy': 'Copy for the developer',
   'am.last.copied': 'Copied (no titles or paths in it)',
-  'am.advanced.title': 'Live input address',
   'am.advanced.hint':
-    'Leave empty unless HQPlayer needs a specific one. Form: audio:device/rate/channels, e.g. audio:default/0/2.',
+    'Form: audio:device/rate/channels (rate 0 = detect). Studio tries this address first; empty = try HQPlayer’s own list and the common ones.',
+  'am.advanced.try': 'Try:',
   'am.advanced.save': 'Save',
   'am.advanced.saved': 'Saved',
   'am.advanced.inUse': 'In use: {uri}',

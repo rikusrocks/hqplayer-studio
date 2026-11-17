@@ -2322,6 +2322,14 @@ body.is-mini {
   flex-wrap: wrap;
   gap: 6px;
 }
+.am-address {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.am-address__suggest {
+  gap: 6px;
+}
 .am-uri {
   flex: 1;
   min-width: 220px;
@@ -2572,4 +2580,35 @@ body.is-mini {
   .setup__body {
     padding: 18px 16px;
   }
+}
+
+/* Settings → About */
+.settings-block.about__hero {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+.about__hero .settings-block__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.about__link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+}
+.about__link:hover {
+  background: var(--hover, rgba(127, 127, 127, 0.08));
+}
+.about__link .setting-row__label {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.about__link .hint {
+  font-weight: 400;
 }

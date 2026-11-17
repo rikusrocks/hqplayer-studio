@@ -79,6 +79,10 @@ export const AppleMusicCheckIdSchema = z.enum([
   'microphoneAccess',
   'appRouting',
   'hqplayerInput',
+  /** HQPlayer's output rate is a fixed rate, not Auto (live inputs may not start on Auto). */
+  'outputRate',
+  /** The `audio:` address Start uses; some set-ups only play with an explicit one. */
+  'liveInputAddress',
 ]);
 export type AppleMusicCheckId = z.infer<typeof AppleMusicCheckIdSchema>;
 

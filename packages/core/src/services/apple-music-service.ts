@@ -59,6 +59,18 @@ export interface CoverLookup {
   find(album: string, artist: string | null): Promise<{ bytes: Uint8Array; mime: string } | null>;
 }
 
+const unknownOffline = (id: AppleMusicCheck['id']): AppleMusicCheck => ({
+  id,
+  status: 'unknown',
+  detail: 'engine_offline',
+});
+
+/** "705.6 kHz", "22.58 MHz" — an output rate for the set-up check. */
+export function formatRate(hz: number): string {
+  if (hz >= 1_000_000) return `${(hz / 1_000_000).toFixed(2).replace(/\.?0+$/, '')} MHz`;
+  return `${(hz / 1000).toFixed(1).replace(/\.0$/, '')} kHz`;
+}
+
 const BLOCK_MESSAGES: Record<AppleMusicBlock, string> = {
   disabled: 'Turn the Apple Music source on first.',
   engine_offline: 'HQPlayer is not connected.',
@@ -157,6 +169,7 @@ export class AppleMusicService implements LiveSourceHook {
     if (patch.preferredUri !== undefined) {
       this.preferredUri = patch.preferredUri;
       this.settings.set(APPLE_MUSIC_URI_SETTING, patch.preferredUri);
+      this.refreshAddressCheck();
     }
     if (patch.enabled !== undefined && patch.enabled !== this.enabled) {
       if (!patch.enabled && this.phase === 'active') await this.stop();
@@ -255,10 +268,45 @@ export class AppleMusicService implements LiveSourceHook {
       }
     }
     checks.push({ id: 'hqplayerInput', status: 'manual', detail: inputDetail });
+    checks.push(connected ? await this.checkOutputRate() : unknownOffline('outputRate'));
+    const address = this.preferredUri ?? this.liveUri;
+    checks.push({
+      id: 'liveInputAddress',
+      status: address ? 'ok' : 'manual',
+      detail: address,
+    });
 
     this.setup = { checkedAt: Date.now(), checks, listedInputs: listed };
     this.publish();
     return this.get();
+  }
+
+  /**
+   * HQPlayer's output rate selection. On "Auto" (rate 0 in GetRates) HQPlayer derives the output
+   * rate from the source, and with a live input it sometimes does not start at all; a fixed rate
+   * avoids that. Read-only: Studio only reports it (Settings → DSP can change it).
+   */
+  private async checkOutputRate(): Promise<AppleMusicCheck> {
+    try {
+      const dsp = await this.engine.run('getDspState', (a) => {
+        if (!a.getDspState)
+          throw new CapabilityUnavailableError('dsp.read', 'adapter cannot read DSP state');
+        return a.getDspState();
+      });
+      const index = dsp.selected?.rate ?? null;
+      const chosen = index === null ? undefined : dsp.rates.find((r) => r.index === index);
+      if (chosen) {
+        return chosen.rate === 0
+          ? { id: 'outputRate', status: 'missing', detail: 'rate_auto' }
+          : { id: 'outputRate', status: 'ok', detail: formatRate(chosen.rate) };
+      }
+      // The engine did not say which entry is selected: report the rate it plays at, if any.
+      if (dsp.current.rate)
+        return { id: 'outputRate', status: 'manual', detail: formatRate(dsp.current.rate) };
+      return { id: 'outputRate', status: 'unknown', detail: null };
+    } catch (err) {
+      return { id: 'outputRate', status: 'unknown', detail: (err as Error).message };
+    }
   }
 
   /** Switch HQPlayer to the live input. Stops whatever HQPlayer is playing. */
@@ -298,6 +346,7 @@ export class AppleMusicService implements LiveSourceHook {
         this.phase = 'active';
         this.liveUri = result.uri;
         this.settings.set(APPLE_MUSIC_LAST_URI_SETTING, result.uri);
+        this.refreshAddressCheck();
         this.log.info('apple-music', 'live input playing', {
           uri: result.uri,
           tried: result.attempts.length,
@@ -455,6 +504,20 @@ export class AppleMusicService implements LiveSourceHook {
   }
 
   // --- internals --------------------------------------------------------------------------------
+
+  /** Keep the address line of the last set-up check in step with a saved or working address. */
+  private refreshAddressCheck(): void {
+    if (!this.setup) return;
+    const address = this.preferredUri ?? this.liveUri;
+    this.setup = {
+      ...this.setup,
+      checks: this.setup.checks.map((c) =>
+        c.id === 'liveInputAddress'
+          ? { ...c, status: address ? 'ok' : 'manual', detail: address }
+          : c,
+      ),
+    };
+  }
 
   private applyPolicy(): void {
     const adapter = this.engine.adapter;
