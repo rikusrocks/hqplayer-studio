@@ -1505,9 +1505,6 @@ a.playerbar__art:hover {
 
 /* ---- responsive --------------------------------------------------------------------------- */
 @media (max-width: 1240px) {
-  .app {
-    --panel-w: 304px;
-  }
   .playerbar {
     grid-template-columns: minmax(160px, 1fr) minmax(280px, 1.4fr) auto;
   }
@@ -1516,22 +1513,6 @@ a.playerbar__art:hover {
   }
 }
 @media (max-width: 1080px) {
-  /* side panel floats over content instead of squeezing it */
-  .app--panel {
-    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-    grid-template-areas:
-      'sidebar main'
-      'player player';
-  }
-  .sidepanel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 84px;
-    width: min(344px, 85vw);
-    z-index: 50;
-    box-shadow: -8px 0 0 var(--text);
-  }
   .detail-hero__art {
     width: 168px;
   }

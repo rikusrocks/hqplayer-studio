@@ -117,3 +117,40 @@ export function restoreBounds(
 export function sameBounds(a: Bounds, b: Bounds): boolean {
   return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 }
+
+/** How far a window was extended for the side panel: `width` added, `shift` moved left. */
+export interface PanelGrowth {
+  width: number;
+  shift: number;
+}
+
+/**
+ * The side panel is appended to the window's right edge: the window gets `extra` px wider so the
+ * content keeps its size. If the screen has no room on the right, the window first slides left;
+ * if that is still not enough it grows only as far as the work area allows (the content then
+ * gives up the rest).
+ */
+export function growForPanel(
+  bounds: Bounds,
+  extra: number,
+  workArea: Bounds,
+): { bounds: Bounds; growth: PanelGrowth } {
+  const want = Math.max(0, Math.round(extra));
+  const roomRight = Math.max(0, workArea.x + workArea.width - (bounds.x + bounds.width));
+  const roomLeft = Math.max(0, bounds.x - workArea.x);
+  const shift = Math.min(Math.max(0, want - roomRight), roomLeft);
+  const width = Math.min(want, roomRight + shift);
+  return {
+    bounds: { ...bounds, x: bounds.x - shift, width: bounds.width + width },
+    growth: { width, shift },
+  };
+}
+
+/** Undo {@link growForPanel}: back to the size and place the window had without the panel. */
+export function shrinkAfterPanel(bounds: Bounds, growth: PanelGrowth, minWidth = 0): Bounds {
+  return {
+    ...bounds,
+    x: bounds.x + growth.shift,
+    width: Math.max(minWidth, bounds.width - growth.width),
+  };
+}
