@@ -10,6 +10,7 @@
 
 HQP Studio 是一个面向 **HQPlayer Desktop 6** 的第三方音乐库、播放列表管理器和手机遥控器。
 HQPlayer 继续负责解码、DSP、升频和 DAC 输出；Studio 只负责**找音乐、排队、遥控**，不插入音频链路。
+发布于rikus.rocks
 
 ### 主要功能
 
