@@ -1,5 +1,60 @@
 # PROGRESS
 
+## 2026-11-17 — Apple Music：在 Studio 里通过 HQPlayer 升频播放（实验功能）
+
+```text
+Background:
+- 想在 Studio 里播放 Apple Music 订阅曲库并由 HQPlayer 升频。订阅曲目（包括下载到本机的）有版权保护，
+  只有 Apple Music 应用能播放，HQPlayer 不能当文件打开；Studio 不会、也不应该去除保护。
+- 唯一的路：Apple Music 应用播放 → 虚拟声卡 → HQPlayer 的“实时输入”（audio: 条目）→ 升频 → DAC。
+- 先做过一个独立的测试程序（hqp-livegate.exe），你明确表示不要 Studio 之外的工具，已删除；
+  检查、测试、切换全部放进 Studio。
+
+Implemented:
+- 侧栏新增“Apple Music”页面（沿用 v0.6.0-beta.1 的新界面）：
+  · 开关“通过 HQPlayer 播放 Apple Music”（默认关，打开前说明会做什么）。
+  · “设置检查”：只读地查看这台电脑——Apple Music 应用、虚拟声卡、桌面应用的音频输入权限、
+    HQPlayer 列出的输入；不能自动判断的两项（虚拟声卡格式、Apple Music 的输出设备）标为“需自行确认”，
+    并给出直接打开 Windows 声音设置 / 音量合成器 / 隐私设置 / Apple Music 的按钮。
+  · “开始”：停止 HQPlayer，把播放列表换成一个实时输入条目并播放（依次尝试你填的地址、上次成功的、
+    HQPlayer 列出的、audio:default/0/2、/44100/2、/48000/2）；“上一次开始”里列出每个地址和 HQPlayer 的原话。
+  · 播放中显示 Apple Music 告诉 Windows 的曲名 / 歌手 / 专辑 / 封面；上一首 / 播放暂停 / 下一首
+    操作的是 Apple Music 应用。底部播放栏、迷你播放器、手机遥控显示同样的内容，按钮同样有效。
+  · “停止并回到音乐库”：让 Apple Music 暂停，把 Studio 的队列放回 HQPlayer（不自动播放）。
+    在音乐库里直接播放别的内容也会自动结束 Apple Music 模式。
+- Studio 自己的队列在此期间原样保留，不会被标成“不一致”；此时往队列里追加 / 跳转会被拒绝并说明原因。
+- 封面：先用 Apple Music 交给 Windows 的封面（读取方式改为依次尝试四种，失败原因会显示在页面上，不再悄悄忽略）；
+  Windows 不给时，如果“设置 → 音乐库”里打开了在线封面，就按专辑名和歌手到已启用的封面来源查找，只放在内存里。
+- 歌词：按曲名和歌手从“设置 → 歌词”里已打开的在线来源查找（Apple Music 自己的歌词读不到），只放在内存里、不写入数据库；
+  校准、手动匹配与音乐库曲目相同。歌曲切换时歌词面板自动重新查找。
+- 队列面板在 Apple Music 模式下显示“开始”之后播放过的歌曲（当前这首在最上）。Apple Music 自己的“待播清单”
+  无法从应用外读取——Windows 只告诉别的程序当前这一首。
+- Studio 不读取、不保存 Apple Music 的任何音频；声音从 Apple Music 应用经虚拟声卡进入 HQPlayer，全程在 Studio 之外。
+- 模拟引擎下整页可以完整演示（明确标注“演示”）。
+
+Verified:
+- 自动化测试：新增 21 项（实时输入的开关与权限、依次尝试地址、失败后清空并恢复队列、播放栏按钮转给
+  Apple Music、停止后队列回到 HQPlayer、播放音乐库内容自动结束、接管 HQPlayer 已在播放的实时输入、
+  设置检查、Windows 返回数据的解析）。
+- 在模拟引擎上用浏览器走过一遍：打开开关 → 检查 → 开始 → 暂停 → 停止。
+
+NOT verified（需要你的电脑）:
+- HQPlayer 6.1.0 是否接受 audio: 实时输入，以及哪种地址——SDK 只说明 PlaylistAdd 原样传递 audio: 地址，
+  audio:default/0/2 的写法来自 HQPlayer 4/5 的论坛经验。所以这个功能标为 beta，并把 HQPlayer 的回答显示出来。
+- 读取 Apple Music 曲目信息、封面和遥控它的 Windows 脚本是在 Mac 上写的，从未在 Windows 上运行过。
+  出错时页面会直接显示错误原文（“复制给开发者”可以把结果发回，不含曲名和路径）。
+
+Known limitations:
+- 不是逐位精确：Apple Music 的 Windows 应用不会按曲目切换采样率，声音先经 Windows 混音器。
+- 声音比 Apple Music 应用晚一个 HQPlayer 输出延迟（你的设置约 4.4 秒）；选歌、搜索、拖动进度仍在 Apple Music 应用里。
+- HQPlayer 的输入设备 / 后端不能在 Studio 里改：HQPlayer 的控制接口没有这个命令（只能读取输入列表）。
+- 歌词能否跟着滚动，取决于 Apple Music 是否向 Windows 报告播放位置——尚未在真机上确认。
+- 虚拟声卡要自己安装，HQPlayer 的输入设备要在 HQPlayer 里选——这两步 Studio 做不了，只能带你到对应的地方。
+
+Next:
+- 你：装好虚拟声卡，在 Apple Music 页面点“检查这台电脑”，再点“开始”；如果不成功，把“复制给开发者”的内容发回。
+```
+
 ## 2026-11-17 — v0.5.0：Phase 5 稳定性与发布（安装版、数据备份与版本回退、日志与崩溃报告、长时间播放测试）
 
 ```text

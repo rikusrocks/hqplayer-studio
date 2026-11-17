@@ -1,5 +1,8 @@
 import {
   API_PREFIX,
+  AppleMusicStateSchema,
+  type AppleMusicControlAction,
+  type UpdateAppleMusicSettingsRequest,
   AlbumCoverSchema,
   AlbumDetailSchema,
   AlbumPageSchema,
@@ -342,6 +345,22 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       setProviders: (providers: OnlineLyricsProviderId[]) =>
         post(LyricsSettingsSchema, '/settings/lyrics', { providers }),
       clearCache: () => post(LyricsSettingsSchema, '/settings/lyrics/clear-cache'),
+    },
+
+    /** Apple Music through an HQPlayer live input — this computer only. */
+    appleMusic: {
+      get: () => get(AppleMusicStateSchema, '/apple-music'),
+      update: (patch: UpdateAppleMusicSettingsRequest) =>
+        post(AppleMusicStateSchema, '/apple-music/settings', patch),
+      /** Look at this PC and at HQPlayer (read-only). */
+      check: () => post(AppleMusicStateSchema, '/apple-music/check'),
+      start: () => post(AppleMusicStateSchema, '/apple-music/start'),
+      stop: () => post(AppleMusicStateSchema, '/apple-music/stop'),
+      control: (action: AppleMusicControlAction) =>
+        post(AppleMusicStateSchema, '/apple-music/control', { action }),
+      /** Open a Windows settings page, the cable maker's site or the Apple Music app. */
+      open: (target: 'sound' | 'app-volume' | 'microphone' | 'cable-site' | 'apple-music') =>
+        post(z.object({ ok: z.literal(true) }), '/apple-music/open', { target }),
     },
 
     /** Online covers — this computer only. */

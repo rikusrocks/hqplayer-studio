@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /**
- * Studio EQ (D-041): Studio turns an EQ curve into an impulse-response WAV file that HQPlayer's
+ * Studio EQ (D-043): Studio turns an EQ curve into an impulse-response WAV file that HQPlayer's
  * own convolution engine plays through. HQPlayer has no EQ commands; Studio never touches the
  * audio. The maths here is shared by Core (the file) and the UI (the curve it draws), so both
  * always describe the same filter.

@@ -7,11 +7,14 @@ import {
   type EngineCapabilities,
   type EngineCapabilityKey,
   type EngineStatus,
+  type LiveInputAttempt,
   type RepeatMode,
 } from '@hqps/contracts';
 import type {
   EngineQueueSnapshot,
   HQPlayerAdapter,
+  LiveInputInfo,
+  LiveInputResult,
   PlayableTrack,
   ReplaceQueueOptions,
   StatusListener,
@@ -40,6 +43,8 @@ export interface MockAdapterOptions {
   tickMs?: number;
   clock?: MockClock;
   initialVolumeDb?: number;
+  /** Live inputs the simulated engine can open (default: `audio:default/0/2`). */
+  liveInputs?: string[];
 }
 
 type MockTransport = 'playing' | 'paused' | 'stopped';
@@ -85,8 +90,10 @@ export class MockHQPlayerAdapter implements HQPlayerAdapter {
   private readonly clock: MockClock;
   private readonly latencyMs: number;
   private readonly tickMs: number;
+  private readonly liveInputs: string[];
 
   constructor(options: MockAdapterOptions = {}) {
+    this.liveInputs = options.liveInputs ?? ['audio:default/0/2'];
     this.clock = options.clock ?? systemClock;
     this.latencyMs = options.latencyMs ?? 25;
     this.tickMs = options.tickMs ?? 1000;
@@ -422,6 +429,44 @@ export class MockHQPlayerAdapter implements HQPlayerAdapter {
     return new Promise((resolve) => this.clock.setTimeout(resolve, this.latencyMs));
   }
 
+  async getLiveInputs(): Promise<LiveInputInfo> {
+    this.assertConnected();
+    return { uris: [...this.liveInputs], names: ['Simulated virtual cable'] };
+  }
+
+  /** Simulated: the first URI this mock "has" starts playing; the others are refused. */
+  async playLiveInput(uris: string[]): Promise<LiveInputResult> {
+    const attempts: LiveInputAttempt[] = [];
+    let playing: string | null = null;
+    await this.command('PlaylistAdd(live)', () => {
+      this.queue = [];
+      this.index = null;
+      this.transport = 'stopped';
+      this.setPosition(0);
+      for (const uri of uris) {
+        const ok = this.liveInputs.includes(uri);
+        attempts.push({
+          uri,
+          addAccepted: ok,
+          playAccepted: ok ? true : null,
+          reachedPlaying: ok ? true : null,
+          error: ok ? null : 'no such input (simulated)',
+        });
+        if (!ok) continue;
+        this.queue = [
+          { studioTrackId: '', uri, title: '', artist: '', album: '', durationMs: null },
+        ];
+        this.index = 0;
+        this.transport = 'playing';
+        this.anchorAt = this.clock.now();
+        this.ensureTicker();
+        playing = uri;
+        break;
+      }
+    });
+    return { uri: playing, attempts };
+  }
+
   private currentTrack(): PlayableTrack | null {
     return this.index === null ? null : (this.queue[this.index] ?? null);
   }
@@ -513,9 +558,10 @@ export class MockHQPlayerAdapter implements HQPlayerAdapter {
           ? {
               index: this.index,
               uri: track.uri,
-              title: track.title,
-              artist: track.artist,
-              album: track.album,
+              // a live input has no tags of its own
+              title: track.title || null,
+              artist: track.artist || null,
+              album: track.album || null,
               durationMs: track.durationMs,
               studioTrackId: null,
             }

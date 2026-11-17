@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import fastifyStatic, { type FastifyStaticOptions } from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import { API_PREFIX, WS_PROTOCOL, type StudioEvent } from '@hqps/contracts';
+import { API_PREFIX, LIVE_LYRICS_TRACK_ID, WS_PROTOCOL, type StudioEvent } from '@hqps/contracts';
 import type { HQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import type { LibraryContext } from '@hqps/library';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -28,6 +28,8 @@ import { BackupService, type BackupServiceOptions } from './services/backup-serv
 import { SoakRecorder, type SoakRecorderOptions } from './services/soak-recorder';
 import { EqService } from './services/eq-service';
 import { DspPresetService } from './services/dsp-presets';
+import { AppleMusicService } from './services/apple-music-service';
+import { SimulatedMedia, windowsMedia, type WindowsMedia } from './services/windows-media';
 import { attachActivityLog } from './logging/activity-log';
 import { nullLog, type StudioLog } from './logging/studio-log';
 
@@ -56,6 +58,8 @@ export interface StudioServerOptions {
   backups?: Partial<Omit<BackupServiceOptions, 'appVersion' | 'log'>>;
   /** Soak-test recorder; `dir` = where its reports go (null = memory only). */
   soak?: Partial<Omit<SoakRecorderOptions, 'appVersion' | 'log'>>;
+  /** Windows media sessions for the Apple Music source — tests inject a fake. */
+  appleMusic?: { media?: WindowsMedia };
   /** Pause before each file read while HQPlayer is playing (handoff §12.6). Default 25 ms. */
   scanPaceWhilePlayingMs?: number;
   /** Folder of the Studio EQ filter file (`<data>/eq`); absent = no EQ file can be written. */
@@ -89,6 +93,7 @@ export interface StudioServices {
   backups: BackupService;
   soak: SoakRecorder;
   dspPresets: DspPresetService;
+  appleMusic: AppleMusicService;
   eq: EqService;
   log: StudioLog;
   ctx: LibraryContext;
@@ -129,6 +134,17 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     log,
   });
   const queue = new QueueService(engine, opts.ctx, hub, opts.queue);
+  // Apple Music through a live input. With the mock engine the Windows side is simulated too,
+  // so the page can be explored on any computer (and says so).
+  const appleMusic = new AppleMusicService(
+    engine,
+    queue,
+    hub,
+    opts.ctx.settings,
+    opts.appleMusic?.media ??
+      (opts.adapter.kind === 'mock' ? new SimulatedMedia() : windowsMedia()),
+    log,
+  );
   const paceMs = opts.scanPaceWhilePlayingMs ?? 25;
   // One MusicBrainz client for the album check and the cover lookups (one request per second
   // in total). MusicBrainz asks clients to identify themselves; no personal data is sent.
@@ -154,6 +170,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     opts.ctx,
     hub,
     (trackId) => {
+      if (trackId === LIVE_LYRICS_TRACK_ID) return engine.getStatus().track?.source != null;
       if (engine.getStatus().track?.studioTrackId === trackId) return true;
       const q = queue.get();
       return q.currentIndex !== null && q.items[q.currentIndex]?.track.id === trackId;
@@ -195,6 +212,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     backups,
     soak,
     dspPresets: new DspPresetService(engine, opts.ctx.settings, log),
+    appleMusic,
     eq: new EqService(engine, opts.ctx.settings, {
       dir: opts.eqDir ?? null,
       hqplayerHost: opts.engineInfo?.hqplayer.host ?? '127.0.0.1',
@@ -210,6 +228,14 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   });
 
   queue.init();
+  appleMusic.init();
+  // Lyrics of the song Apple Music is playing: by title and artist, kept in memory only.
+  lyrics.setLiveTrack(() => appleMusic.liveTrack());
+  // …and its cover, when Windows provides none and the user turned online covers on.
+  appleMusic.setCoverLookup({
+    enabled: () => covers.onlineEnabled(),
+    find: (album, artist) => covers.findOnline(album, artist),
+  });
   let detachLog: (() => void) | null = null;
 
   return {
@@ -231,6 +257,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     },
     async close() {
       if (soak.isRunning()) soak.stop('app-quit');
+      appleMusic.dispose();
       queue.dispose();
       services.eq.dispose();
       await backups.stop();

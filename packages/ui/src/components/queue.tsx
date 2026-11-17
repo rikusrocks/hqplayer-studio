@@ -83,6 +83,11 @@ export function QueueList({ large = false }: { large?: boolean }) {
   const jumpReason = gate('queue.select');
   const editReason = gate('queue.replace');
 
+  // A live source (Apple Music) is playing: Studio's own queue is waiting, so show the songs
+  // of this session instead.
+  if (status.track?.source && status.connection === 'connected') {
+    return <LiveSourceQueue large={large} />;
+  }
   if (queue.items.length === 0) {
     return <EmptyOrEngineQueue large={large} />;
   }
@@ -169,6 +174,63 @@ export function QueueList({ large = false }: { large?: boolean }) {
             </li>
           );
         })}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * What Apple Music has played since it was started through HQPlayer: the current song on top,
+ * earlier ones below. Apple Music's own "Playing Next" list cannot be read from outside the app,
+ * so there is nothing to show ahead of the current song — the next / previous buttons still work.
+ */
+function LiveSourceQueue({ large }: { large: boolean }) {
+  const { status, appleMusic, queue } = useStudio();
+  const t = useT();
+  const playing = status.transport === 'playing';
+  const current = status.track;
+  // Newest first, without the current song (it is the last entry of the history).
+  const earlier = (appleMusic?.history ?? []).slice(0, -1).reverse();
+  const time = (ms: number) =>
+    new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className={`hq-queue${large ? ' hq-queue--large' : ''}`}>
+      <div className="hq-queue__meta">
+        <div className="hq-queue__source">
+          <span>{t('queue.live.title')}</span>
+          <span className="hq-badge">{t('queue.live.badge')}</span>
+        </div>
+      </div>
+      <p className="hint hq-queue__hint">
+        {t('queue.live.hint')}
+        {queue.items.length > 0 ? ` ${t('queue.live.kept', { count: queue.items.length })}` : ''}
+      </p>
+      <ol className="hq-queue__list">
+        {current && (
+          <li className="hq-queue__item is-current" aria-current="true">
+            <div className="hq-queue__main hq-queue__main--static">
+              <Artwork artworkId={current.artworkId} className="hq-queue__art" />
+              <span className="hq-queue__text">
+                <span className="hq-queue__title">{current.title ?? '—'}</span>
+                <span className="hq-queue__artist">{current.artist ?? ''}</span>
+              </span>
+              <span className="hq-queue__dur">
+                <EqBars playing={playing} />
+              </span>
+            </div>
+          </li>
+        )}
+        {earlier.map((song) => (
+          <li key={song.startedAt} className="hq-queue__item is-past">
+            <div className="hq-queue__main hq-queue__main--static">
+              <span className="hq-queue__text">
+                <span className="hq-queue__title">{song.title}</span>
+                <span className="hq-queue__artist">{song.artist ?? ''}</span>
+              </span>
+              <span className="hq-queue__dur">{time(song.startedAt)}</span>
+            </div>
+          </li>
+        ))}
       </ol>
     </div>
   );

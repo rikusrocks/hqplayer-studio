@@ -10,6 +10,7 @@ import {
   canUse,
   disconnectedStatus,
   emptyQueue,
+  type AppleMusicState,
   type EngineCapabilities,
   type EngineCapabilityKey,
   type EngineStatus,
@@ -60,6 +61,8 @@ export interface StudioContextValue {
   remoteVersion: number;
   /** Bumps when stored lyrics change (offset, manual match, settings) — lyrics views refetch. */
   lyricsVersion: number;
+  /** Apple Music (live input) source; null until loaded, and always null on the Web Remote. */
+  appleMusic: AppleMusicState | null;
   pending: ReadonlySet<PendingKey>;
   isMock: boolean;
   serverReachable: boolean;
@@ -151,6 +154,7 @@ export function StudioProvider({
   const [playlistsVersion, setPlaylistsVersion] = useState(0);
   const [remoteVersion, setRemoteVersion] = useState(0);
   const [lyricsVersion, setLyricsVersion] = useState(0);
+  const [appleMusic, setAppleMusic] = useState<AppleMusicState | null>(null);
   const [pending, setPending] = useState<ReadonlySet<PendingKey>>(() => new Set());
 
   // Keep monotonic serial/version checks against the latest value, not a stale closure.
@@ -231,6 +235,14 @@ export function StudioProvider({
             .stats()
             .then(setStats)
             .catch(() => undefined);
+          // not offered to paired phones (404 there): the page simply stays hidden
+          client.appleMusic
+            .get()
+            .then(setAppleMusic)
+            .catch(() => undefined);
+          break;
+        case 'applemusic.changed':
+          setAppleMusic(event.state);
           break;
         case 'engine.status':
           applyStatus(event.status);
@@ -331,6 +343,7 @@ export function StudioProvider({
       playlistsVersion,
       remoteVersion,
       lyricsVersion,
+      appleMusic,
       pending,
       isMock: server?.adapter === 'mock' || capabilities?.adapter === 'mock',
       serverReachable: realtime === 'open',
@@ -400,6 +413,7 @@ export function StudioProvider({
     playlistsVersion,
     remoteVersion,
     lyricsVersion,
+    appleMusic,
     pending,
     run,
     applyStatus,

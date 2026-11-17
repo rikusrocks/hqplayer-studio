@@ -41,7 +41,7 @@ export interface EqServiceOptions {
 }
 
 /**
- * Studio EQ (D-042). HQPlayer has no EQ commands, so Studio writes the curve as an impulse
+ * Studio EQ (D-043). HQPlayer has no EQ commands, so Studio writes the curve as an impulse
  * response WAV to one fixed file that the user points HQPlayer's convolution at once (Studio
  * never edits HQPlayer's configuration). Afterwards:
  *

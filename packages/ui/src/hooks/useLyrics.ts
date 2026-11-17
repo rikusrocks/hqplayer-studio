@@ -21,7 +21,7 @@ const clampOffset = (ms: number) =>
  * stored lyrics (`lyrics.changed`), and — when LRCLIB was unavailable — once the server's back-off
  * has passed (the server itself rate-limits; this never polls faster than it allows).
  */
-export function useTrackLyrics(trackId: string | null): LyricsState {
+export function useTrackLyrics(trackId: string | null, song = ''): LyricsState {
   const { client, lyricsVersion, run } = useStudio();
   const [lyrics, setLyrics] = useState<TrackLyrics | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,13 +58,18 @@ export function useTrackLyrics(trackId: string | null): LyricsState {
     return () => {
       alive = false;
     };
-  }, [client, trackId, lyricsVersion, nonce]);
+  }, [client, trackId, song, lyricsVersion, nonce]);
 
-  // Track changed: drop the previous track's lyrics immediately.
+  // Track changed: drop the previous track's lyrics immediately. A live source keeps one track
+  // id for every song it plays, so there the song itself (`song`) marks the change.
+  const shown = useRef(`${trackId}\u0000${song}`);
   useEffect(() => {
+    const key = `${trackId}\u0000${song}`;
+    const sameSong = shown.current === key;
+    shown.current = key;
     pendingOffset.current = null;
-    setLyrics((l) => (l && l.trackId !== trackId ? null : l));
-  }, [trackId]);
+    setLyrics((l) => (l && (l.trackId !== trackId || !sameSong) ? null : l));
+  }, [trackId, song]);
 
   useEffect(() => {
     if (lyrics?.state !== 'unavailable') return;

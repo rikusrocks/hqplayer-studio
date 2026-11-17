@@ -52,6 +52,7 @@ import type { StudioServices } from '../server';
 import { HttpError } from './errors';
 import { registerCoverRoutes } from './cover-routes';
 import { registerLyricsRoutes } from './lyrics-routes';
+import { registerAppleMusicRoutes } from './apple-music-routes';
 import { logInfo, registerMaintenanceRoutes } from './maintenance-routes';
 import { registerRemoteRoutes } from './remote-routes';
 import { isTrustedRequest } from './security';
@@ -324,7 +325,7 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
           s.dspPresets.apply(IdParams.parse(req.params).id),
         );
 
-        // Studio EQ (D-042): the curve, its filter file and HQPlayer's convolution switch.
+        // Studio EQ (D-043): the curve, its filter file and HQPlayer's convolution switch.
         api.get('/eq', async () => s.eq.status());
         api.post('/eq', async (req) => s.eq.save(body(SaveEqRequestSchema, req).config));
         api.post('/eq/convolution', async (req) =>
@@ -514,6 +515,7 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
 
       // --- lyrics
       registerLyricsRoutes(api, s);
+      registerAppleMusicRoutes(api, s);
 
       // --- online covers (this computer only)
       registerCoverRoutes(api, s);
@@ -521,6 +523,20 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
       // --- artwork (served from the content-addressed cache only; ids are validated)
       api.get('/artwork/:id', async (req, reply) => {
         const { id } = IdParams.parse(req.params);
+        // The cover Apple Music publishes while a live input plays: held in memory only, and
+        // replaced with every track, so it is never cached for long.
+        const live = s.appleMusic.artworkFor(id);
+        if (live) {
+          void reply.header('Content-Type', live.mime);
+          void reply.header('Cache-Control', 'private, max-age=300');
+          if (live.mime === 'image/svg+xml') {
+            void reply.header(
+              'Content-Security-Policy',
+              "default-src 'none'; style-src 'unsafe-inline'",
+            );
+          }
+          return reply.send(live.data);
+        }
         if (!ArtworkStore.isValidId(id)) throw new HttpError(404, 'not_found', 'Artwork not found');
         const art = ctx.artwork.resolve(id);
         if (!art) throw new HttpError(404, 'not_found', 'Artwork not found');

@@ -11,4 +11,5 @@ export * from './lyrics';
 export * from './covers';
 export * from './maintenance';
 export * from './dsp-presets';
+export * from './apple-music';
 export * from './eq';

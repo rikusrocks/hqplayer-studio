@@ -4,6 +4,7 @@ import { EngineCapabilitiesSchema } from './capabilities';
 import { EngineStatusSchema } from './engine';
 import { LibraryStatsSchema, ScanJobSchema } from './library';
 import { QueueStateSchema } from './queue';
+import { AppleMusicStateSchema } from './apple-music';
 
 /** Messages pushed over `WS /api/v1/events`. */
 export const StudioEventSchema = z.discriminatedUnion('type', [
@@ -24,6 +25,8 @@ export const StudioEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('remote.changed') }),
   /** Lyrics of a track changed (offset, manual choice); null = possibly all (cache cleared). */
   z.object({ type: z.literal('lyrics.changed'), trackId: z.string().nullable() }),
+  /** The Apple Music (live input) source changed: mode, what is playing, set-up state. */
+  z.object({ type: z.literal('applemusic.changed'), state: AppleMusicStateSchema }),
   z.object({
     type: z.literal('notice'),
     level: z.enum(['info', 'warning', 'error']),

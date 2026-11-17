@@ -26,7 +26,7 @@ const hasGain = (type: EqBandType) => type !== 'lowPass' && type !== 'highPass';
 const sameConfig = (a: EqConfig, b: EqConfig) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
- * Settings → EQ (D-042). Studio writes the curve as a filter file; HQPlayer's own convolution
+ * Settings → EQ (D-043). Studio writes the curve as a filter file; HQPlayer's own convolution
  * engine plays through it. The curve is edited here and only reaches the file on “Apply”, so a
  * half-typed band never makes HQPlayer rebuild its chain.
  */

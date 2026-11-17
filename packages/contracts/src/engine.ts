@@ -42,6 +42,12 @@ export const EngineTrackSchema = z.object({
    * queue (started in HQPlayer itself, or after “以 HQPlayer 为准”).
    */
   artworkId: z.string().nullable().optional(),
+  /**
+   * Set when HQPlayer is playing a live input on behalf of another app. Title, artist, album,
+   * artwork, position and the playing / paused state then come from that app (through Windows),
+   * not from HQPlayer — HQPlayer only sees an endless audio stream.
+   */
+  source: z.enum(['apple-music']).nullable().optional(),
 });
 export type EngineTrack = z.infer<typeof EngineTrackSchema>;
 

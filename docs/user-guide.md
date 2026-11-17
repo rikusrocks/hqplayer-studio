@@ -142,6 +142,28 @@ Studio 自己是否卡顿。它不会向 HQPlayer 发送任何命令，也不会
 
 ---
 
+### 13. Apple Music（实验功能）
+
+Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打开。Studio 走的是另一条路：Apple Music 应用照常播放，
+声音经一块“虚拟声卡”进入 HQPlayer 的实时输入，由 HQPlayer 升频后送到 DAC。这个功能还没有在 HQPlayer 6 上验证过。
+
+准备（只需一次）：安装一块虚拟声卡（例如 VB-Audio 的 Hi-Fi Cable / VB-CABLE）；在 Windows 音量合成器里把 Apple Music
+的输出设为它（格式 24 位 / 44100 Hz，音量 100%）；在 Windows 隐私设置里允许桌面应用使用麦克风；
+在 HQPlayer → Settings → Input 里选这块虚拟声卡。
+
+使用：侧栏 **Apple Music** → 打开开关 → “检查这台电脑”（只读，逐项告诉你缺什么，并带你到对应的 Windows 页面）→
+在 Apple Music 应用里放一首歌 → 回到 Studio 点 **开始**。第一次请先把放大器音量调低。
+之后 Studio 会显示 Apple Music 的曲名、歌手、专辑和封面，播放 / 暂停 / 上一首 / 下一首会转给 Apple Music 应用。
+点“停止并回到音乐库”或直接播放音乐库里的内容即可结束，原来的队列会放回 HQPlayer（不自动播放）。
+
+如果“开始”不成功，页面上的“上一次开始”会列出 HQPlayer 对每个地址的回答；点“复制给开发者”发回即可（不含曲名和路径）。
+
+歌词与队列：歌词按曲名和歌手从“设置 → 歌词”里已打开的在线来源查找（Apple Music 自己的歌词读不到），只保存在内存里；
+校准和手动匹配与音乐库曲目一样。队列面板显示“开始”之后播放过的歌曲——Apple Music 自己的“待播清单”无法从应用外读取。
+
+限制：不是逐位精确（Apple Music 的 Windows 应用不会按曲目切换采样率）；声音比 Apple Music 应用晚几秒；
+选歌、搜索、拖动进度仍在 Apple Music 应用里。Studio 不读取、不保存 Apple Music 的音频。
+
 ## English
 
 ### 1. Install, update, uninstall
@@ -262,3 +284,29 @@ Keep the PC from sleeping during the test. The report is saved every minute, so 
 
 Studio uploads nothing. Only online lyrics / cover sources you enable receive track or album names (never paths). Logs, crash
 reports, diagnostics and test reports stay on this computer, redacted; sending them is your choice.
+
+### 13. Apple Music (experimental)
+
+Apple Music's subscription tracks are copy-protected, so HQPlayer cannot open them as files. Studio uses another route: the
+Apple Music app plays as usual, its sound goes through a "virtual audio cable" into HQPlayer's live input, and HQPlayer
+upsamples it for the DAC. This has not been verified on HQPlayer 6 yet.
+
+Prepare once: install a virtual audio cable (for example VB-Audio's Hi-Fi Cable / VB-CABLE); in the Windows volume mixer send
+Apple Music to it (24 bit / 44100 Hz, volume 100 %); in Windows privacy settings allow desktop apps to use the microphone;
+in HQPlayer → Settings → Input choose the cable.
+
+Use: sidebar **Apple Music** → turn the switch on → "Check this PC" (read-only; it lists what is missing and opens the right
+Windows page) → start a song in the Apple Music app → back in Studio press **Start**. Turn the amplifier down the first time.
+Studio then shows Apple Music's title, artist, album and cover, and play / pause / previous / next go to the Apple Music app.
+"Stop and return to the library", or simply playing something from the library, ends it; your queue is put back in HQPlayer
+(not playing).
+
+If Start does not work, "Last start" lists what HQPlayer answered for each address; "Copy for the developer" gives a summary
+without titles or paths.
+
+Lyrics and queue: lyrics are looked up by title and artist in the online sources you enabled under Settings → Lyrics (Apple
+Music's own lyrics cannot be read) and are kept in memory only; calibration and manual matching work as for library tracks.
+The queue panel lists the songs played since Start — Apple Music's own Playing Next list cannot be read from outside the app.
+
+Limits: not bit-perfect (the Windows app does not switch sample rate per track); the sound is a few seconds behind the Apple
+Music app; choosing music, search and seeking stay in the Apple Music app. Studio never reads or stores Apple Music's audio.
