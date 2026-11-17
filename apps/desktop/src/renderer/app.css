@@ -2219,3 +2219,12 @@ body.is-mini {
     flex-direction: column;
   }
 }
+.am-now__cover-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.am-now__cover-note > .hq-icon {
+  flex: none;
+  margin-top: 2px;
+}

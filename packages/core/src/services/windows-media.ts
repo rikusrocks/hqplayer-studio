@@ -152,17 +152,58 @@ $ok = Await ($target.__METHOD__()) ([bool])
 ConvertTo-Json -InputObject @{ ok = [bool]$ok } -Compress
 `;
 
+/**
+ * Reads the cover a session publishes. Turning the WinRT stream into bytes is the fragile part
+ * in PowerShell (it cannot always pass a WinRT object to a .NET method by itself), so several
+ * ways are tried in turn and every failure is reported back by name instead of being lost.
+ */
 const ARTWORK =
   FIND +
   String.raw`
 $p = Await ($target.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
-if (-not $p.Thumbnail) { '{"data":null}'; return }
-$stream = Await ($p.Thumbnail.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
-try { $net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream) }
-catch { $net = [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream.GetInputStreamAt(0)) }
-$ms = New-Object System.IO.MemoryStream
-$net.CopyTo($ms)
-ConvertTo-Json -InputObject @{ mime = [string]$stream.ContentType; data = [Convert]::ToBase64String($ms.ToArray()) } -Compress
+if (-not $p.Thumbnail) { '{"data":null,"none":true,"errors":[]}'; return }
+$errors = @()
+$bytes = $null
+$mime = ''
+$how = ''
+$stream = $null
+try { $stream = Await ($p.Thumbnail.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType]) }
+catch { $errors += 'open: ' + [string]$_.Exception.Message }
+if ($stream) {
+  try { $mime = [string]$stream.ContentType } catch { }
+  $ext = [System.IO.WindowsRuntimeStreamExtensions]
+  $inputType = [Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+  $ways = @(
+    @{ name = 'reflect'; run = { $ext.GetMethod('AsStreamForRead', [Type[]]@($inputType)).Invoke($null, @($stream)) } },
+    @{ name = 'as-stream'; run = { $ext::AsStream($stream) } },
+    @{ name = 'for-read'; run = { $ext::AsStreamForRead($stream) } }
+  )
+  foreach ($way in $ways) {
+    if ($bytes) { break }
+    try {
+      try { $stream.Seek([uint64]0) } catch { }
+      $net = & $way.run
+      $ms = New-Object System.IO.MemoryStream
+      $net.CopyTo($ms)
+      if ($ms.Length -gt 0) { $bytes = $ms.ToArray(); $how = $way.name }
+      else { $errors += $way.name + ': empty' }
+    } catch { $errors += $way.name + ': ' + [string]$_.Exception.Message }
+  }
+  if (-not $bytes) {
+    try {
+      $readerType = [Windows.Storage.Streams.DataReader, Windows.Storage.Streams, ContentType = WindowsRuntime]
+      $size = [uint32]$stream.Size
+      $reader = [Activator]::CreateInstance($readerType, @($stream.GetInputStreamAt([uint64]0)))
+      $null = Await ($reader.LoadAsync($size)) ([uint32])
+      $buffer = New-Object byte[] $size
+      $reader.ReadBytes($buffer)
+      if ($size -gt 0) { $bytes = $buffer; $how = 'data-reader' } else { $errors += 'data-reader: empty' }
+    } catch { $errors += 'data-reader: ' + [string]$_.Exception.Message }
+  }
+}
+$data = $null
+if ($bytes) { $data = [Convert]::ToBase64String($bytes) }
+ConvertTo-Json -InputObject ([pscustomobject]@{ data = $data; mime = $mime; how = $how; none = $false; errors = @($errors) }) -Compress
 `;
 
 /** Needs none of the WinRT prelude: plain device, registry and package queries. */
@@ -299,6 +340,34 @@ export function parseInspect(stdout: string): SystemAudioInfo {
   };
 }
 
+/**
+ * The cover script's answer. Null = the app publishes no cover; a thrown error = it does, but
+ * Windows would not hand the picture over (the message lists what was tried).
+ */
+export function parseArtwork(stdout: string): { data: Buffer; mime: string } | null {
+  // Anything a step printed by accident comes before the answer: take the last JSON line.
+  const line = stdout
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('{'))
+    .pop();
+  if (!line) throw new Error('Windows gave no answer about the cover');
+  const out = obj(JSON.parse(line));
+  const errors = Array.isArray(out.errors) ? out.errors.map(str).filter(Boolean) : [];
+  if (typeof out.data !== 'string' || out.data === '') {
+    if (out.none === true) return null;
+    throw new Error((errors.join('; ') || 'Windows returned an empty cover').slice(0, 400));
+  }
+  const data = Buffer.from(out.data, 'base64');
+  const mime = sniffImageMime(data, str(out.mime));
+  if (!mime) {
+    throw new Error(
+      `the cover is not a picture Studio can show (${str(out.mime) || 'no type'}, ${data.length} bytes)`,
+    );
+  }
+  return { data, mime };
+}
+
 /** PNG / JPEG / GIF / WebP / BMP by their first bytes (Windows often sends no content type). */
 export function sniffImageMime(data: Buffer, declared = ''): string | null {
   if (data.length < 12) return null;
@@ -389,15 +458,8 @@ class PowerShellMedia implements WindowsMedia {
   }
 
   async artwork(app: string): Promise<{ data: Buffer; mime: string } | null> {
-    const out = obj(
-      JSON.parse(
-        (await runPowerShell(PRELUDE + ARTWORK.replace('__APP__', () => quote(app)))).trim(),
-      ),
-    );
-    if (typeof out.data !== 'string' || out.data === '') return null;
-    const data = Buffer.from(out.data, 'base64');
-    const mime = sniffImageMime(data, str(out.mime));
-    return mime ? { data, mime } : null;
+    const stdout = await runPowerShell(PRELUDE + ARTWORK.replace('__APP__', () => quote(app)));
+    return parseArtwork(stdout);
   }
 
   async inspect(): Promise<SystemAudioInfo> {

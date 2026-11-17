@@ -260,6 +260,17 @@ function NowPlaying({
           {!active && state.blocked && state.blocked !== 'busy' && (
             <p className="hint">{t(`am.block.${state.blocked}` as MessageKey)}</p>
           )}
+          {active && np && !np.hasArtwork && (
+            <p className="hint am-now__cover-note">
+              <Icon name="info" size={14} />
+              <span>
+                {state.artwork.error
+                  ? t('am.cover.error', { error: state.artwork.error })
+                  : t('am.cover.none')}{' '}
+                {t(state.artwork.onlineEnabled ? 'am.cover.onlineTried' : 'am.cover.onlineOff')}
+              </span>
+            </p>
+          )}
           {active && (
             <p className="hint">
               {t('am.now.choose')}
@@ -431,6 +442,8 @@ function LastStart({ state }: { state: AppleMusicState }) {
         mediaError: state.mediaError,
         hasSession: state.nowPlaying !== null,
         hasArtwork: state.nowPlaying?.hasArtwork ?? null,
+        artwork: state.artwork,
+        hasPosition: state.nowPlaying ? state.nowPlaying.positionMs !== null : null,
         controls: state.nowPlaying?.controls ?? null,
         lastStart: last,
         setup: state.setup,

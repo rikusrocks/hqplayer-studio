@@ -222,6 +222,11 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
   appleMusic.init();
   // Lyrics of the song Apple Music is playing: by title and artist, kept in memory only.
   lyrics.setLiveTrack(() => appleMusic.liveTrack());
+  // …and its cover, when Windows provides none and the user turned online covers on.
+  appleMusic.setCoverLookup({
+    enabled: () => covers.onlineEnabled(),
+    find: (album, artist) => covers.findOnline(album, artist),
+  });
   let detachLog: (() => void) | null = null;
 
   return {

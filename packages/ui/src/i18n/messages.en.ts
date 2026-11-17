@@ -933,6 +933,11 @@ export const en: Record<MessageKey, string> = {
   'am.now.paused': 'Paused in Apple Music',
   'am.now.delay': 'The sound is about {seconds} s behind the Apple Music app.',
   'am.now.choose': 'Choose music in the Apple Music app; Studio shows it and can pause or skip.',
+  'am.cover.error': 'Windows has a cover for this song but would not hand it over: {error}',
+  'am.cover.none': 'Apple Music has not published a cover for this song.',
+  'am.cover.onlineOff':
+    'Turn on online covers in Settings → Library to fetch covers from the web instead.',
+  'am.cover.onlineTried': 'The online cover sources had no match for this album either.',
   'am.start': 'Start',
   'am.stop': 'Stop and return to the library',
   'am.openApp': 'Open Apple Music',

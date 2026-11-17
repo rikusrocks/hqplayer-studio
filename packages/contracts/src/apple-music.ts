@@ -150,6 +150,15 @@ export const AppleMusicStateSchema = z.object({
     })
     .nullable(),
   setup: AppleMusicSetupSchema.nullable(),
+  /** Where the cover on screen comes from, and why there is none when there is none. */
+  artwork: z.object({
+    /** `windows` = what Apple Music published; `online` = looked up at a cover source. */
+    source: z.enum(['windows', 'online']).nullable(),
+    /** Windows published a cover but would not hand it over (the reason, as text). */
+    error: z.string().nullable(),
+    /** Online covers are switched on (Settings), so a missing cover is looked up. */
+    onlineEnabled: z.boolean(),
+  }),
   /**
    * Songs played since Start, the current one last. Apple Music's own "Playing Next" list cannot
    * be read from outside the app, so this is what Studio can show instead of a queue.
@@ -187,6 +196,7 @@ export function idleAppleMusicState(): AppleMusicState {
     blocked: 'disabled',
     lastStart: null,
     setup: null,
+    artwork: { source: null, error: null, onlineEnabled: false },
     history: [],
   };
 }

@@ -50,6 +50,14 @@ export const DEFAULT_LIVE_URIS = [
 
 const MAX_CANDIDATES = 6;
 const MAX_HISTORY = 100;
+const MAX_ONLINE_COVERS = 40;
+
+/** Online cover lookup for a song that is not in the library (the cover service). */
+export interface CoverLookup {
+  /** Online covers are switched on in Settings. */
+  enabled(): boolean;
+  find(album: string, artist: string | null): Promise<{ bytes: Uint8Array; mime: string } | null>;
+}
 
 const BLOCK_MESSAGES: Record<AppleMusicBlock, string> = {
   disabled: 'Turn the Apple Music source on first.',
@@ -86,6 +94,12 @@ export class AppleMusicService implements LiveSourceHook {
   private artworkVersion = 0;
   private artworkKey = '';
   private artworkTimer: ReturnType<typeof setTimeout> | null = null;
+  private artworkLateTimer: ReturnType<typeof setTimeout> | null = null;
+  private artworkSource: 'windows' | 'online' | null = null;
+  private artworkError: string | null = null;
+  /** Online covers of this session by album and artist (null = looked up, nothing found). */
+  private readonly onlineCovers = new Map<string, { data: Buffer; mime: string } | null>();
+  private coverLookup: CoverLookup | null = null;
   /** The song the played list and the lyrics were last told about. */
   private songKey = '';
   private history: LivePlayedSong[] = [];
@@ -130,6 +144,11 @@ export class AppleMusicService implements LiveSourceHook {
       blocked: this.blocked(),
       lastStart: this.lastStart,
       setup: this.setup,
+      artwork: {
+        source: this.artwork ? this.artworkSource : null,
+        error: this.artworkError,
+        onlineEnabled: this.coverLookup?.enabled() ?? false,
+      },
       history: this.history,
     };
   }
@@ -348,6 +367,11 @@ export class AppleMusicService implements LiveSourceHook {
     return LIVE_ARTWORK_ID.test(id) ? this.artwork : null;
   }
 
+  /** Where a cover comes from when Windows provides none (the online cover sources, opt-in). */
+  setCoverLookup(lookup: CoverLookup | null): void {
+    this.coverLookup = lookup;
+  }
+
   /** The song the live input is carrying right now, for the lyrics lookup (null when none). */
   liveTrack(): {
     key: string;
@@ -559,7 +583,11 @@ export class AppleMusicService implements LiveSourceHook {
     this.stopWatch?.();
     this.stopWatch = null;
     if (this.artworkTimer) clearTimeout(this.artworkTimer);
+    if (this.artworkLateTimer) clearTimeout(this.artworkLateTimer);
     this.artworkTimer = null;
+    this.artworkLateTimer = null;
+    this.artworkSource = null;
+    this.artworkError = null;
     this.sessions = [];
     this.mediaError = null;
     this.artwork = null;
@@ -574,9 +602,12 @@ export class AppleMusicService implements LiveSourceHook {
     if (key !== this.artworkKey) {
       this.artworkKey = key;
       void this.refreshArtwork(key);
-      // Apps often publish the cover a moment after the title.
+      // Apps often publish the cover a moment after the title — and some swap the previous
+      // song's picture for the new one later still.
       if (this.artworkTimer) clearTimeout(this.artworkTimer);
+      if (this.artworkLateTimer) clearTimeout(this.artworkLateTimer);
       this.artworkTimer = setTimeout(() => void this.refreshArtwork(key), 2500);
+      this.artworkLateTimer = setTimeout(() => void this.refreshArtwork(key), 8000);
     }
     this.publish();
     if (this.phase === 'active') this.engine.republish();
@@ -585,19 +616,52 @@ export class AppleMusicService implements LiveSourceHook {
   private async refreshArtwork(key: string): Promise<void> {
     const s = this.apple();
     let image: { data: Buffer; mime: string } | null = null;
+    let source: 'windows' | 'online' | null = null;
+    let error: string | null = null;
     if (s?.hasThumbnail) {
       try {
         image = await this.media.artwork(s.app);
-      } catch {
-        image = null; // no cover is not worth an error on the page
+        if (image) source = 'windows';
+      } catch (err) {
+        // Shown on the page: a cover that Windows has but will not hand over is a fault to fix.
+        error = (err as Error).message.slice(0, 400);
+      }
+    }
+    // No cover from Windows: look the album up online, if the user turned online covers on.
+    if (!image && s && s.album.trim() && this.coverLookup?.enabled()) {
+      const cacheKey = `${s.album}\u0001${s.artist}`.toLowerCase();
+      let found = this.onlineCovers.get(cacheKey);
+      if (found === undefined) {
+        try {
+          const hit = await this.coverLookup.find(s.album, s.artist || null);
+          found = hit ? { data: Buffer.from(hit.bytes), mime: hit.mime } : null;
+        } catch {
+          found = null; // an outage: no cover this time, asked again with the next song
+        }
+        this.onlineCovers.set(cacheKey, found);
+        if (this.onlineCovers.size > MAX_ONLINE_COVERS) {
+          const oldest = this.onlineCovers.keys().next().value;
+          if (oldest !== undefined) this.onlineCovers.delete(oldest);
+        }
+      }
+      if (found) {
+        image = found;
+        source = 'online';
       }
     }
     if (key !== this.artworkKey) return; // the track changed while Windows answered
     const hash = image ? createHash('sha1').update(image.data).digest('hex') : null;
-    if (hash === this.artworkHash) return;
-    this.artwork = image;
-    this.artworkHash = hash;
-    this.artworkVersion += 1;
+    const changed = hash !== this.artworkHash;
+    if (!changed && error === this.artworkError && source === this.artworkSource) return;
+    if (error && error !== this.artworkError)
+      this.log.warn('apple-music', 'Windows would not hand over the cover');
+    this.artworkError = error;
+    this.artworkSource = source;
+    if (changed) {
+      this.artwork = image;
+      this.artworkHash = hash;
+      this.artworkVersion += 1;
+    }
     this.publish();
     if (this.phase === 'active') this.engine.republish();
   }

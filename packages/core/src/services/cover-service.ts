@@ -319,6 +319,35 @@ export class CoverService {
     if (albumId) void this.autoFetch(albumId).catch(() => undefined);
   }
 
+  /**
+   * A cover for an album that is not in the library (what a live source is playing). Only when
+   * the user turned online covers on; the title and artist go to the enabled sources like any
+   * other lookup, and the picture is returned without being stored anywhere.
+   */
+  async findOnline(
+    album: string,
+    artist: string | null,
+  ): Promise<{ bytes: Uint8Array; mime: string } | null> {
+    const sources = this.onlineEnabled() ? this.enabledSources() : [];
+    const title = album.trim();
+    const by = usableAlbumArtist(artist ?? '');
+    // Without an artist a title alone matches far too much.
+    if (sources.length === 0 || !title || !by) return null;
+    const wanted = { album: title, artist: by, trackCount: 0 };
+    for (const source of sources) {
+      try {
+        const hits = await source.search({ album: title, artist: by });
+        for (const hit of rankCovers(hits, wanted).slice(0, MAX_IMAGE_TRIES)) {
+          const image = await this.image(source, hit.ref, 'full');
+          if (image) return image;
+        }
+      } catch (err) {
+        if (!(err instanceof OnlineUnavailableError)) throw err;
+      }
+    }
+    return null;
+  }
+
   private async lookUp(albumId: string): Promise<boolean> {
     let target: AlbumCoverTarget;
     try {

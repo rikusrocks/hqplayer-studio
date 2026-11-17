@@ -10,6 +10,7 @@ import { createStudioServer, type StudioServer } from './server';
 import {
   cleanError,
   looksLikeVirtualCable,
+  parseArtwork,
   parseInspect,
   parseSessions,
   parseWatchLine,
@@ -32,6 +33,8 @@ class FakeMedia implements WindowsMedia {
   calls: string[] = [];
   watching = false;
   failControl = false;
+  /** What reading the cover does: a picture, nothing published, or a failure. */
+  cover: 'ok' | 'none' | 'fail' = 'ok';
   session: MediaSession | null = {
     app: APPLE,
     status: 'Playing',
@@ -76,7 +79,8 @@ class FakeMedia implements WindowsMedia {
     return true;
   }
   async artwork() {
-    return { data: PNG, mime: 'image/png' };
+    if (this.cover === 'fail') throw new Error('reflect: Cannot convert; as-stream: nope');
+    return this.cover === 'none' ? null : { data: PNG, mime: 'image/png' };
   }
   async inspect() {
     return this.info;
@@ -428,6 +432,69 @@ describe('Apple Music through a live input', () => {
     expect((await api<QueueState>('GET', '/queue')).body.sync.code).toBe('live_input');
   });
 
+  it(
+    'says why there is no cover, and falls back to an online one when that is turned on',
+    { timeout: 20_000 },
+    async () => {
+      await boot();
+      media.cover = 'fail';
+      const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0]);
+      const asked: string[] = [];
+      let online = false;
+      server.appleMusic.setCoverLookup({
+        enabled: () => online,
+        async find(album, artist) {
+          asked.push(`${album}|${artist}`);
+          return album === 'Private Album' ? { bytes: JPEG, mime: 'image/jpeg' } : null;
+        },
+      });
+      await enable();
+      await api('POST', '/apple-music/start');
+
+      // Windows has a cover but will not hand it over: the reason is on the page, not swallowed
+      await vi.waitFor(async () =>
+        expect((await api<AppleMusicState>('GET', '/apple-music')).body.artwork.error).toContain(
+          'Cannot convert',
+        ),
+      );
+      let state = (await api<AppleMusicState>('GET', '/apple-music')).body;
+      expect(state.artwork).toMatchObject({ source: null, onlineEnabled: false });
+      expect(state.nowPlaying?.hasArtwork).toBe(false);
+      expect(status().track?.artworkId ?? null).toBeNull();
+      expect(asked).toEqual([]); // online covers are off: nothing is sent
+
+      // with online covers on, the next song gets its cover from there
+      online = true;
+      media.session!.title = 'Another Private Title';
+      media.emit();
+      await vi.waitFor(() => expect(status().track?.artworkId).toMatch(/^live-apple-music-\d+$/));
+      state = (await api<AppleMusicState>('GET', '/apple-music')).body;
+      expect(state.artwork).toMatchObject({ source: 'online', onlineEnabled: true });
+      expect(state.artwork.error).toContain('Cannot convert'); // still reported
+      const art = await api<Buffer>('GET', `/artwork/${status().track!.artworkId}`);
+      expect(art.type).toContain('image/jpeg');
+      expect(asked).toEqual(['Private Album|Private Artist']);
+
+      // same album again: not asked twice
+      media.session!.title = 'Third Private Title';
+      media.emit();
+      await vi.waitFor(() => expect(status().track?.title).toBe('Third Private Title'));
+      await new Promise((r) => setTimeout(r, 50));
+      expect(asked).toHaveLength(1);
+
+      // once Windows does hand over a cover, that one wins and the error goes away
+      media.cover = 'ok';
+      media.session!.album = 'Other Private Album';
+      media.emit();
+      await vi.waitFor(async () =>
+        expect((await api<AppleMusicState>('GET', '/apple-music')).body.artwork).toMatchObject({
+          source: 'windows',
+          error: null,
+        }),
+      );
+    },
+  );
+
   it('lists the songs played since Start instead of a queue', { timeout: 20_000 }, async () => {
     await boot();
     await enable();
@@ -669,6 +736,32 @@ describe('Windows media helpers', () => {
       cleanError('#< CLIXML\r\n<Objs><S S="Error">Access is denied_x000D__x000A_</S></Objs>'),
     ).toBe('Access is denied');
     expect(cleanError('')).toBe('Windows PowerShell failed');
+  });
+
+  it('reads the cover answer: picture, nothing published, or the reasons it failed', () => {
+    const b64 = PNG.toString('base64');
+    expect(
+      parseArtwork(`{"data":"${b64}","mime":"","how":"reflect","none":false,"errors":[]}`),
+    ).toEqual({
+      data: PNG,
+      mime: 'image/png',
+    });
+    // a number printed by an earlier step must not break the answer
+    expect(
+      parseArtwork(
+        `15\r\n{"data":"${b64}","mime":"image/png","how":"data-reader","none":false,"errors":["reflect: x"]}\r\n`,
+      )?.mime,
+    ).toBe('image/png');
+    expect(parseArtwork('{"data":null,"none":true,"errors":[]}')).toBeNull();
+    expect(() =>
+      parseArtwork(
+        '{"data":null,"none":false,"errors":["reflect: Cannot convert","as-stream: no overload"]}',
+      ),
+    ).toThrow('reflect: Cannot convert; as-stream: no overload');
+    expect(() =>
+      parseArtwork('{"data":"aGVsbG8gd29ybGQhISE=","mime":"text/plain","none":false,"errors":[]}'),
+    ).toThrow('not a picture');
+    expect(() => parseArtwork('')).toThrow('no answer');
   });
 
   it('is Windows-only, with a demo for the mock engine', async () => {
