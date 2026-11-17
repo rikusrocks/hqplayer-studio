@@ -374,6 +374,8 @@ describe('Web Remote LAN listener', () => {
     await enableLan();
     const { token } = await pairPhone();
     for (const [method, url] of [
+      ['GET', '/settings/setup'],
+      ['POST', '/settings/setup'],
       ['GET', '/settings/engine'],
       ['POST', '/settings/engine'],
       ['GET', '/engine/diagnostics'],

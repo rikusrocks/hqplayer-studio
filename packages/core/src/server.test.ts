@@ -398,6 +398,25 @@ describe('Studio Core REST API', () => {
   });
 });
 
+describe('first-run setup state', () => {
+  it('is not completed on a fresh install with only the demo library, and can be saved', async () => {
+    expect((await api('GET', '/settings/setup')).body).toEqual({ completed: false });
+    expect((await api('POST', '/settings/setup', { completed: true })).body).toEqual({
+      completed: true,
+    });
+    expect(ctx.settings.get('setup.completed', null)).toBe(true);
+    expect((await api('POST', '/settings/setup', { completed: false })).body).toEqual({
+      completed: false,
+    });
+    expect((await api('POST', '/settings/setup', {})).status).toBe(400);
+  });
+
+  it('counts an earlier install that already chose an engine as set up', async () => {
+    await api('POST', '/settings/engine', { adapter: 'mock' });
+    expect((await api('GET', '/settings/setup')).body).toEqual({ completed: true });
+  });
+});
+
 describe('engine settings and read-only engine queue', () => {
   it('reports and saves the preferred adapter without switching the running one', async () => {
     const initial = await api<Record<string, unknown>>('GET', '/settings/engine');

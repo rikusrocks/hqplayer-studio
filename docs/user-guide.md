@@ -27,7 +27,10 @@ HQPlayer Studio 是 **HQPlayer Desktop 6** 的第三方音乐库、播放列表�
 
 ### 2. 第一次使用：连接 HQPlayer
 
-1. 第一次打开时 Studio 使用 **Mock 引擎**和一个虚构的演示音乐库，不会碰 HQPlayer。
+第一次打开时会出现 **设置向导**（检查 HQPlayer、添加音乐文件夹、选择连接与控制权限），每一项的说明见
+[安装与上手](getting-started.md#3-第三步设置向导第一次打开时自动出现)；随时可在 **设置 → 常规 → 设置向导** 重新运行。下面是不用向导、手动设置的方法：
+
+1. 跳过向导时 Studio 使用 **Mock 引擎**和一个虚构的演示音乐库，不会碰 HQPlayer。
 2. **设置 → 播放与引擎能力 → 引擎连接**：选择“真实 HQPlayer（实验）”，点“立即重启”。Studio 只连接本机的
    `127.0.0.1:4321`，先只读取状态。
 3. 想用 Studio 播放、暂停、切歌、装载专辑：在同一页打开 **允许 Studio 控制 HQPlayer**。只有在你的 HQPlayer 上验证过的
@@ -184,7 +187,10 @@ Download from GitHub **Releases** (official versions) or **Actions → Windows b
 
 ### 2. First start: connecting HQPlayer
 
-1. The first start uses the **mock engine** and a fictional demo library; HQPlayer is not touched.
+The first start opens a **setup wizard** (check HQPlayer, add music folders, choose connection and control); every field is
+explained in [Getting started](getting-started.md#3-the-setup-wizard-opens-on-the-first-start). Run it again from **Settings → General → Setup wizard**. Setting up by hand:
+
+1. If you skip the wizard, Studio uses the **mock engine** and a fictional demo library; HQPlayer is not touched.
 2. **Settings → Playback & engine capabilities → Engine connection**: choose "Real HQPlayer (experimental)", then "Restart now". Studio only talks to
    `127.0.0.1:4321` and starts read-only.
 3. To play / pause / skip / load albums from Studio, turn on **Allow Studio to control HQPlayer** on the same page. Only

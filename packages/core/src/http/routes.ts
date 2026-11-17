@@ -16,6 +16,7 @@ import {
   LibraryQuerySchema,
   MockControlRequestSchema,
   UpdateEngineSettingsRequestSchema,
+  UpdateSetupStateRequestSchema,
   UpdateLibrarySettingsRequestSchema,
   PlayAlbumRequestSchema,
   PlayPlaylistRequestSchema,
@@ -32,6 +33,7 @@ import {
   VolumeRequestSchema,
   type EngineQueue,
   type EngineSettings,
+  type SetupState,
   type ServerInfo,
 } from '@hqps/contracts';
 import {
@@ -47,6 +49,7 @@ import {
   ENGINE_ADAPTER_SETTING,
   ENGINE_CONTROL_SETTING,
   ENGINE_DSP_SETTING,
+  SETUP_COMPLETED_SETTING,
 } from '../settings-keys';
 import type { StudioServices } from '../server';
 import { HttpError } from './errors';
@@ -76,6 +79,16 @@ export function serverInfo(services: StudioServices, req: FastifyRequest): Serve
     },
     demoMode: services.demoMode,
   };
+}
+
+/** Fresh install = no saved engine choice and no music folder besides the demo library. */
+export function setupState(s: StudioServices): SetupState {
+  const saved = s.ctx.settings.get<boolean | null>(SETUP_COMPLETED_SETTING, null);
+  if (saved !== null) return { completed: saved };
+  const configured =
+    s.ctx.settings.get<string | null>(ENGINE_ADAPTER_SETTING, null) !== null ||
+    s.ctx.library.listRoots().some((r) => r.kind !== 'fixture');
+  return { completed: configured };
 }
 
 export function engineSettings(s: StudioServices): EngineSettings {
@@ -258,6 +271,12 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
                   };
             })(),
           };
+        });
+        api.get('/settings/setup', async () => setupState(s));
+        api.post('/settings/setup', async (req) => {
+          const { completed } = body(UpdateSetupStateRequestSchema, req);
+          ctx.settings.set(SETUP_COMPLETED_SETTING, completed);
+          return setupState(s);
         });
         api.get('/settings/engine', async () => engineSettings(s));
         api.post('/settings/engine', async (req) => {

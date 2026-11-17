@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('studioShell', {
       ipcRenderer.invoke('studio:hqp-app:window', action),
     pickExe: () => ipcRenderer.invoke('studio:hqp-app:pick-exe'),
     diagnostics: () => ipcRenderer.invoke('studio:hqp-app:diagnostics'),
+    probe: (): Promise<boolean> => ipcRenderer.invoke('studio:hqp-app:probe') as Promise<boolean>,
   },
 });

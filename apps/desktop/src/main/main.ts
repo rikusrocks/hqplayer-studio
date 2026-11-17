@@ -826,6 +826,10 @@ function registerHqplayerIpc(): void {
     if (image) await windowControl(processNameOf(image), action as HqpWindowAction);
     return hqpState();
   });
+  // Setup wizard: is HQPlayer's control port (127.0.0.1:4321) answering? Only opens and closes a TCP connection.
+  ipcMain.handle('studio:hqp-app:probe', async (event) =>
+    fromStudio(event) ? probeControlPort(4321, 1500) : false,
+  );
   ipcMain.handle('studio:hqp-app:diagnostics', (event) =>
     fromStudio(event)
       ? {

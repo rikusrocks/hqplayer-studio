@@ -17,3 +17,5 @@ export const LYRICS_PROVIDERS_SETTING = 'lyrics.providers';
 export const COVERS_ONLINE_SETTING = 'covers.online';
 /** Settings → 音乐库 → 封面: which cover sources may be asked (array of ids; unset = all). */
 export const COVERS_PROVIDERS_SETTING = 'covers.providers';
+/** The first-run setup wizard was finished or skipped (boolean; unset = decide from the data). */
+export const SETUP_COMPLETED_SETTING = 'setup.completed';
