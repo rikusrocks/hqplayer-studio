@@ -3,6 +3,8 @@ export const ENGINE_ADAPTER_SETTING = 'engine.adapter';
 
 /** app_settings key for “允许 Studio 控制 HQPlayer” (boolean, default false). */
 export const ENGINE_CONTROL_SETTING = 'engine.allowControl';
+/** “允许 Studio 修改 HQPlayer DSP 设置” (needs ENGINE_CONTROL_SETTING too). */
+export const ENGINE_DSP_SETTING = 'engine.allowDsp';
 /** The user removed the demo library: never seed it again. */
 export const DEMO_REMOVED_SETTING = 'library.demoRemoved';
 /** Opt-in: ask MusicBrainz about album folders the local rules cannot settle. */

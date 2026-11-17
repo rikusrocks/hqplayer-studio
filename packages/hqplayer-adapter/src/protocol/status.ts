@@ -167,6 +167,11 @@ export interface MappedState {
   filterIndex: number | null;
   shaperIndex: number | null;
   rateIndex: number | null;
+  filter1xIndex: number | null;
+  filterNxIndex: number | null;
+  invert: boolean | null;
+  adaptiveVolume: boolean | null;
+  convolution: boolean | null;
   matrixProfile: string | null;
 }
 
@@ -181,6 +186,15 @@ export function mapStateDocument(doc: XmlElement): MappedState {
     filterIndex: attrInt(doc, 'filter'),
     shaperIndex: attrInt(doc, 'shaper'),
     rateIndex: attrInt(doc, 'rate'),
+    // The 1x filter (44.1/48 kHz sources) and the Nx filter (higher rates) are separate;
+    // State "filter" follows the 1x one on engine 6.1.0 (DSP gate 2026-11-17), so use these.
+    filter1xIndex: attrInt(doc, 'filter1x'),
+    filterNxIndex: attrInt(doc, 'filterNx'),
+    invert: flag(attrInt(doc, 'invert')),
+    adaptiveVolume: flag(attrInt(doc, 'adaptive')),
+    convolution: flag(attrInt(doc, 'convolution')),
     matrixProfile: attrStr(doc, 'matrix_profile'),
   };
 }
+
+const flag = (v: number | null): boolean | null => (v === null ? null : v === 1);

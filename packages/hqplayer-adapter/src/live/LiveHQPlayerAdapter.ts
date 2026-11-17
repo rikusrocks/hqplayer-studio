@@ -1,5 +1,6 @@
 import {
   disconnectedStatus,
+  type DspChange,
   type DspState,
   type EngineCapabilities,
   type EngineCapabilityKey,
@@ -509,11 +510,101 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
 
   async getDspState(): Promise<DspState> {
     const conn = this.requireRead('dsp.read');
+    const lists = await this.readDspLists(conn);
+    const state = mapStateDocument(await conn.request('State'));
+    return {
+      ...lists,
+      current: {
+        mode: this.last.dsp?.mode ?? null,
+        filter: this.last.dsp?.filter ?? null,
+        shaper: this.last.dsp?.shaper ?? null,
+        rate: this.last.dsp?.outputRate ?? null,
+      },
+      selected: {
+        mode: state.modeIndex,
+        filter1x: state.filter1xIndex,
+        filterNx: state.filterNxIndex,
+        shaper: state.shaperIndex,
+        rate: state.rateIndex,
+        invert: state.invert,
+        adaptiveVolume: state.adaptiveVolume,
+        convolution: state.convolution,
+      },
+      writable: this.capabilityEntry('dsp.write').usable,
+    };
+  }
+
+  /**
+   * Change HQPlayer's DSP selections the way the DSP gate verified on engine 6.1.0: Set* take
+   * list *indexes*; SetFilter's `value` is the Nx filter and `value1x` the 1x filter; the lists
+   * depend on the mode, so the mode goes first and the rest is validated against the lists read
+   * afterwards. Every change is read back from State; a value HQPlayer did not take is an error.
+   * During playback HQPlayer applies changes after a short gap (it rebuilds the chain).
+   */
+  async setDsp(change: DspChange): Promise<DspState> {
+    const conn = this.requireWrite('dsp.write');
+    const must = (list: { index: number }[], idx: number | undefined, what: string) => {
+      if (idx !== undefined && !list.some((o) => o.index === idx)) {
+        throw new EngineCommandError(what, `index ${idx} is not offered by HQPlayer right now`);
+      }
+    };
+    let lists = await this.readDspLists(conn);
+    must(lists.modes, change.mode, 'SetMode');
+    if (change.mode !== undefined) {
+      await conn.request('SetMode', { value: change.mode });
+      await this.expectState(conn, 'SetMode', (s) => s.modeIndex === change.mode);
+      lists = await this.readDspLists(conn); // filters / modulators / rates differ per mode
+    }
+    must(lists.filters, change.filter1x, 'SetFilter');
+    must(lists.filters, change.filterNx, 'SetFilter');
+    must(lists.shapers, change.shaper, 'SetShaping');
+    must(lists.rates, change.rate, 'SetRate');
+    if (change.filter1x !== undefined || change.filterNx !== undefined) {
+      const now = mapStateDocument(await conn.request('State'));
+      const nx = change.filterNx ?? now.filterNxIndex;
+      const one = change.filter1x ?? now.filter1xIndex;
+      if (nx === null || one === null) {
+        throw new EngineCommandError('SetFilter', 'HQPlayer did not report its current filters');
+      }
+      await conn.request('SetFilter', { value: nx, value1x: one });
+      await this.expectState(
+        conn,
+        'SetFilter',
+        (s) => s.filterNxIndex === nx && s.filter1xIndex === one,
+      );
+    }
+    if (change.shaper !== undefined) {
+      await conn.request('SetShaping', { value: change.shaper });
+      await this.expectState(conn, 'SetShaping', (s) => s.shaperIndex === change.shaper);
+    }
+    if (change.rate !== undefined) {
+      await conn.request('SetRate', { value: change.rate });
+      await this.expectState(conn, 'SetRate', (s) => s.rateIndex === change.rate);
+    }
+    if (change.invert !== undefined) {
+      await conn.request('SetInvert', { value: change.invert ? 1 : 0 });
+      await this.expectState(conn, 'SetInvert', (s) => s.invert === change.invert);
+    }
+    if (change.adaptiveVolume !== undefined) {
+      await conn.request('SetAdaptiveVolume', { value: change.adaptiveVolume ? 1 : 0 });
+      await this.expectState(
+        conn,
+        'SetAdaptiveVolume',
+        (s) => s.adaptiveVolume === change.adaptiveVolume,
+      );
+    }
+    return this.getDspState();
+  }
+
+  private async readDspLists(
+    conn: HqpConnection,
+  ): Promise<Pick<DspState, 'modes' | 'filters' | 'shapers' | 'rates'>> {
     const list = async (cmd: string, item: string) =>
       findChildren(await conn.request(cmd), item).map((el: XmlElement) => ({
         index: attrInt(el, 'index') ?? 0,
         name: attrStr(el, 'name') ?? '',
         value: attrInt(el, 'value'),
+        description: attrStr(el, 'description'),
       }));
     const modes = await list('GetModes', 'ModesItem');
     const filters = await list('GetFilters', 'FiltersItem');
@@ -522,19 +613,24 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
       index: attrInt(el, 'index') ?? 0,
       rate: attrInt(el, 'rate') ?? 0,
     }));
-    return {
-      modes,
-      filters,
-      shapers,
-      rates,
-      current: {
-        mode: this.last.dsp?.mode ?? null,
-        filter: this.last.dsp?.filter ?? null,
-        shaper: this.last.dsp?.shaper ?? null,
-        rate: this.last.dsp?.outputRate ?? null,
-      },
-      writable: false,
-    };
+    return { modes, filters, shapers, rates };
+  }
+
+  /** Read State until `ok` holds (HQPlayer answered at once in the DSP gate; allow ~1.5 s). */
+  private async expectState(
+    conn: HqpConnection,
+    command: string,
+    ok: (s: ReturnType<typeof mapStateDocument>) => boolean,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (ok(mapStateDocument(await conn.request('State')))) {
+        this.log.note(`${command} confirmed by State`);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    this.log.note(`${command} accepted but State did not change`);
+    throw new EngineCommandError(command, 'HQPlayer accepted it but did not apply the change');
   }
 
   // --- internals --------------------------------------------------------------------------------

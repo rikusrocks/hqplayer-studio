@@ -1,5 +1,6 @@
 import type {
   AdapterKind,
+  DspChange,
   DspState,
   EngineCapabilities,
   EngineStatus,
@@ -94,4 +95,6 @@ export interface HQPlayerAdapter {
   setRepeat?(mode: RepeatMode): Promise<void>;
   setRandom?(on: boolean): Promise<void>;
   getDspState?(): Promise<DspState>;
+  /** Optional: change mode / filters / modulator / rate / toggles (live adapter, opt-in). */
+  setDsp?(change: DspChange): Promise<DspState>;
 }

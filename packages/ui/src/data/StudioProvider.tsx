@@ -434,6 +434,7 @@ export function useCapabilityGate(): (key: EngineCapabilityKey) => string | null
       if (status === 'unsupported') return t('cap.unsupported');
       if (entry?.note === 'control-disabled') return t('cap.controlDisabled');
       if (entry?.note === 'fixed-volume') return t('cap.fixedVolume');
+      if (entry?.note === 'dsp-disabled') return t('cap.dspDisabled');
       return t('cap.notVerified');
     },
     [capabilities, serverReachable, engineConnected, t],

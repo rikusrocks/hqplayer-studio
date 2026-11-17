@@ -23,6 +23,7 @@ import {
 } from '@hqps/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getShell, type DesktopShellState, type HqpAppState } from '../shell';
+import { DspControls } from './DspControls';
 
 /**
  * Who owns a setting (handoff §8.5):
@@ -259,18 +260,20 @@ function OpenHqplayer() {
 
 export function DspSettings() {
   const { t } = useI18n();
-  const { status } = useStudio();
+  const { status, capabilities } = useStudio();
   const dsp = status.dsp;
-  const rows: Array<[MessageKey, string | null, 'readonly' | 'native']> = [
-    ['settings.dspMode', dsp?.mode ?? null, 'readonly'],
-    ['settings.dspFilter', dsp?.filter ?? null, 'readonly'],
-    ['settings.dspShaper', dsp?.shaper ?? null, 'readonly'],
+  // DSP gate verified (2026-11-17): changeable from Studio once its DSP switch is on
+  const dspLayer = capabilities?.items['dsp.write']?.usable ? 'control' : 'readonly';
+  const rows: Array<[MessageKey, string | null, 'readonly' | 'control' | 'native']> = [
+    ['settings.dspMode', dsp?.mode ?? null, dspLayer],
+    ['settings.dspFilter', dsp?.filter ?? null, dspLayer],
+    ['settings.dspShaper', dsp?.shaper ?? null, dspLayer],
     [
       'settings.dspRate',
       dsp?.outputRate
         ? `${dsp.outputRate.toLocaleString('en')} Hz`
         : (status.output?.label ?? null),
-      'readonly',
+      dspLayer,
     ],
     ['settings.dsp.convolution', null, 'native'],
     ['settings.dsp.matrix', null, 'native'],
@@ -289,6 +292,7 @@ export function DspSettings() {
           hint={t('engine.disconnectedReason')}
         />
       )}
+      <DspControls />
       <table className="hq-table layer-table">
         <thead>
           <tr>

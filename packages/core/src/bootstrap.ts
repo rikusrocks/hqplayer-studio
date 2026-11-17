@@ -10,6 +10,7 @@ import {
   DEMO_REMOVED_SETTING,
   ENGINE_ADAPTER_SETTING,
   ENGINE_CONTROL_SETTING,
+  ENGINE_DSP_SETTING,
 } from './settings-keys';
 import { createStudioServer, DEFAULT_PORT, type StudioServer } from './server';
 
@@ -60,7 +61,10 @@ export async function bootstrapStudio(opts: BootstrapOptions): Promise<Bootstrap
     kind === 'live'
       ? new LiveHQPlayerAdapter({
           ...hqplayer,
-          policy: { controlEnabled: ctx.settings.get<boolean>(ENGINE_CONTROL_SETTING, false) },
+          policy: {
+            controlEnabled: ctx.settings.get<boolean>(ENGINE_CONTROL_SETTING, false),
+            dspEnabled: ctx.settings.get<boolean>(ENGINE_DSP_SETTING, false),
+          },
         })
       : new MockHQPlayerAdapter();
   const server = await createStudioServer({

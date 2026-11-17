@@ -9,6 +9,7 @@ import {
   CoverCandidateSchema,
   CoverSettingsSchema,
   DspStateSchema,
+  type DspChange,
   EngineCapabilitiesSchema,
   EngineCommandResultSchema,
   EngineQueueSchema,
@@ -191,6 +192,8 @@ export function createStudioClient(options: StudioClientOptions = {}) {
         post(EngineCommandResultSchema, '/engine/seek', { positionMs: Math.round(positionMs) }),
       volume: (volumeDb: number) => post(EngineCommandResultSchema, '/engine/volume', { volumeDb }),
       dsp: () => get(DspStateSchema, '/engine/dsp'),
+      /** Change DSP selections (list indexes from `dsp()`); needs both switches on. */
+      setDsp: (change: DspChange) => post(DspStateSchema, '/engine/dsp', change),
       /** HQPlayer's own playlist, read-only. */
       queue: () => get(EngineQueueSchema, '/engine/queue'),
       /** Privacy-safe diagnostics (this computer only): status + recent HQPlayer conversation. */
@@ -209,6 +212,8 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       /** “允许 Studio 控制 HQPlayer” — applies immediately, no restart. */
       setControl: (allowControl: boolean) =>
         post(EngineSettingsSchema, '/settings/engine', { allowControl }),
+      setDspAllowed: (allowDsp: boolean) =>
+        post(EngineSettingsSchema, '/settings/engine', { allowDsp }),
     },
 
     remote: {
