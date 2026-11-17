@@ -8,6 +8,7 @@ import { TopBar } from './layout/TopBar';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { AlbumDetailView } from './views/AlbumDetailView';
 import { AlbumsView } from './views/AlbumsView';
+import { AppleMusicView } from './views/AppleMusicView';
 import { ArtistDetailView } from './views/ArtistDetailView';
 import { ArtistsView } from './views/ArtistsView';
 import { FoldersView } from './views/FoldersView';
@@ -44,6 +45,7 @@ const ROUTES: Array<[pattern: string, render: (p: Params, route: HashRoute) => R
   ['/folders/:root/*', (p) => <FoldersView rootId={p.root} path={p.rest ?? ''} />],
   ['/playlists', () => <PlaylistsView />],
   ['/playlists/:id', (p) => <PlaylistDetailView key={p.id} playlistId={p.id!} />],
+  ['/apple-music', () => <AppleMusicView />],
   ['/search', (_p, route) => <SearchView query={route.query.q ?? ''} />],
   ['/settings', () => <SettingsView section="general" />],
   ['/settings/:section', (p) => <SettingsView section={p.section!} />],

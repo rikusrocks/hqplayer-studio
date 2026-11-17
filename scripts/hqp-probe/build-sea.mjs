@@ -2,7 +2,6 @@
 //   hqp-probe  — read-only Gate A/B probe
 //   hqp-gatec  — Gate C write-command test (approved plan, step-by-step, restores the playlist)
 //   hqp-dspgate — DSP settings test (step-by-step, reverts every change, verifies at the end)
-//   hqp-livegate — live-input test (one audio: entry, step-by-step, restores the playlist)
 // On the Windows CI runner this produces dist/*.exe — no Node install needed on the target PC.
 // Requires Node >= 25.5 (`node --build-sea`).
 import { build } from 'esbuild';
@@ -27,11 +26,6 @@ const tools = [
     name: 'hqp-dspgate',
     entry: 'src/dspgate-main.ts',
     banner: 'DSP settings test (reverts every change)',
-  },
-  {
-    name: 'hqp-livegate',
-    entry: 'src/livegate-main.ts',
-    banner: 'live-input test (restores the playlist)',
   },
 ];
 

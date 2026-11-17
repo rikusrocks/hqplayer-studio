@@ -159,7 +159,11 @@ export class AppleMusicService implements LiveSourceHook {
     checks.push({
       id: 'engine',
       status: connected && this.engine.can('queue.replace') ? 'ok' : 'missing',
-      detail: !connected ? 'engine_offline' : this.engine.can('queue.replace') ? null : 'control_disabled',
+      detail: !connected
+        ? 'engine_offline'
+        : this.engine.can('queue.replace')
+          ? null
+          : 'control_disabled',
     });
 
     let info: SystemAudioInfo | null = null;
@@ -377,10 +381,7 @@ export class AppleMusicService implements LiveSourceHook {
     };
   }
 
-  async transport(
-    action: Exclude<TransportAction, 'toggle'>,
-    raw: EngineStatus,
-  ): Promise<boolean> {
+  async transport(action: Exclude<TransportAction, 'toggle'>, raw: EngineStatus): Promise<boolean> {
     if (this.phase !== 'active') return false;
     if (action === 'stop') {
       await this.stop();
@@ -426,7 +427,8 @@ export class AppleMusicService implements LiveSourceHook {
 
   private requireSession(): MediaSession {
     const session = this.apple();
-    if (!session) throw new ConflictError('Windows does not show Apple Music as a player right now.');
+    if (!session)
+      throw new ConflictError('Windows does not show Apple Music as a player right now.');
     return session;
   }
 

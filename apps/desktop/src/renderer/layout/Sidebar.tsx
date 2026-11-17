@@ -18,6 +18,7 @@ const NAV: Array<{ path: string; icon: IconName; label: MessageKey }> = [
   { path: '/tracks', icon: 'track', label: 'nav.tracks' },
   { path: '/folders', icon: 'folder', label: 'nav.folders' },
   { path: '/playlists', icon: 'playlist', label: 'nav.playlists' },
+  { path: '/apple-music', icon: 'wave', label: 'nav.appleMusic' },
 ];
 
 const COLLAPSED_KEY = 'hqps.desktop.sidebar.collapsed';

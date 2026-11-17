@@ -4,7 +4,7 @@ name: Windows build
 #   - HQPlayerStudio-windows-x64-setup     installer (.exe, per-user, uninstaller)
 #   - HQPlayerStudio-windows-x64-portable  one .exe that runs without installing
 #   - HQPlayerStudio-windows-x64-zip       the unpacked app as a .zip
-#   - hqp-probe-windows-x64                hqp-probe / hqp-gatec / hqp-dspgate / hqp-livegate .exe + README
+#   - hqp-probe-windows-x64                hqp-probe / hqp-gatec / hqp-dspgate .exe + README
 # On a `v*` tag the release job collects them into a draft GitHub Release (with SHA256SUMS);
 # a manual run ("Run workflow") builds the same release folder as an artifact, without a release.
 on:
@@ -110,16 +110,6 @@ jobs:
           if ((Get-ChildItem dspgate-smoke | Measure-Object).Count -ne 0) { throw 'dspgate wrote files without a connection' }
           Write-Host 'dspgate smoke OK'
 
-      - name: Smoke-test hqp-livegate (no HQPlayer on the runner -> must refuse cleanly, write nothing)
-        shell: pwsh
-        working-directory: scripts/hqp-probe/dist
-        run: |
-          New-Item -ItemType Directory -Force livegate-smoke | Out-Null
-          $p = Start-Process -FilePath '.\hqp-livegate.exe' -ArgumentList '--no-pause','--port','1','--out','livegate-smoke' -Wait -PassThru -NoNewWindow
-          if ($p.ExitCode -ne 3) { throw "expected exit code 3 (unreachable), got $($p.ExitCode)" }
-          if ((Get-ChildItem livegate-smoke | Measure-Object).Count -ne 0) { throw 'livegate wrote files without a connection' }
-          Write-Host 'livegate smoke OK'
-
       # The artifact itself is downloaded as a .zip: upload the files, not a zip of them.
       - name: Collect probe files
         shell: pwsh
@@ -128,7 +118,6 @@ jobs:
           Copy-Item scripts/hqp-probe/dist/hqp-probe.exe probe-out/
           Copy-Item scripts/hqp-probe/dist/hqp-gatec.exe probe-out/
           Copy-Item scripts/hqp-probe/dist/hqp-dspgate.exe probe-out/
-          Copy-Item scripts/hqp-probe/dist/hqp-livegate.exe probe-out/
           Copy-Item scripts/hqp-probe/README-WINDOWS.txt probe-out/
 
       - uses: actions/upload-artifact@v7

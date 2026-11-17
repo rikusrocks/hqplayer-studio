@@ -28,7 +28,13 @@ export function useNowPlaying(): NowPlaying {
     if (engineTrack?.studioTrackId) {
       lib = queue.items.find((i) => i.track.id === engineTrack.studioTrackId)?.track ?? null;
     }
-    if (!lib && engineTrack && queue.sync.state === 'in_sync' && queue.currentIndex !== null) {
+    if (
+      !lib &&
+      engineTrack &&
+      !engineTrack.source &&
+      queue.sync.state === 'in_sync' &&
+      queue.currentIndex !== null
+    ) {
       lib = queue.items[queue.currentIndex]?.track ?? null;
     }
     const hasTrack = Boolean(engineTrack) && status.connection === 'connected';

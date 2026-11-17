@@ -65,7 +65,9 @@ export const isAppleMusicApp = (app: string): boolean => /apple\s*music|itunes/i
 
 /** Device names that look like a virtual audio cable. */
 export const looksLikeVirtualCable = (name: string): boolean =>
-  /vb-audio|vb-cable|\bcable\b|hi-?fi cable|virtual audio|voicemeeter|loopback|blackhole/i.test(name);
+  /vb-audio|vb-cable|\bcable\b|hi-?fi cable|virtual audio|voicemeeter|loopback|blackhole/i.test(
+    name,
+  );
 
 // --- PowerShell ---------------------------------------------------------------------------------
 
@@ -382,14 +384,15 @@ class PowerShellMedia implements WindowsMedia {
 
   async control(app: string, action: MediaAction): Promise<boolean> {
     const script =
-      PRELUDE +
-      CONTROL.replace('__APP__', () => quote(app)).replace('__METHOD__', METHODS[action]);
+      PRELUDE + CONTROL.replace('__APP__', () => quote(app)).replace('__METHOD__', METHODS[action]);
     return obj(JSON.parse((await runPowerShell(script)).trim())).ok === true;
   }
 
   async artwork(app: string): Promise<{ data: Buffer; mime: string } | null> {
     const out = obj(
-      JSON.parse((await runPowerShell(PRELUDE + ARTWORK.replace('__APP__', () => quote(app)))).trim()),
+      JSON.parse(
+        (await runPowerShell(PRELUDE + ARTWORK.replace('__APP__', () => quote(app)))).trim(),
+      ),
     );
     if (typeof out.data !== 'string' || out.data === '') return null;
     const data = Buffer.from(out.data, 'base64');
