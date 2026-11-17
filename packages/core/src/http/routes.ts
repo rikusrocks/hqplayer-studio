@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs';
 import {
   API_PREFIX,
   API_VERSION,
+  DspChangeSchema,
   AddLibraryRootRequestSchema,
   AddPlaylistItemsRequestSchema,
   CreatePlaylistRequestSchema,
@@ -37,7 +38,11 @@ import {
 import { ArtworkStore } from '@hqps/library';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { ENGINE_ADAPTER_SETTING, ENGINE_CONTROL_SETTING } from '../settings-keys';
+import {
+  ENGINE_ADAPTER_SETTING,
+  ENGINE_CONTROL_SETTING,
+  ENGINE_DSP_SETTING,
+} from '../settings-keys';
 import type { StudioServices } from '../server';
 import { HttpError } from './errors';
 import { registerCoverRoutes } from './cover-routes';
@@ -77,6 +82,7 @@ export function engineSettings(s: StudioServices): EngineSettings {
     restartRequired: s.engineInfo.source !== 'override' && preferred !== active,
     hqplayer: s.engineInfo.hqplayer,
     allowControl: s.ctx.settings.get<boolean>(ENGINE_CONTROL_SETTING, false),
+    allowDsp: s.ctx.settings.get<boolean>(ENGINE_DSP_SETTING, false),
   };
 }
 
@@ -203,7 +209,21 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
         });
         api.get('/settings/engine', async () => engineSettings(s));
         api.post('/settings/engine', async (req) => {
-          const { adapter, allowControl } = body(UpdateEngineSettingsRequestSchema, req);
+          const { adapter, allowControl, allowDsp } = body(UpdateEngineSettingsRequestSchema, req);
+          if (allowDsp !== undefined) {
+            ctx.settings.set(ENGINE_DSP_SETTING, allowDsp);
+            if (engine.adapter instanceof LiveHQPlayerAdapter) {
+              engine.adapter.setPolicy({ ...engine.adapter.getPolicy(), dspEnabled: allowDsp });
+            }
+            await engine.refreshCapabilities();
+            s.hub.notice(
+              'info',
+              allowDsp ? 'dsp_enabled' : 'dsp_disabled',
+              allowDsp
+                ? 'Studio may now change HQPlayer DSP settings.'
+                : 'DSP settings are read-only again.',
+            );
+          }
           if (adapter !== undefined) ctx.settings.set(ENGINE_ADAPTER_SETTING, adapter);
           if (allowControl !== undefined) {
             ctx.settings.set(ENGINE_CONTROL_SETTING, allowControl);
@@ -224,6 +244,18 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
             );
           }
           return engineSettings(s);
+        });
+
+        // DSP changes are made from this computer only (not from paired phones).
+        api.post('/engine/dsp', async (req) => {
+          const change = body(DspChangeSchema, req);
+          engine.require('dsp.write');
+          const state = await engine.run('setDsp', (a) => {
+            if (!a.setDsp)
+              throw new CapabilityUnavailableError('dsp.write', 'adapter cannot change DSP');
+            return a.setDsp(change);
+          });
+          return state;
         });
 
         api.post('/engine/mock', async (req) => {

@@ -149,10 +149,11 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     note: 'State mode/filter/shaper/rate are list indexes, not values.',
   },
   'dsp.write': {
-    status: 'untested',
+    status: 'confirmed',
     readOnly: false,
-    evidence: 'SDK SetMode/SetFilter/SetShaping/SetRate',
-    note: 'Never part of Gate C; stays disabled.',
+    evidence:
+      'DSP gate 2026-11-17 (engine 6.1.0): SetMode / SetFilter (value=Nx, value1x=1x) / SetShaping / SetRate take list indexes and read back via State; SetInvert and SetAdaptiveVolume pass; SetConvolution accepted but no change (not offered); during playback a modulator change applied after ~5 s with a short gap.',
+    note: null,
   },
   'library.native': {
     status: 'observed',
@@ -170,6 +171,11 @@ export interface CapabilityPolicy {
   controlEnabled?: boolean;
   /** Gate C test tooling only: also allow untested writes. */
   allowUntestedWrites?: boolean;
+  /**
+   * The user's separate switch “允许 Studio 修改 HQPlayer DSP 设置” (default off). DSP writes need
+   * both this and `controlEnabled`.
+   */
+  dspEnabled?: boolean;
 }
 
 /** Facts read from the engine at runtime that can further restrict capabilities. */
@@ -179,6 +185,8 @@ export interface RuntimeLimits {
 }
 
 export const CONTROL_DISABLED_NOTE = 'control-disabled';
+/** dsp.write note while “允许 Studio 修改 HQPlayer DSP 设置” is off. */
+export const DSP_DISABLED_NOTE = 'dsp-disabled';
 /** volume.set note when HQPlayer's “Fixed volume” is on (VolumeRange enabled="0"). */
 export const FIXED_VOLUME_NOTE = 'fixed-volume';
 
@@ -194,9 +202,11 @@ export function resolveCapabilities(
     let usable: boolean;
     let note = e.note;
     if (!connected || e.status === 'unsupported') usable = false;
-    else if (key === 'dsp.write')
-      usable = false; // never automatic
-    else if (e.readOnly)
+    else if (key === 'dsp.write') {
+      // its own opt-in on top of the control switch
+      usable = e.status === 'confirmed' && Boolean(policy.controlEnabled && policy.dspEnabled);
+      if (!usable) note = policy.controlEnabled ? DSP_DISABLED_NOTE : CONTROL_DISABLED_NOTE;
+    } else if (e.readOnly)
       usable = true; // side-effect free reads
     else if (e.status === 'confirmed' || e.status === 'observed') {
       usable = Boolean(policy.controlEnabled || policy.allowUntestedWrites);

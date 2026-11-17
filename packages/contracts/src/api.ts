@@ -214,14 +214,25 @@ export const EngineSettingsSchema = z.object({
    * this engine (Gate C) become usable; DSP/output changes are never included.
    */
   allowControl: z.boolean(),
+  /**
+   * “允许 Studio 修改 HQPlayer DSP 设置” — off by default, and only effective together with
+   * `allowControl`: mode / filter (1x, Nx) / modulator / output rate / invert / adaptive volume,
+   * as verified by the DSP gate (2026-11-17). Output device and the Settings dialog stay HQPlayer's.
+   */
+  allowDsp: z.boolean(),
 });
 export type EngineSettings = z.infer<typeof EngineSettingsSchema>;
 
 export const UpdateEngineSettingsRequestSchema = z
-  .object({ adapter: AdapterKindSchema.optional(), allowControl: z.boolean().optional() })
-  .refine((v) => v.adapter !== undefined || v.allowControl !== undefined, {
-    message: 'Nothing to update',
-  });
+  .object({
+    adapter: AdapterKindSchema.optional(),
+    allowControl: z.boolean().optional(),
+    allowDsp: z.boolean().optional(),
+  })
+  .refine(
+    (v) => v.adapter !== undefined || v.allowControl !== undefined || v.allowDsp !== undefined,
+    { message: 'Nothing to update' },
+  );
 export type UpdateEngineSettingsRequest = z.infer<typeof UpdateEngineSettingsRequestSchema>;
 
 /** HQPlayer's own current playlist, read-only. Local paths are deliberately not exposed. */

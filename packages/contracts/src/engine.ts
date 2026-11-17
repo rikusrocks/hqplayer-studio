@@ -86,6 +86,8 @@ export const DspOptionSchema = z.object({
   index: z.number().int(),
   name: z.string(),
   value: z.number().int().nullable(),
+  /** HQPlayer's own short description (filters), e.g. "4/5 space, timbre ⥣ 2^x". */
+  description: z.string().nullable().optional(),
 });
 export type DspOption = z.infer<typeof DspOptionSchema>;
 
@@ -100,9 +102,40 @@ export const DspStateSchema = z.object({
     shaper: z.string().nullable(),
     rate: z.number().nullable(),
   }),
+  /**
+   * What is selected in HQPlayer (State), as indexes into the lists above — the lists and the
+   * selections depend on the mode (PCM vs SDM). Null when the engine did not report it.
+   */
+  selected: z
+    .object({
+      mode: z.number().int().nullable(),
+      filter1x: z.number().int().nullable(),
+      filterNx: z.number().int().nullable(),
+      shaper: z.number().int().nullable(),
+      rate: z.number().int().nullable(),
+      invert: z.boolean().nullable(),
+      adaptiveVolume: z.boolean().nullable(),
+      convolution: z.boolean().nullable(),
+    })
+    .nullable()
+    .optional(),
   writable: z.boolean(),
 });
 export type DspState = z.infer<typeof DspStateSchema>;
+
+/** A DSP change: list indexes as offered by DspState (validated against fresh lists). */
+export const DspChangeSchema = z
+  .object({
+    mode: z.number().int().nonnegative().optional(),
+    filter1x: z.number().int().nonnegative().optional(),
+    filterNx: z.number().int().nonnegative().optional(),
+    shaper: z.number().int().nonnegative().optional(),
+    rate: z.number().int().nonnegative().optional(),
+    invert: z.boolean().optional(),
+    adaptiveVolume: z.boolean().optional(),
+  })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Nothing to change' });
+export type DspChange = z.infer<typeof DspChangeSchema>;
 
 export function disconnectedStatus(serial = 0, lastError: string | null = null): EngineStatus {
   return {

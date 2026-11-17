@@ -48,6 +48,8 @@ export const zh = {
   'common.discs': '{count} 张碟',
   'common.error': '出错了',
   'common.yes': '是',
+  'common.on': '开',
+  'common.off': '关',
   'common.no': '否',
 
   'actions.playNow': '立即播放',
@@ -620,7 +622,28 @@ export const zh = {
   'settings.closeToTrayHint':
     '关闭窗口后网页遥控和媒体键继续可用；要退出 Studio，请用托盘图标菜单中的“退出”。',
   'settings.dsp.whyReadonly':
-    'Studio 目前不更改 DSP：HQPlayer 的控制协议虽有相关命令，但还没有在你的 HQPlayer 上验证过，而且更改可能中断播放。这里显示的是 HQPlayer 报告的当前值，请在 HQPlayer 中调整。',
+    'Studio 只更改 HQPlayer 控制协议支持并已在你的 HQPlayer 上验证过的 DSP 设置（模式、滤波器、调制器、采样率、反相、自适应音量），而且要先开启下面的开关。其余设置请在 HQPlayer 中调整。',
+  'dsp.title': '在 Studio 中更改 DSP',
+  'dsp.allow': '允许 Studio 修改 HQPlayer DSP 设置',
+  'dsp.allowHint':
+    '开启后可在这里更改模式、1x / Nx 滤波器、调制器 / 噪声整形、输出采样率、反相和自适应音量（已在你的 HQPlayer 上验证）。每次更改都会从 HQPlayer 读回确认；只提供 HQPlayer 当前列出的选项。',
+  'dsp.needsControl': '需要先在 设置 → 播放与引擎能力 中开启“允许 Studio 控制 HQPlayer”。',
+  'dsp.whilePlaying': '正在播放：HQPlayer 会重建处理链，更改后会有短暂中断，约 5 秒内生效。',
+  'dsp.filter1x': '1x 滤波器（44.1 / 48 kHz 音源）',
+  'dsp.filterNx': 'Nx 滤波器（更高采样率音源）',
+  'dsp.shaperSdm': '调制器',
+  'dsp.shaperPcm': '噪声整形 / 抖动',
+  'dsp.invert': '反相',
+  'dsp.adaptiveVolume': '自适应音量',
+  'dsp.convolution': '卷积：{state}（只能在 HQPlayer 中配置）',
+  'dsp.notHere':
+    '输出设备 / ASIO、缓冲、SDM 打包、固定音量、卷积、矩阵、CUDA 等只能在 HQPlayer 自己的设置窗口中修改——HQPlayer 的控制协议没有这些命令。',
+  'dsp.mode.source': '跟随音源',
+  'dsp.rate.auto': '自动',
+  'dsp.applied': '已应用到 HQPlayer',
+  'cap.dspDisabled': '在 设置 → DSP 中开启“允许 Studio 修改 HQPlayer DSP 设置”后可用',
+  'notice.dsp_enabled': 'Studio 现在可以修改 HQPlayer 的 DSP 设置',
+  'notice.dsp_disabled': 'DSP 设置恢复为只读',
   'settings.dsp.convolution': '卷积 / 房间校正',
   'settings.dsp.matrix': '矩阵 / 声道处理',
   'settings.dsp.cuda': 'CUDA 加速',

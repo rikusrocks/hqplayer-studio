@@ -50,6 +50,8 @@ export const en: Record<MessageKey, string> = {
   'common.discs': '{count} discs',
   'common.error': 'Something went wrong',
   'common.yes': 'Yes',
+  'common.on': 'on',
+  'common.off': 'off',
   'common.no': 'No',
 
   'actions.playNow': 'Play now',
@@ -642,7 +644,31 @@ export const en: Record<MessageKey, string> = {
   'settings.closeToTrayHint':
     'The Web Remote and media keys keep working after you close the window; quit Studio from the tray icon’s menu.',
   'settings.dsp.whyReadonly':
-    'Studio does not change DSP settings yet: HQPlayer’s control protocol has commands for it, but they have not been verified on your HQPlayer and changing them may interrupt playback. The values below are what HQPlayer reports; change them in HQPlayer.',
+    'Studio only changes the DSP settings that HQPlayer’s control protocol supports and that were verified on your HQPlayer (mode, filters, modulator, rate, invert, adaptive volume) — and only after you turn on the switch below. Change everything else in HQPlayer.',
+  'dsp.title': 'Change DSP from Studio',
+  'dsp.allow': 'Allow Studio to change HQPlayer DSP settings',
+  'dsp.allowHint':
+    'When on, change the mode, 1x / Nx filter, modulator / noise shaping, output rate, invert and adaptive volume here (verified on your HQPlayer). Every change is read back from HQPlayer; only options HQPlayer currently lists are offered.',
+  'dsp.needsControl':
+    'First turn on “Allow Studio to control HQPlayer” in Settings → Playback & engine.',
+  'dsp.whilePlaying':
+    'Playing: HQPlayer rebuilds its processing chain — expect a short gap; the change applies within about 5 s.',
+  'dsp.filter1x': '1x filter (44.1 / 48 kHz sources)',
+  'dsp.filterNx': 'Nx filter (higher-rate sources)',
+  'dsp.shaperSdm': 'Modulator',
+  'dsp.shaperPcm': 'Noise shaping / dither',
+  'dsp.invert': 'Invert polarity',
+  'dsp.adaptiveVolume': 'Adaptive volume',
+  'dsp.convolution': 'Convolution: {state} (configured in HQPlayer only)',
+  'dsp.notHere':
+    'Output device / ASIO, buffer, SDM pack, fixed volume, convolution, matrix, CUDA and the rest are changed in HQPlayer’s own Settings window — its control protocol has no commands for them.',
+  'dsp.mode.source': 'Follow source',
+  'dsp.rate.auto': 'Automatic',
+  'dsp.applied': 'Applied to HQPlayer',
+  'cap.dspDisabled':
+    'Turn on “Allow Studio to change HQPlayer DSP settings” in Settings → DSP to use this',
+  'notice.dsp_enabled': 'Studio may now change HQPlayer’s DSP settings',
+  'notice.dsp_disabled': 'DSP settings are read-only again',
   'settings.dsp.convolution': 'Convolution / room correction',
   'settings.dsp.matrix': 'Matrix / channel processing',
   'settings.dsp.cuda': 'CUDA offload',

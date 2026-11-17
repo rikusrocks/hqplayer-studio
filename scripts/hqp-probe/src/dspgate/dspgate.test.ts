@@ -4,7 +4,11 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GateIO, StepAnswer } from '../gatec/run';
 import { GateGuardError } from '../gatec/session';
-import { startFakeDspEngine, type FakeDspEngine, type FakeDspOptions } from './fake-dsp-engine';
+import {
+  startFakeDspEngine,
+  type FakeDspEngine,
+  type FakeDspOptions,
+} from '../../../../packages/hqplayer-adapter/src/testing/fake-dsp-engine';
 import { diffState, inferStateRef, pickLowerRate, pickTarget, summarizeTimeline } from './logic';
 import { runDspGate } from './run';
 import {

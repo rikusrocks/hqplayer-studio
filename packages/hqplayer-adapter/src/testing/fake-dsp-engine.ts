@@ -1,8 +1,5 @@
-import { escapeXml, type XmlElement } from '@hqps/hqplayer-adapter';
-import {
-  startFakeHqpServer,
-  xmlDoc,
-} from '../../../../packages/hqplayer-adapter/src/testing/fake-hqp-server';
+import { escapeXml, type XmlElement } from '../protocol/xml';
+import { startFakeHqpServer, xmlDoc } from './fake-hqp-server';
 
 /**
  * A SYNTHETIC HQPlayer for the DSP gate tests. The command and attribute names follow SDK 6.0.1
