@@ -921,6 +921,8 @@ export const zh = {
   'am.openApp': '打开 Apple Music',
   'am.started': 'HQPlayer 正在播放实时输入（{uri}）',
   'am.stopped': '已回到音乐库；现在没有播放',
+  'am.stoppedRate':
+    '如果你为 Apple Music 设了固定的输出采样率，回到音乐库时可能需要改回“自动（Auto）”（设置 → DSP）。',
   'am.block.disabled': '请先在下面打开 Apple Music 来源。',
   'am.block.engine_offline': 'HQPlayer 未连接。',
   'am.block.control_disabled': 'Studio 还没有被允许控制 HQPlayer（设置 → HQPlayer）。',
@@ -965,6 +967,8 @@ export const zh = {
   'am.check.outputRate': 'HQPlayer 输出采样率是固定值',
   'am.check.outputRate.hint':
     '设为“自动（Auto）”时，HQPlayer 有时无法启动实时输入。请在 Studio（设置 → DSP）或 HQPlayer 主窗口选一个固定的输出采样率，再按“开始”。',
+  'am.check.outputRate.back':
+    '回到音乐库播放时，可能需要把输出采样率改回“自动（Auto）”，让 HQPlayer 跟随每张专辑自己的采样率。',
   'am.check.liveInputAddress': '实时输入地址',
   'am.check.liveInputAddress.hint':
     '通常会自动找到。如果“开始”失败，请保存 HQPlayer 需要的地址——地址里的采样率应与 Windows 声音设置中虚拟声卡的采样率一致。',

@@ -236,7 +236,11 @@ function NowPlaying({
                 <button
                   type="button"
                   className="hq-btn"
-                  onClick={() => void act(() => client.appleMusic.stop(), t('am.stopped'))}
+                  onClick={() =>
+                    void act(() => client.appleMusic.stop(), t('am.stopped')).then(
+                      (s) => s && toasts.push('info', t('am.stoppedRate')),
+                    )
+                  }
                 >
                   <Icon name="stop" size={14} />
                   {t('am.stop')}
@@ -395,6 +399,9 @@ function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
                       </div>
                     )}
                     {detail && <div className="am-check__detail hq-mono">{detail}</div>}
+                    {c.id === 'outputRate' && (
+                      <div className="am-check__hint">{t('am.check.outputRate.back')}</div>
+                    )}
                     {c.id === 'liveInputAddress' && <AddressEditor state={state} act={act} />}
                   </div>
                   {link && (

@@ -961,6 +961,8 @@ export const en: Record<MessageKey, string> = {
   'am.openApp': 'Open Apple Music',
   'am.started': 'HQPlayer is now playing the live input ({uri})',
   'am.stopped': 'Back to the library; nothing is playing',
+  'am.stoppedRate':
+    'If you set a fixed output rate for Apple Music, you may want to switch it back to Auto for your library (Settings → DSP).',
   'am.block.disabled': 'Turn the Apple Music source on below first.',
   'am.block.engine_offline': 'HQPlayer is not connected.',
   'am.block.control_disabled':
@@ -1001,6 +1003,8 @@ export const en: Record<MessageKey, string> = {
   'am.check.outputRate': 'HQPlayer output rate is a fixed rate',
   'am.check.outputRate.hint':
     'On “Auto” HQPlayer sometimes will not start a live input. Pick a fixed output rate in Studio (Settings → DSP) or in HQPlayer’s main window, then press Start again.',
+  'am.check.outputRate.back':
+    'When you go back to your library, you may want to switch the output rate back to Auto, so HQPlayer follows each album’s own rate.',
   'am.check.liveInputAddress': 'Live input address',
   'am.check.liveInputAddress.hint':
     'Usually found by itself. If Start fails, save the address HQPlayer needs — the rate in it should match the cable’s rate in Windows Sound settings.',
