@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HQP Studio — a modern music library and remote for HQPlayer</title>
+    <meta name="title-en" content="HQP Studio — a modern music library and remote for HQPlayer" />
+    <meta name="title-zh" content="HQP Studio — HQPlayer 的现代音乐库与遥控器" />
+    <meta
+      name="description"
+      content="HQP Studio is a free, unofficial music library, playlist manager and phone remote for HQPlayer Desktop 6 on Windows. HQPlayer keeps doing all the sound."
+    />
+    <meta property="og:title" content="HQP Studio" />
+    <meta
+      property="og:description"
+      content="A modern music library, playlists and phone remote for HQPlayer Desktop 6. HQPlayer keeps doing all the sound."
+    />
+    <meta property="og:image" content="https://rikus.rocks/img/nowplaying.jpg" />
+    <meta property="og:url" content="https://rikus.rocks/" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" href="img/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="site.js" defer></script>
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap">
+        <a class="brand" href="./"
+          ><img src="img/icon-256.png" alt="" /><span class="name">HQP Studio</span
+          ><small>beta</small></a
+        >
+        <nav class="nav">
+          <a class="hide-sm" href="#features"
+            ><span data-l="en">Features</span><span data-l="zh">功能</span></a
+          >
+          <a href="guide.html"><span data-l="en">Guide</span><span data-l="zh">使用说明</span></a>
+          <a href="#download"><span data-l="en">Download</span><span data-l="zh">下载</span></a>
+          <button class="lang" type="button">中文</button>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- ============ hero ============ -->
+      <section class="hero">
+        <div class="wrap">
+          <span class="eyebrow"
+            ><span data-l="en">For HQPlayer Desktop 6 · Windows</span
+            ><span data-l="zh">为 HQPlayer Desktop 6 打造 · Windows</span></span
+          >
+          <h1>
+            <span data-l="en">Your music library. HQPlayer's sound.</span>
+            <span data-l="zh">你的音乐库，HQPlayer 的声音。</span>
+          </h1>
+          <p class="lede">
+            <span data-l="en"
+              >HQP Studio is a modern library, playlist manager and phone remote for HQPlayer.
+              Browse albums, build a queue and control playback —
+              <strong
+                >HQPlayer still does all the decoding, DSP, upsampling and DAC output.</strong
+              ></span
+            >
+            <span data-l="zh"
+              >HQP Studio 是 HQPlayer
+              的现代音乐库、播放列表和手机遥控器。浏览专辑、排好队列、控制播放 ——
+              <strong>解码、DSP、升频和 DAC 输出仍然全部由 HQPlayer 完成。</strong></span
+            >
+          </p>
+          <div class="ctas">
+            <a class="btn btn-primary" href="#download" data-dl="setup">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+              </svg>
+              <span data-l="en">Download for Windows</span><span data-l="zh">下载 Windows 版</span>
+            </a>
+            <a class="btn btn-ghost" href="guide.html">
+              <span data-l="en">How to set it up</span><span data-l="zh">安装与上手</span>
+            </a>
+          </div>
+          <p class="meta">
+            <span data-l="en"
+              >Free · Windows 10 / 11 (64-bit) · version
+              <span data-rel="version">0.6.0-beta.1</span> · open source (MIT)</span
+            >
+            <span data-l="zh"
+              >免费 · Windows 10 / 11（64 位）· 版本 <span data-rel="version">0.6.0-beta.1</span> ·
+              开源（MIT）</span
+            >
+          </p>
+          <div class="shot">
+            <img
+              src="img/nowplaying.jpg"
+              width="2000"
+              height="1250"
+              alt="HQP Studio showing recently added albums and the Now Playing panel with HQPlayer's DSD512 output"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ how it fits ============ -->
+      <section class="band alt">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>
+              <span data-l="en">Studio drives. HQPlayer plays.</span
+              ><span data-l="zh">Studio 负责操作，HQPlayer 负责声音。</span>
+            </h2>
+            <p>
+              <span data-l="en"
+                >Studio never sits in the audio path. It talks to HQPlayer on this PC over its
+                official control interface — the same way HQPlayer's own remotes do — and only uses
+                commands that were verified on HQPlayer 6.</span
+              >
+              <span data-l="zh"
+                >Studio 从不插入音频链路。它通过 HQPlayer 官方的控制接口与本机的 HQPlayer 通信（和
+                HQPlayer 自己的遥控器一样），并且只使用在 HQPlayer 6 上验证过的命令。</span
+              >
+            </p>
+          </div>
+          <div class="flow">
+            <div class="node you">
+              <h3><span data-l="en">HQP Studio</span><span data-l="zh">HQP Studio</span></h3>
+              <p>
+                <span data-l="en">Library, search, playlists, queue, lyrics, phone remote</span
+                ><span data-l="zh">音乐库、搜索、播放列表、队列、歌词、手机遥控</span>
+              </p>
+            </div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="node">
+              <h3>HQPlayer Desktop 6</h3>
+              <p>
+                <span data-l="en">Decoding, filters, modulators, PCM → DSD512, CUDA</span
+                ><span data-l="zh">解码、滤波器、调制器、PCM → DSD512、CUDA</span>
+              </p>
+            </div>
+            <div class="arrow" aria-hidden="true">→</div>
+            <div class="node">
+              <h3><span data-l="en">Your DAC</span><span data-l="zh">你的 DAC</span></h3>
+              <p>
+                <span data-l="en">Untouched: the output device and settings stay HQPlayer's</span
+                ><span data-l="zh">不受影响：输出设备和设置始终归 HQPlayer 管</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ features ============ -->
+      <section class="band" id="features">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>
+              <span data-l="en">Everything HQPlayer's window doesn't do</span
+              ><span data-l="zh">HQPlayer 窗口里没有的，这里都有</span>
+            </h2>
+            <p>
+              <span data-l="en"
+                >A real library for big collections on local disks, USB drives and NAS shares.</span
+              ><span data-l="zh"
+                >为本地硬盘、USB 盘和 NAS 上的大型音乐收藏准备的真正的音乐库。</span
+              >
+            </p>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              </div>
+              <h3>
+                <span data-l="en">Albums, artists, folders</span
+                ><span data-l="zh">专辑、艺术家、文件夹</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Covers, multi-disc sets, compilations, Chinese and Japanese titles, format badges
+                  from MP3 to DSD256. Search with Ctrl + K.</span
+                ><span data-l="zh"
+                  >封面、多碟、合辑、中日文标题，从 MP3 到 DSD256 的格式标签。按 Ctrl + K
+                  搜索。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 6h12M4 12h12M4 18h7M17 15v6m-3-3h6" />
+                </svg>
+              </div>
+              <h3>
+                <span data-l="en">Queue and playlists</span><span data-l="zh">队列与播放列表</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Play next, add to queue, drag to reorder. Saved playlists stay separate from the
+                  queue, so playing never edits them.</span
+                ><span data-l="zh"
+                  >下一首播放、加入队列、拖动排序。保存的播放列表和队列分开，播放不会改动它们。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+                  <path d="M11 18.5h2" />
+                </svg>
+              </div>
+              <h3>
+                <span data-l="en">Phone and iPad remote</span
+                ><span data-l="zh">手机 / iPad 遥控</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Open it in the phone's browser on your home Wi-Fi, pair with a 6-digit code. No
+                  app to install.</span
+                ><span data-l="zh"
+                  >在家里 Wi-Fi 下用手机浏览器打开，输入 6 位配对码即可。不用装 App。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+                </svg>
+              </div>
+              <h3>
+                <span data-l="en">DSP presets and EQ</span><span data-l="zh">DSP 预设与 EQ</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Optional: switch mode, filters, modulator and rate from Studio, save presets, and
+                  shape an EQ that HQPlayer's own convolution plays.</span
+                ><span data-l="zh"
+                  >可选：在 Studio 里切换模式、滤波器、调制器和采样率，保存预设；画一条 EQ 曲线，由
+                  HQPlayer 自己的卷积引擎处理。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 5h16M4 10h11M4 15h16M4 20h8" />
+                </svg>
+              </div>
+              <h3><span data-l="en">Synced lyrics</span><span data-l="zh">同步歌词</span></h3>
+              <p>
+                <span data-l="en"
+                  >Local .lrc and embedded lyrics first. Online sources (LRCLIB, NetEase, Kugou,
+                  lyrics.ovh) only if you turn them on.</span
+                ><span data-l="zh"
+                  >优先使用本地 .lrc
+                  和内嵌歌词。在线来源（LRCLIB、网易云、酷狗、lyrics.ovh）只有你开启后才使用。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <div class="ico">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="3" y="6" width="12" height="12" rx="2" />
+                  <path d="M15 10l6-3v10l-6-3" />
+                </svg>
+              </div>
+              <h3>
+                <span data-l="en">Mini Player, media keys, tray</span
+                ><span data-l="zh">迷你播放器、媒体键、托盘</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >A small always-on-top player, keyboard media keys and a tray icon. Eight colour
+                  themes.</span
+                ><span data-l="zh">可置顶的小窗播放器、键盘媒体键和托盘图标。八种配色主题。</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ album ============ -->
+      <section class="band alt">
+        <div class="wrap split">
+          <div>
+            <h2>
+              <span data-l="en">Play an album. Studio does the rest.</span
+              ><span data-l="zh">点播放，剩下的交给 Studio。</span>
+            </h2>
+            <p style="color: var(--text-2)">
+              <span data-l="en"
+                >Double-click an album and Studio loads it into HQPlayer and starts it. The queue on
+                the right is always in sync with what HQPlayer is playing.</span
+              ><span data-l="zh"
+                >双击一张专辑，Studio 就把它放进 HQPlayer 并开始播放。右侧的队列始终与 HQPlayer
+                正在播放的内容同步。</span
+              >
+            </p>
+            <ul class="ticks">
+              <li>
+                <span data-l="en"
+                  ><strong>Never overwrites silently.</strong> If someone changes tracks in
+                  HQPlayer's own window, Studio asks whether to follow HQPlayer or replace its
+                  queue.</span
+                ><span data-l="zh"
+                  ><strong>从不静默覆盖。</strong>如果有人在 HQPlayer 自己的窗口里换了歌，Studio
+                  会问你是跟随 HQPlayer 还是替换它的队列。</span
+                >
+              </li>
+              <li>
+                <span data-l="en"
+                  ><strong>No surprises after a reconnect.</strong> Studio reads the state again; it
+                  never starts playback or changes volume or DSP on its own.</span
+                ><span data-l="zh"
+                  ><strong>重连后不乱动。</strong>Studio
+                  只重新读取状态，不会自己开始播放，也不会改音量或 DSP。</span
+                >
+              </li>
+              <li>
+                <span data-l="en"
+                  ><strong>Scans only read.</strong> Nothing is moved, renamed, retagged or deleted.
+                  A NAS that is off just shows its albums as unavailable.</span
+                ><span data-l="zh"
+                  ><strong>扫描只读。</strong>不移动、不改名、不改标签、不删除。NAS
+                  关机时它的专辑只会标成“不可用”。</span
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="frame">
+            <img
+              src="img/album.jpg"
+              width="2000"
+              height="1250"
+              loading="lazy"
+              alt="An album page with the track list and the queue panel"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ themes ============ -->
+      <section class="band">
+        <div class="wrap">
+          <div class="section-head">
+            <h2><span data-l="en">Make it yours</span><span data-l="zh">换个颜色</span></h2>
+            <p>
+              <span data-l="en"
+                >Dark, Light, Cobalt, Citrus, Poppy, Pine, Plum and Ocean — flat, solid colours,
+                picked in Settings → General → Theme.</span
+              ><span data-l="zh"
+                >深色、浅色、钴蓝、柑橘、虞美人、松绿、梅紫、海洋 —— 纯色主题，在 设置 → 常规 → 主题
+                中选择。</span
+              >
+            </p>
+          </div>
+          <div class="themes">
+            <div class="frame">
+              <img
+                src="img/cobalt.jpg"
+                width="2000"
+                height="1250"
+                loading="lazy"
+                alt="HQP Studio in the Cobalt theme"
+              />
+            </div>
+            <div class="frame">
+              <img
+                src="img/citrus.jpg"
+                width="2000"
+                height="1250"
+                loading="lazy"
+                alt="HQP Studio in the Citrus theme"
+              />
+            </div>
+          </div>
+          <div class="swatches" aria-hidden="true">
+            <span style="background: #000"></span><span style="background: #e6e6e6"></span
+            ><span style="background: #1b2cc1"></span><span style="background: #ffd60a"></span
+            ><span style="background: #e4002b"></span><span style="background: #c6ff3d"></span
+            ><span style="background: #ff3d8b"></span><span style="background: #00d9c0"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ remote ============ -->
+      <section class="band alt">
+        <div class="wrap split rev">
+          <div>
+            <h2>
+              <span data-l="en">The sofa is the best seat</span
+              ><span data-l="zh">躺在沙发上点歌</span>
+            </h2>
+            <p style="color: var(--text-2)">
+              <span data-l="en"
+                >Turn on the Web Remote, scan the QR code with your phone and you get Now Playing,
+                Browse, Playlists and Queue — the same library, live in sync. Add it to your home
+                screen and it feels like an app.</span
+              ><span data-l="zh"
+                >打开网页遥控，用手机扫二维码，就有“正在播放 / 浏览 / 播放列表 / 队列” ——
+                同一个音乐库，实时同步。添加到主屏幕后用起来就像 App。</span
+              >
+            </p>
+            <ul class="ticks">
+              <li>
+                <span data-l="en"
+                  ><strong>Home network only</strong>, off by default, each device paired with a
+                  one-time code and removable any time.</span
+                ><span data-l="zh"
+                  ><strong>只在家庭局域网</strong
+                  >，默认关闭；每台设备用一次性配对码配对，可随时取消。</span
+                >
+              </li>
+              <li>
+                <span data-l="en"
+                  ><strong>Phones can play, not configure.</strong> They never see settings,
+                  diagnostics, folder management or file paths.</span
+                ><span data-l="zh"
+                  ><strong>手机只能播放，不能改设置。</strong
+                  >拿不到设置、诊断、文件夹管理或文件路径。</span
+                >
+              </li>
+            </ul>
+          </div>
+          <div class="phone">
+            <img
+              src="img/remote.jpg"
+              width="647"
+              height="1400"
+              loading="lazy"
+              alt="The phone remote's Now Playing screen"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ principles ============ -->
+      <section class="band">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>
+              <span data-l="en">Your HQPlayer stays yours</span
+              ><span data-l="zh">你的 HQPlayer 还是你的</span>
+            </h2>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>
+                <span data-l="en">Nothing changes until you allow it</span
+                ><span data-l="zh">你不允许就不改</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Control and DSP changes are separate switches. Studio never touches HQPlayer's
+                  installation, licence or output device.</span
+                ><span data-l="zh"
+                  >“控制”和“修改 DSP”是两个独立开关。Studio 从不碰 HQPlayer
+                  的安装、许可证或输出设备。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <h3>
+                <span data-l="en">Nothing is uploaded</span><span data-l="zh">不上传任何数据</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Logs and crash reports stay on your PC, with paths, titles and names removed.
+                  Online lyrics and covers are opt-in, one source at a time.</span
+                ><span data-l="zh"
+                  >日志和崩溃报告留在你的电脑上，并去掉路径、曲名和用户名。在线歌词和封面需要逐个开启。</span
+                >
+              </p>
+            </div>
+            <div class="card">
+              <h3>
+                <span data-l="en">Backups and a way back</span
+                ><span data-l="zh">有备份，也能回退</span>
+              </h3>
+              <p>
+                <span data-l="en"
+                  >Daily and before-update database backups, one-click restore, and an older version
+                  refuses to open a newer database instead of breaking it.</span
+                ><span data-l="zh"
+                  >每天和每次升级前自动备份数据库，一键恢复；旧版本遇到新版本的数据库会拒绝打开，而不是把它弄坏。</span
+                >
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ download ============ -->
+      <section class="band download" id="download">
+        <div class="wrap">
+          <div class="section-head">
+            <h2><span data-l="en">Download</span><span data-l="zh">下载</span></h2>
+            <p>
+              <span data-l="en"
+                >HQP Studio is free. You need HQPlayer Desktop 6 from Signalyst (trial or licensed)
+                on the same PC — Studio does not include it.</span
+              ><span data-l="zh"
+                >HQP Studio 免费。你需要在同一台电脑上安装 Signalyst 的 HQPlayer Desktop
+                6（试用版或已授权）—— Studio 不包含它。</span
+              >
+            </p>
+          </div>
+
+          <div class="release-box" id="release">
+            <div class="release-top">
+              <div class="ver">
+                HQP Studio <span data-rel="version">0.6.0-beta.1</span
+                ><span class="tag" id="rel-tag">beta</span>
+              </div>
+              <div class="when" id="rel-date">
+                <span data-l="en"></span><span data-l="zh"></span>
+              </div>
+            </div>
+
+            <ul class="files" id="rel-files">
+              <li>
+                <a
+                  id="f-setup"
+                  class="main"
+                  href="https://github.com/rikusrocks/hqplayer-studio/releases"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+                  </svg>
+                  <span
+                    ><span class="k"
+                      ><span data-l="en">Installer (recommended)</span
+                      ><span data-l="zh">安装版（推荐）</span></span
+                    ><span class="sub fname">HQPlayerStudio-setup-x64.exe</span></span
+                  >
+                  <span class="size"></span
+                ></a>
+              </li>
+              <li>
+                <a id="f-portable" href="https://github.com/rikusrocks/hqplayer-studio/releases">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <rect x="4" y="3" width="16" height="18" rx="3" />
+                    <path d="M9 8h6" />
+                  </svg>
+                  <span
+                    ><span class="k"
+                      ><span data-l="en">Portable — run without installing</span
+                      ><span data-l="zh">免安装版 —— 双击即运行</span></span
+                    ><span class="sub fname">HQPlayerStudio-portable-x64.exe</span></span
+                  >
+                  <span class="size"></span
+                ></a>
+              </li>
+              <li>
+                <a id="f-zip" href="https://github.com/rikusrocks/hqplayer-studio/releases">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M4 7h16v13H4zM4 7l2-3h12l2 3M10 11h4" />
+                  </svg>
+                  <span
+                    ><span class="k"
+                      ><span data-l="en">Zip — the unpacked app folder</span
+                      ><span data-l="zh">Zip —— 解压即用的程序文件夹</span></span
+                    ><span class="sub fname">HQPlayerStudio-win-x64.zip</span></span
+                  >
+                  <span class="size"></span
+                ></a>
+              </li>
+              <li>
+                <a id="f-sums" href="https://github.com/rikusrocks/hqplayer-studio/releases">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z" />
+                    <path d="M8.5 12l2.5 2.5 4.5-5" />
+                  </svg>
+                  <span
+                    ><span class="k"
+                      ><span data-l="en">Checksums</span><span data-l="zh">校验值</span></span
+                    ><span class="sub fname">SHA256SUMS.txt</span></span
+                  >
+                  <span class="size"></span
+                ></a>
+              </li>
+            </ul>
+
+            <div class="notice" id="rel-pending" hidden>
+              <span data-l="en"
+                ><strong>The download list could not be loaded here.</strong> Get the files from the
+                <a href="https://github.com/rikusrocks/hqplayer-studio/releases"
+                  >Releases page on GitHub</a
+                >.</span
+              >
+              <span data-l="zh"
+                ><strong>这里暂时无法载入下载列表。</strong>请到
+                <a href="https://github.com/rikusrocks/hqplayer-studio/releases"
+                  >GitHub 的 Releases 页面</a
+                >
+                下载。</span
+              >
+            </div>
+
+            <div class="release-foot">
+              <a id="rel-notes" href="https://github.com/rikusrocks/hqplayer-studio/releases"
+                ><span data-l="en">Release notes</span><span data-l="zh">版本说明</span></a
+              >
+              <a href="https://github.com/rikusrocks/hqplayer-studio/releases"
+                ><span data-l="en">All versions</span><span data-l="zh">所有版本</span></a
+              >
+              <a href="guide.html"
+                ><span data-l="en">Install guide</span><span data-l="zh">安装说明</span></a
+              >
+              <a href="https://github.com/rikusrocks/hqplayer-studio"
+                ><span data-l="en">Source code</span><span data-l="zh">源代码</span></a
+              >
+            </div>
+
+            <div class="notice">
+              <span data-l="en"
+                ><strong>Windows may say "Windows protected your PC"</strong> the first time,
+                because the program is not code-signed. Choose
+                <strong>More info → Run anyway</strong>. All three downloads share one data folder,
+                so updating, switching or uninstalling keeps your library, playlists and
+                settings.</span
+              >
+              <span data-l="zh"
+                ><strong>第一次运行时 Windows 可能提示“已保护你的电脑”</strong
+                >，因为程序没有数字签名。点
+                <strong>更多信息 → 仍要运行</strong
+                >。三种下载共用同一个数据文件夹，升级、换用或卸载都不会丢失音乐库、播放列表和设置。</span
+              >
+            </div>
+          </div>
+
+          <div class="req">
+            <div>
+              <strong><span data-l="en">PC</span><span data-l="zh">电脑</span></strong
+              ><span data-l="en">Windows 10 or 11, 64-bit</span
+              ><span data-l="zh">Windows 10 或 11，64 位</span>
+            </div>
+            <div>
+              <strong>HQPlayer</strong
+              ><span data-l="en"
+                >HQPlayer Desktop 6 on the same PC —
+                <a href="https://www.signalyst.com/consumer.html">signalyst.com</a></span
+              ><span data-l="zh"
+                >同一台电脑上的 HQPlayer Desktop 6 ——
+                <a href="https://www.signalyst.com/consumer.html">signalyst.com</a></span
+              >
+            </div>
+            <div>
+              <strong><span data-l="en">Music</span><span data-l="zh">音乐</span></strong
+              ><span data-l="en">Local disk, USB drive or NAS share; any format HQPlayer plays</span
+              ><span data-l="zh">本地硬盘、USB 盘或 NAS 共享；HQPlayer 能播放的格式都行</span>
+            </div>
+            <div>
+              <strong
+                ><span data-l="en">Remote (optional)</span
+                ><span data-l="zh">遥控（可选）</span></strong
+              ><span data-l="en">A phone or iPad on the same home Wi-Fi</span
+              ><span data-l="zh">连着同一个家庭 Wi-Fi 的手机或 iPad</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span
+          ><span data-l="en"
+            >HQP Studio is an unofficial third-party app and is
+            <strong>not affiliated with Signalyst</strong>. HQPlayer is a product of
+            Signalyst.</span
+          ><span data-l="zh"
+            >HQP Studio 是非官方的第三方应用，<strong>与 Signalyst 没有任何隶属关系</strong
+            >。HQPlayer 是 Signalyst 的产品。</span
+          ></span
+        >
+        <span
+          ><a href="guide.html"><span data-l="en">Guide</span><span data-l="zh">使用说明</span></a>
+          · <a href="https://github.com/rikusrocks/hqplayer-studio">GitHub</a> · MIT</span
+        >
+      </div>
+    </footer>
+  </body>
+</html>
