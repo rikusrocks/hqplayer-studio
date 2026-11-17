@@ -120,9 +120,10 @@ export function writeBackup(
   dir: string,
   backup: BackupFile,
   stamp: string,
+  prefix = 'hqp-gatec',
 ): { json: string; m3u8: string } {
-  const json = join(dir, `hqp-gatec-backup-${stamp}.json`);
-  const m3u8 = join(dir, `hqp-gatec-backup-${stamp}.m3u8`);
+  const json = join(dir, `${prefix}-backup-${stamp}.json`);
+  const m3u8 = join(dir, `${prefix}-backup-${stamp}.m3u8`);
   writeFileSync(json, `${JSON.stringify(backup, null, 2)}\n`, 'utf8');
   writeFileSync(m3u8, toM3u8(backup), 'utf8');
   return { json, m3u8 };

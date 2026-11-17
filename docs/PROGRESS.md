@@ -1,5 +1,42 @@
 # PROGRESS
 
+## 2026-11-17 — 实时输入测试工具（hqp-livegate.exe）：为“用 HQPlayer 升频 Apple Music”做准备
+
+```text
+Background:
+- 想在 Studio 里播放 Apple Music 订阅曲库并由 HQPlayer 升频。订阅曲目（包括下载到本机的）有版权保护，
+  只有 Apple Music 应用能播放，HQPlayer 不能当文件打开；Studio 不会、也不应该去除保护。
+- 唯一的路：Apple Music 应用播放 → 虚拟声卡 → HQPlayer 的“实时输入”（audio: 条目）→ 升频 → DAC。
+  官方 SDK 的 PlaylistAdd 原样传递 audio: 地址，并有 GetInputs 命令；论坛上的用法（audio:default/0/2）
+  来自 HQPlayer 4/5，在 engine 6.1.0 上还没有证据。
+
+Implemented:
+- 新的独立工具 hqp-livegate.exe（与另外三个工具一起打包在 hqp-probe-windows-x64）：
+  只读读取 GetInputs / GetTransport → 备份播放列表 → 停止 → 清空并加入一个实时输入条目
+  （HQPlayer 列出的、audio:default/0/2、/44100/2、/48000/2，依次尝试）→ 播放 → 听 15 秒 / 60 秒
+  （有没有声音、是否干净、音调速度、是否稳定）→ 停止再播放 → 恢复原播放列表并核对。
+- 同一个工具通过 Windows 自带的“媒体会话”查看 Apple Music 是否公开正在播放的曲名 / 歌手 / 专辑 / 封面，
+  并试一次由外部程序让它暂停、继续（Studio 以后显示“正在播放”和遥控 Apple Music 要靠这个）。
+- 守卫：白名单之外的命令（SetTransport*、DSP、音量、输出、配置）在本地拒绝；PlaylistAdd 只能带
+  候选的 audio: 地址或备份里的原条目；清空前一定等到引擎真正停止（否则实时输入条目会留在列表里）。
+- 报告不含曲名、歌手、专辑、路径（只记录“有没有”和大小）；audio: 地址原样保留，因为它正是要弄清的东西。
+- Studio 应用本身没有改动。
+
+Verified:
+- 自动化测试：新增 17 项（模拟引擎：接受 / 拒绝实时输入、Play 失败后换下一个地址、Stop 延迟、中途退出、
+  拒绝开始、L1 被跳过、无法连接；Windows 媒体信息：没有 Apple Music、暂停出错后仍会请求继续、非 Windows）。
+- 模拟引擎的 GetInputs 回复格式是假设；Windows 媒体查询脚本没有在 Windows 上运行过（在 Mac 上写的）。
+
+Known limitations:
+- 这条路不是逐位精确：Apple Music 的 Windows 应用不会按曲目切换采样率，声音先由 Windows 混音器按
+  虚拟声卡设定的采样率处理。
+- 控制有延迟（HQPlayer 的输出延迟约 4.4 秒）；Studio 里不能浏览 Apple Music 曲库、不能拖动进度。
+
+Next:
+- 你：按 README-WINDOWS.txt 准备虚拟声卡，运行 hqp-livegate.exe（约 10 分钟），发回 hqp-livegate-report-*.json。
+- 之后：按报告决定是否在 Studio 里做“Apple Music（实时输入）”来源。
+```
+
 ## 2026-11-17 — v0.5.0：Phase 5 稳定性与发布（安装版、数据备份与版本回退、日志与崩溃报告、长时间播放测试）
 
 ```text

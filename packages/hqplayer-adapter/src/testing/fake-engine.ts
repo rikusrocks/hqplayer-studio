@@ -44,6 +44,14 @@ export interface FakeEngineOptions {
    * -60…-3 dB. Omitted = the original synthetic behaviour (enabled="0" but Volume accepted).
    */
   volumeFixed?: boolean;
+  /**
+   * Live-input ("audio:…") URIs this engine can open. Any other `audio:` URI is refused by
+   * PlaylistAdd; omitted = no live input at all. A live entry has no length and never ends.
+   * (The shape of GetInputs below is a guess — the real reply has not been recorded yet.)
+   */
+  liveInputs?: string[];
+  /** PlaylistAdd accepts a listed live input but Play then fails for these URIs. */
+  liveInputsFailingPlay?: string[];
 }
 
 export interface FakeEngine {
@@ -80,9 +88,10 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
     basePos = p;
     anchor = Date.now();
   };
+  const isLive = (t: FakeTrack | undefined) => !!t && /^audio:/i.test(t.uri);
   const tick = () => {
     const t = playlist[current - 1];
-    if (transport === 2 && t && position() >= t.lengthSec) {
+    if (transport === 2 && t && !isLive(t) && position() >= t.lengthSec) {
       if (current < playlist.length) {
         current += 1;
         setPos(position() - t.lengthSec);
@@ -93,7 +102,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
     }
   };
   // Like the real engine (observed): anything that is not already a file: URI is stored as "file://" + path.
-  const isNative = (uri: string) => !/^file:/i.test(uri);
+  const isNative = (uri: string) => !/^(?:file|audio):/i.test(uri);
   const toNative = (uri: string) => (isNative(uri) ? `file://${uri}` : uri);
 
   const statusDoc = () => {
@@ -102,7 +111,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
     const playing = transport !== 0 && t;
     const attrs = `state="${transport}" track="${transport === 0 ? 0 : current}" tracks_total="${transport === 0 ? 0 : playlist.length}" position="${position().toFixed(3)}" length="${playing ? t.lengthSec : 0}" output_delay="${playing ? 400000 : 0}" active_mode="SDM (DSD)" active_rate="24576000" active_bits="1" track_serial="1" transport_serial="1" volume="${volume}" repeat="${repeat}" random="${random}"`;
     const meta = playing
-      ? `<metadata uri="${escapeXml(t.uri)}" song="${escapeXml(t.song)}" samplerate="${t.uri.endsWith('.dsf') ? 2822400 : 48000}" bits="${t.uri.endsWith('.dsf') ? 1 : 24}" sdm="${t.uri.endsWith('.dsf') ? 1 : 0}"/>`
+      ? `<metadata uri="${escapeXml(t.uri)}" song="${escapeXml(t.song)}" samplerate="${t.uri.endsWith('.dsf') ? 2822400 : isLive(t) ? 44100 : 48000}" bits="${t.uri.endsWith('.dsf') ? 1 : 24}" sdm="${t.uri.endsWith('.dsf') ? 1 : 0}"/>`
       : '';
     return `${D}<Status ${attrs}>${meta}</Status>\n`;
   };
@@ -133,8 +142,16 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
               `<PlaylistItem index="${i + 1}" uri="${escapeXml(t.uri)}" song="${escapeXml(t.song)}" length="${t.lengthSec}"/>`,
           )
           .join('')}</PlaylistGet>\n`;
+      case 'GetInputs':
+        return `${D}<GetInputs>${(opts.liveInputs ?? [])
+          .map((u) => `<InputsItem name="${escapeXml(u)}"/>`)
+          .join('')}</GetInputs>\n`;
+      case 'GetTransport':
+        return `${D}<GetTransport value="0" arg="D:\\Music"/>\n`;
       case 'Play':
         if (!playlist.length) return `${D}<Play result="Error">empty</Play>\n`;
+        if (opts.liveInputsFailingPlay?.includes(playlist[current - 1]?.uri ?? ''))
+          return `${D}<Play result="Error">cannot open input</Play>\n`;
         if (transport === 0) setPos(0);
         else if (transport === 1) anchor = Date.now();
         transport = 2;
@@ -200,6 +217,8 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         const uri = a.uri ?? '';
         if (opts.rejectNativePaths && isNative(uri))
           return `${D}<PlaylistAdd result="Error">bad uri ${escapeXml(uri)}</PlaylistAdd>\n`;
+        if (/^audio:/i.test(uri) && !opts.liveInputs?.includes(uri))
+          return `${D}<PlaylistAdd result="Error">no such input</PlaylistAdd>\n`;
         if (a.clear === '1') {
           playlist = [];
           current = 0;
@@ -208,7 +227,7 @@ export async function startFakeEngine(opts: FakeEngineOptions): Promise<FakeEngi
         playlist.push({
           uri: toNative(uri),
           song: name,
-          lengthSec: name.includes('long') ? 600 : 200,
+          lengthSec: /^audio:/i.test(uri) ? 0 : name.includes('long') ? 600 : 200,
         });
         if (!current) current = 1;
         if (a.queued === '0') {

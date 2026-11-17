@@ -55,7 +55,7 @@ Windows 构建由 GitHub Actions（`windows-latest`）完成，打包后的程�
   `…-portable-x64.exe`（免安装）、`…-win-x64.zip`、`hqp-probe-<版本>-windows-x64.zip` 和 `SHA256SUMS.txt`。
 - **每次修改后的测试版本**：**Actions → Windows build → 最新一次运行 → Artifacts**：
   `HQPlayerStudio-windows-x64-setup`、`HQPlayerStudio-windows-x64-portable`、`HQPlayerStudio-windows-x64-zip`、
-  `hqp-probe-windows-x64`（解压即是 `hqp-probe.exe` / `hqp-gatec.exe` / `hqp-dspgate.exe` 和说明，
+  `hqp-probe-windows-x64`（解压即是 `hqp-probe.exe` / `hqp-gatec.exe` / `hqp-dspgate.exe` / `hqp-livegate.exe` 和说明，
   见 [scripts/hqp-probe/README-WINDOWS.txt](scripts/hqp-probe/README-WINDOWS.txt)）。
 
 首次运行默认使用 **Mock 引擎**，不会连接或改动 HQPlayer；连接真实 HQPlayer 见[用户指南](docs/user-guide.md)。
