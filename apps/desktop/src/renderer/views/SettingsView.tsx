@@ -37,6 +37,7 @@ import { describeReport, describeSearchStep } from './hqpReport';
 import { Segmented, ViewHeader } from './common';
 import { RemoteSettings } from './RemoteSettings';
 import { BackupSettings, LogsCard, SoakTestCard } from './MaintenanceSettings';
+import { EqSettings } from './EqSettings';
 import {
   BlockHead,
   CoverSettings,
@@ -53,6 +54,7 @@ const SECTIONS: Array<{ id: string; label: MessageKey; icon: IconName }> = [
   { id: 'library', label: 'settings.library', icon: 'library' },
   { id: 'playback', label: 'settings.playback', icon: 'play' },
   { id: 'dsp', label: 'settings.dsp', icon: 'wave' },
+  { id: 'eq', label: 'settings.eq', icon: 'eq' },
   { id: 'output', label: 'settings.output', icon: 'volume' },
   { id: 'lyrics', label: 'settings.lyrics', icon: 'lyrics' },
   { id: 'remote', label: 'settings.remote', icon: 'remote' },
@@ -84,6 +86,7 @@ export function SettingsView({ section }: { section: string }) {
           {current.id === 'library' && <LibrarySettings />}
           {current.id === 'playback' && <PlaybackSettings />}
           {current.id === 'dsp' && <DspSettings />}
+          {current.id === 'eq' && <EqSettings />}
           {current.id === 'output' && <OutputSettings />}
           {current.id === 'lyrics' && <LyricsSettings />}
           {current.id === 'remote' && <RemoteSettings />}

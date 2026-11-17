@@ -75,6 +75,13 @@ HQPlayer Studio 是 **HQPlayer Desktop 6** 的第三方音乐库、播放列表�
 调制器、采样率、反相和自适应音量。如果 HQPlayer 里已经没有预设中的某个滤波器或采样率，Studio 会说明是哪一项，
 不会改动任何设置。
 
+**均衡器（设置 → 均衡器）**：HQPlayer 没有 EQ 命令，所以 Studio 把你的 EQ 曲线写成一个滤波器文件（WAV 脉冲响应），
+由 HQPlayer 自己的卷积引擎处理。一次性设置：先点一次“应用”，再在 HQPlayer 的卷积设置里把页面上显示的文件选为左右声道的
+脉冲响应（增益 0 dB）并勾选卷积。之后在 Studio 里调频段（峰值 / 高低架 / 高低通）、载入预设或粘贴 AutoEQ 的
+ParametricEQ.txt，点“应用”即可。有提升时 Studio 会自动降低前级增益，曲线不会超过 0 dB。开启 DSP 开关后，Studio 也能
+切换 HQPlayer 的卷积，并在应用时把卷积关闭再打开，让 HQPlayer 载入新曲线。“试听检查”会放入一个只会让声音变小的测试
+滤波器，问你是否听到声音发闷，以确认这一点；回答后（或 2 分钟后）自动恢复你的 EQ。
+
 ### 8. 数据备份与恢复
 
 **设置 → 常规 → 数据备份**
@@ -195,6 +202,14 @@ device, buffers, convolution, matrix and CUDA stay in HQPlayer's own settings.
 
 **Presets**: "Save current settings as preset…" stores mode, filters, modulator, rate, invert and adaptive volume under a name;
 "Apply" switches them in one go. If HQPlayer no longer offers an item of the preset, Studio names it and changes nothing.
+
+**Equalizer (Settings → EQ)**: HQPlayer has no EQ commands, so Studio writes your curve as a filter file (a WAV impulse
+response) that HQPlayer's own convolution engine plays through. One-time setup: click Apply once, then in HQPlayer's
+convolution settings choose the file shown on the page for the left and right channel (gain 0 dB) and tick convolution.
+After that, edit bands (peak, shelves, low / high-pass), load a preset or paste an AutoEQ ParametricEQ.txt and click Apply.
+Boosts automatically lower the preamp so the curve never exceeds 0 dB. With the DSP switch on, Studio can also switch
+HQPlayer's convolution and turns it off and on when applying so HQPlayer loads the new curve. The listening check confirms
+this with a test filter that only makes music quieter; your EQ goes back after you answer (or after 2 minutes).
 
 ### 8. Backups and restore
 

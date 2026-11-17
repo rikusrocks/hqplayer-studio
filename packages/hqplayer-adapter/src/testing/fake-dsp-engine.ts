@@ -26,6 +26,11 @@ export interface FakeDspOptions {
   playlistLength?: number;
   startPlaying?: boolean;
   pushEveryMs?: number;
+  /**
+   * A convolution filter is set up in HQPlayer (default true). Without one, SetConvolution is
+   * acknowledged but convolution stays off — as engine 6.1.0 did in the DSP gate.
+   */
+  convolutionConfigured?: boolean;
 }
 
 interface Item {
@@ -267,7 +272,7 @@ export async function startFakeDspEngine(opts: FakeDspOptions = {}): Promise<Fak
       invert = v;
     }),
     SetConvolution: toggle('SetConvolution', (v) => {
-      convolution = v;
+      if (opts.convolutionConfigured !== false) convolution = v;
     }),
     SetAdaptiveVolume: toggle('SetAdaptiveVolume', (v) => {
       adaptive = v;
