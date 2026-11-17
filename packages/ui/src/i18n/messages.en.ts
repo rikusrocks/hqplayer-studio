@@ -569,6 +569,10 @@ export const en: Record<MessageKey, string> = {
   'lyrics.loadFailed': 'Could not load lyrics',
   'lyrics.notInLibrary': 'This track is not in the Studio library, so no lyrics can be matched',
   'lyrics.notFound': 'No lyrics found',
+  'lyrics.liveNotFoundHint':
+    'The online sources you enabled have no lyrics for this Apple Music song. Try a manual search.',
+  'lyrics.liveOnlineOffHint':
+    'Lyrics for Apple Music songs come from online sources. Turn on online lyrics in Settings → Lyrics.',
   'lyrics.notFoundLocalHint':
     'Put an .lrc file with the same name next to the music file, or turn on online lyrics in Settings → Lyrics.',
   'lyrics.notFoundOnlineHint':
@@ -897,6 +901,11 @@ export const en: Record<MessageKey, string> = {
   'cap.key.input.live': 'Live input (Apple Music)',
   'notice.applemusic_start_failed':
     'HQPlayer could not open a live input. The Apple Music page shows what it answered.',
+  'queue.live.title': 'Apple Music',
+  'queue.live.badge': 'Live input',
+  'queue.live.hint':
+    'Songs played since Start. Apple Music’s own Playing Next list cannot be read from outside the app; next and previous still work.',
+  'queue.live.kept': 'Your Studio queue ({count} tracks) is kept for when you stop.',
   'am.title': 'Apple Music',
   'am.subtitle': 'Played by the Apple Music app, upsampled by HQPlayer',
   'am.simulated':
@@ -999,5 +1008,6 @@ export const en: Record<MessageKey, string> = {
   'am.limits.protected':
     'Apple Music’s tracks are copy-protected, so HQPlayer cannot open them as files. This route passes the sound the Apple Music app plays.',
   'am.limits.bitperfect': 'Not bit-perfect: the Windows app does not switch sample rate per track.',
-  'am.limits.browse': 'Browsing, search, seeking and lyrics stay in the Apple Music app.',
+  'am.limits.browse':
+    'Browsing, search and seeking stay in the Apple Music app, and Studio cannot see what Apple Music will play next. Lyrics come from the online sources in Settings → Lyrics, if you turned them on.',
 };

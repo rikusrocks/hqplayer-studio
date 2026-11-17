@@ -23,6 +23,22 @@ export const isLiveInputUri = (value: string | null | undefined): value is strin
 export const LIVE_ARTWORK_ID = /^live-apple-music-\d+$/;
 export const liveArtworkId = (version: number): string => `live-apple-music-${version}`;
 
+/**
+ * Track id under which the lyrics API serves the song a live source is playing
+ * (`/tracks/live-apple-music/lyrics`). Those lyrics are looked up by title and artist and kept
+ * in memory only.
+ */
+export const LIVE_LYRICS_TRACK_ID = 'live-apple-music';
+
+/** A song the live source played since it was started (kept in memory, newest last). */
+export const LivePlayedSongSchema = z.object({
+  title: z.string(),
+  artist: z.string().nullable(),
+  album: z.string().nullable(),
+  startedAt: z.number(),
+});
+export type LivePlayedSong = z.infer<typeof LivePlayedSongSchema>;
+
 /** What another app tells Windows it is playing (Windows media session). */
 export const LiveNowPlayingSchema = z.object({
   /** Windows app id of the session, e.g. `AppleInc.AppleMusicWin_…!App`. */
@@ -134,6 +150,11 @@ export const AppleMusicStateSchema = z.object({
     })
     .nullable(),
   setup: AppleMusicSetupSchema.nullable(),
+  /**
+   * Songs played since Start, the current one last. Apple Music's own "Playing Next" list cannot
+   * be read from outside the app, so this is what Studio can show instead of a queue.
+   */
+  history: z.array(LivePlayedSongSchema),
 });
 export type AppleMusicState = z.infer<typeof AppleMusicStateSchema>;
 
@@ -166,5 +187,6 @@ export function idleAppleMusicState(): AppleMusicState {
     blocked: 'disabled',
     lastStart: null,
     setup: null,
+    history: [],
   };
 }

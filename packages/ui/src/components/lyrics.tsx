@@ -1,4 +1,4 @@
-import type { LyricsCandidate, TrackLyrics } from '@hqps/contracts';
+import { LIVE_LYRICS_TRACK_ID, type LyricsCandidate, type TrackLyrics } from '@hqps/contracts';
 import { useEffect, useRef, useState } from 'react';
 import { useStudio } from '../data/StudioProvider';
 import { formatDuration } from '../format';
@@ -34,10 +34,16 @@ export function LyricsPanel({ manage = false, settingsHref, className }: LyricsP
   const t = useT();
   const { status } = useStudio();
   const now = useNowPlaying();
-  const trackId = now.hasTrack
-    ? (now.libraryTrack?.id ?? status.track?.studioTrackId ?? null)
-    : null;
-  const { lyrics, loading, error, reload, setOffset } = useTrackLyrics(trackId);
+  // A live source (Apple Music) has no library track: its lyrics are looked up by title and
+  // artist under one fixed id, and the song itself tells the hook when to start over.
+  const live = now.hasTrack && Boolean(status.track?.source);
+  const trackId = !now.hasTrack
+    ? null
+    : live
+      ? LIVE_LYRICS_TRACK_ID
+      : (now.libraryTrack?.id ?? status.track?.studioTrackId ?? null);
+  const song = live ? `${now.title ?? ''}\u0001${now.artist ?? ''}` : '';
+  const { lyrics, loading, error, reload, setOffset } = useTrackLyrics(trackId, song);
   const [searching, setSearching] = useState(false);
   const cls = `hq-lyrics${className ? ` ${className}` : ''}`;
 
@@ -100,11 +106,13 @@ export function LyricsPanel({ manage = false, settingsHref, className }: LyricsP
           icon="lyrics"
           title={t('lyrics.notFound')}
           hint={
-            lyrics.online.enabled
-              ? t('lyrics.notFoundOnlineHint')
-              : manage
-                ? t('lyrics.notFoundLocalHint')
-                : t('lyrics.notFoundRemoteHint')
+            live
+              ? t(lyrics.online.enabled ? 'lyrics.liveNotFoundHint' : 'lyrics.liveOnlineOffHint')
+              : lyrics.online.enabled
+                ? t('lyrics.notFoundOnlineHint')
+                : manage
+                  ? t('lyrics.notFoundLocalHint')
+                  : t('lyrics.notFoundRemoteHint')
           }
           action={
             !lyrics.online.enabled && settingsHref ? (

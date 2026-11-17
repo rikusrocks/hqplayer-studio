@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import fastifyStatic, { type FastifyStaticOptions } from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import { API_PREFIX, WS_PROTOCOL, type StudioEvent } from '@hqps/contracts';
+import { API_PREFIX, LIVE_LYRICS_TRACK_ID, WS_PROTOCOL, type StudioEvent } from '@hqps/contracts';
 import type { HQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import type { LibraryContext } from '@hqps/library';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -166,6 +166,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     opts.ctx,
     hub,
     (trackId) => {
+      if (trackId === LIVE_LYRICS_TRACK_ID) return engine.getStatus().track?.source != null;
       if (engine.getStatus().track?.studioTrackId === trackId) return true;
       const q = queue.get();
       return q.currentIndex !== null && q.items[q.currentIndex]?.track.id === trackId;
@@ -219,6 +220,8 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
 
   queue.init();
   appleMusic.init();
+  // Lyrics of the song Apple Music is playing: by title and artist, kept in memory only.
+  lyrics.setLiveTrack(() => appleMusic.liveTrack());
   let detachLog: (() => void) | null = null;
 
   return {

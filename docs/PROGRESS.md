@@ -23,6 +23,10 @@ Implemented:
   · “停止并回到音乐库”：让 Apple Music 暂停，把 Studio 的队列放回 HQPlayer（不自动播放）。
     在音乐库里直接播放别的内容也会自动结束 Apple Music 模式。
 - Studio 自己的队列在此期间原样保留，不会被标成“不一致”；此时往队列里追加 / 跳转会被拒绝并说明原因。
+- 歌词：按曲名和歌手从“设置 → 歌词”里已打开的在线来源查找（Apple Music 自己的歌词读不到），只放在内存里、不写入数据库；
+  校准、手动匹配与音乐库曲目相同。歌曲切换时歌词面板自动重新查找。
+- 队列面板在 Apple Music 模式下显示“开始”之后播放过的歌曲（当前这首在最上）。Apple Music 自己的“待播清单”
+  无法从应用外读取——Windows 只告诉别的程序当前这一首。
 - Studio 不读取、不保存 Apple Music 的任何音频；声音从 Apple Music 应用经虚拟声卡进入 HQPlayer，全程在 Studio 之外。
 - 模拟引擎下整页可以完整演示（明确标注“演示”）。
 
@@ -40,7 +44,9 @@ NOT verified（需要你的电脑）:
 
 Known limitations:
 - 不是逐位精确：Apple Music 的 Windows 应用不会按曲目切换采样率，声音先经 Windows 混音器。
-- 声音比 Apple Music 应用晚一个 HQPlayer 输出延迟（你的设置约 4.4 秒）；选歌、搜索、拖动进度、歌词仍在 Apple Music 应用里。
+- 声音比 Apple Music 应用晚一个 HQPlayer 输出延迟（你的设置约 4.4 秒）；选歌、搜索、拖动进度仍在 Apple Music 应用里。
+- HQPlayer 的输入设备 / 后端不能在 Studio 里改：HQPlayer 的控制接口没有这个命令（只能读取输入列表）。
+- 歌词能否跟着滚动，取决于 Apple Music 是否向 Windows 报告播放位置——尚未在真机上确认。
 - 虚拟声卡要自己安装，HQPlayer 的输入设备要在 HQPlayer 里选——这两步 Studio 做不了，只能带你到对应的地方。
 
 Next:

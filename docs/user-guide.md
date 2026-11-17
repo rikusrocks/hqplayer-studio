@@ -151,8 +151,11 @@ Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打�
 
 如果“开始”不成功，页面上的“上一次开始”会列出 HQPlayer 对每个地址的回答；点“复制给开发者”发回即可（不含曲名和路径）。
 
+歌词与队列：歌词按曲名和歌手从“设置 → 歌词”里已打开的在线来源查找（Apple Music 自己的歌词读不到），只保存在内存里；
+校准和手动匹配与音乐库曲目一样。队列面板显示“开始”之后播放过的歌曲——Apple Music 自己的“待播清单”无法从应用外读取。
+
 限制：不是逐位精确（Apple Music 的 Windows 应用不会按曲目切换采样率）；声音比 Apple Music 应用晚几秒；
-选歌、搜索、拖动进度和歌词仍在 Apple Music 应用里。Studio 不读取、不保存 Apple Music 的音频。
+选歌、搜索、拖动进度仍在 Apple Music 应用里。Studio 不读取、不保存 Apple Music 的音频。
 
 ## English
 
@@ -286,6 +289,9 @@ Studio then shows Apple Music's title, artist, album and cover, and play / pause
 If Start does not work, "Last start" lists what HQPlayer answered for each address; "Copy for the developer" gives a summary
 without titles or paths.
 
+Lyrics and queue: lyrics are looked up by title and artist in the online sources you enabled under Settings → Lyrics (Apple
+Music's own lyrics cannot be read) and are kept in memory only; calibration and manual matching work as for library tracks.
+The queue panel lists the songs played since Start — Apple Music's own Playing Next list cannot be read from outside the app.
+
 Limits: not bit-perfect (the Windows app does not switch sample rate per track); the sound is a few seconds behind the Apple
-Music app; choosing music, search, seeking and lyrics stay in the Apple Music app. Studio never reads or stores Apple Music's
-audio.
+Music app; choosing music, search and seeking stay in the Apple Music app. Studio never reads or stores Apple Music's audio.

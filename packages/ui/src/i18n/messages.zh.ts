@@ -550,6 +550,10 @@ export const zh = {
   'lyrics.loadFailed': '歌词加载失败',
   'lyrics.notInLibrary': '这首歌不在 Studio 音乐库中，无法匹配歌词',
   'lyrics.notFound': '未找到歌词',
+  'lyrics.liveNotFoundHint':
+    '已打开的在线来源里没有这首 Apple Music 歌曲的歌词。可以试试手动搜索。',
+  'lyrics.liveOnlineOffHint':
+    'Apple Music 歌曲的歌词来自在线来源。请在 设置 → 歌词 中开启在线歌词。',
   'lyrics.notFoundLocalHint':
     '把同名的 .lrc 文件放在音乐文件旁边即可显示；也可以在 设置 → 歌词 中开启在线歌词。',
   'lyrics.notFoundOnlineHint': '音乐文件旁、文件标签和已启用的在线歌词来源中都没有这首歌的歌词。',
@@ -861,6 +865,11 @@ export const zh = {
   'queue.sync.live_input': 'HQPlayer 正在播放 Apple Music；你的队列已保留，停止后会回来。',
   'cap.key.input.live': '实时输入（Apple Music）',
   'notice.applemusic_start_failed': 'HQPlayer 无法打开实时输入。Apple Music 页面上有它的回答。',
+  'queue.live.title': 'Apple Music',
+  'queue.live.badge': '实时输入',
+  'queue.live.hint':
+    '这里是“开始”之后播放过的歌曲。Apple Music 自己的“待播清单”无法从应用外读取；上一首 / 下一首仍然可用。',
+  'queue.live.kept': '你的 Studio 队列（{count} 首）已保留，停止后会回来。',
   'am.title': 'Apple Music',
   'am.subtitle': '由 Apple Music 应用播放，HQPlayer 升频',
   'am.simulated': '演示：模拟引擎在假装 Apple Music。这里的任何结果都不代表真实的 HQPlayer。',
@@ -960,7 +969,8 @@ export const zh = {
   'am.limits.protected':
     'Apple Music 的曲目有版权保护，HQPlayer 不能把它们当文件打开。这条路传递的是 Apple Music 应用播放出来的声音。',
   'am.limits.bitperfect': '不是逐位精确：Windows 版应用不会按曲目切换采样率。',
-  'am.limits.browse': '浏览、搜索、拖动进度和歌词仍在 Apple Music 应用里。',
+  'am.limits.browse':
+    '浏览、搜索和拖动进度仍在 Apple Music 应用里，Studio 也看不到 Apple Music 接下来要播放什么。歌词来自“设置 → 歌词”里的在线来源（需要先打开）。',
 } satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof zh;

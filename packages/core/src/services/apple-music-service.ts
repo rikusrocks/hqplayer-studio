@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   isLiveInputUri,
   LIVE_ARTWORK_ID,
+  LIVE_LYRICS_TRACK_ID,
   liveArtworkId,
   type AppleMusicBlock,
   type AppleMusicCheck,
@@ -9,6 +10,7 @@ import {
   type AppleMusicState,
   type EngineStatus,
   type LiveNowPlaying,
+  type LivePlayedSong,
   type TransportAction,
   type UpdateAppleMusicSettingsRequest,
 } from '@hqps/contracts';
@@ -47,6 +49,7 @@ export const DEFAULT_LIVE_URIS = [
 ] as const;
 
 const MAX_CANDIDATES = 6;
+const MAX_HISTORY = 100;
 
 const BLOCK_MESSAGES: Record<AppleMusicBlock, string> = {
   disabled: 'Turn the Apple Music source on first.',
@@ -83,6 +86,9 @@ export class AppleMusicService implements LiveSourceHook {
   private artworkVersion = 0;
   private artworkKey = '';
   private artworkTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The song the played list and the lyrics were last told about. */
+  private songKey = '';
+  private history: LivePlayedSong[] = [];
   private offStatus: (() => void) | null = null;
 
   constructor(
@@ -124,6 +130,7 @@ export class AppleMusicService implements LiveSourceHook {
       blocked: this.blocked(),
       lastStart: this.lastStart,
       setup: this.setup,
+      history: this.history,
     };
   }
 
@@ -339,6 +346,26 @@ export class AppleMusicService implements LiveSourceHook {
   /** The cover Apple Music publishes, for `/artwork/live-apple-music-<n>`. */
   artworkFor(id: string): { data: Buffer; mime: string } | null {
     return LIVE_ARTWORK_ID.test(id) ? this.artwork : null;
+  }
+
+  /** The song the live input is carrying right now, for the lyrics lookup (null when none). */
+  liveTrack(): {
+    key: string;
+    title: string;
+    artist: string;
+    album: string;
+    durationMs: number | null;
+  } | null {
+    if (this.phase !== 'active') return null;
+    const s = this.apple();
+    if (!s || !s.title.trim()) return null;
+    return {
+      key: [s.title, s.artist, s.album].join('\u0001').toLowerCase(),
+      title: s.title,
+      artist: s.artist,
+      album: s.album,
+      durationMs: s.durationMs,
+    };
   }
 
   // --- LiveSourceHook ---------------------------------------------------------------------------
@@ -575,7 +602,39 @@ export class AppleMusicService implements LiveSourceHook {
     if (this.phase === 'active') this.engine.republish();
   }
 
+  /**
+   * Keep the played list in step with the song, and tell lyric views when the song changes.
+   * Apple Music's own "Playing Next" cannot be read from outside the app; the list of what was
+   * played since Start is what Studio can show. It lives in memory only.
+   */
+  private syncSong(): void {
+    if (this.phase !== 'active') {
+      if (this.songKey === '' && this.history.length === 0) return;
+      this.songKey = '';
+      this.history = [];
+      this.hub.publish({ type: 'lyrics.changed', trackId: LIVE_LYRICS_TRACK_ID });
+      return;
+    }
+    const live = this.liveTrack();
+    const key = live?.key ?? '';
+    if (key === this.songKey) return;
+    this.songKey = key;
+    if (live) {
+      this.history = [
+        ...this.history,
+        {
+          title: live.title,
+          artist: live.artist || null,
+          album: live.album || null,
+          startedAt: Date.now(),
+        },
+      ].slice(-MAX_HISTORY);
+    }
+    this.hub.publish({ type: 'lyrics.changed', trackId: LIVE_LYRICS_TRACK_ID });
+  }
+
   private publish(): void {
+    this.syncSong();
     this.hub.publish({ type: 'applemusic.changed', state: this.get() });
   }
 }

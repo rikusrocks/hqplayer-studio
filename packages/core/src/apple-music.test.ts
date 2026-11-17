@@ -1,7 +1,8 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { AppleMusicState, QueueState, StudioEvent } from '@hqps/contracts';
+import type { AppleMusicState, QueueState, StudioEvent, TrackLyrics } from '@hqps/contracts';
+import type { OnlineLyricsProvider, OnlineLyricsQuery } from '@hqps/lyrics';
 import { MockHQPlayerAdapter } from '@hqps/hqplayer-adapter';
 import { openLibrary, seedDemoLibrary, type LibraryContext } from '@hqps/library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -124,7 +125,7 @@ async function api<T = unknown>(method: 'GET' | 'POST', url: string, payload?: u
   };
 }
 
-async function boot(liveInputs?: string[]) {
+async function boot(liveInputs?: string[], providers?: OnlineLyricsProvider[]) {
   booted = true;
   dir = mkdtempSync(join(tmpdir(), 'hqps-am-'));
   ctx = openLibrary(dir);
@@ -140,6 +141,7 @@ async function boot(liveInputs?: string[]) {
     engine: { commandTimeoutMs: 500, reconnectMinMs: 20, reconnectMaxMs: 50 },
     queue: { settleMs: 0 },
     appleMusic: { media },
+    ...(providers ? { lyrics: { providers } } : {}),
   });
   events = [];
   server.hub.subscribe((e) => events.push(e));
@@ -425,6 +427,148 @@ describe('Apple Music through a live input', () => {
     await vi.waitFor(() => expect(status().track?.source).toBe('apple-music'));
     expect((await api<QueueState>('GET', '/queue')).body.sync.code).toBe('live_input');
   });
+
+  it('lists the songs played since Start instead of a queue', { timeout: 20_000 }, async () => {
+    await boot();
+    await enable();
+    expect((await api<AppleMusicState>('GET', '/apple-music')).body.history).toEqual([]);
+    await api('POST', '/apple-music/start');
+    const first = (await api<AppleMusicState>('GET', '/apple-music')).body.history;
+    expect(first.map((h) => h.title)).toEqual(['Private Title']);
+
+    await api('POST', '/engine/transport', { action: 'next' });
+    // pausing or a cover arriving is not a new song
+    await api('POST', '/engine/transport', { action: 'pause' });
+    const second = (await api<AppleMusicState>('GET', '/apple-music')).body.history;
+    expect(second.map((h) => h.title)).toEqual(['Private Title', 'Next Private Title']);
+    expect(second[1]).toMatchObject({ artist: 'Private Artist', album: 'Private Album' });
+
+    // it is this session's list only: gone after Stop, and never written to the database
+    await api('POST', '/apple-music/stop');
+    expect((await api<AppleMusicState>('GET', '/apple-music')).body.history).toEqual([]);
+    expect(JSON.stringify(ctx.settings.get('appleMusic.lastUri', null))).not.toContain('Private');
+  });
+
+  it(
+    'finds lyrics for the Apple Music song by title and artist, in memory only',
+    { timeout: 20_000 },
+    async () => {
+      const asked: OnlineLyricsQuery[] = [];
+      const provider: OnlineLyricsProvider = {
+        id: 'netease',
+        blockedForMs: () => 0,
+        async find(q) {
+          asked.push(q);
+          return q.trackName === 'Private Title'
+            ? {
+                synced: '[00:01.00]first line\n[00:05.00]second line',
+                plain: null,
+                instrumental: false,
+              }
+            : null;
+        },
+        async search() {
+          return [
+            {
+              provider: 'netease',
+              ref: 'r1',
+              trackName: 'Next Private Title',
+              artistName: 'Private Artist',
+              albumName: '',
+              durationSec: null,
+              synced: false,
+              instrumental: false,
+              lyrics: null,
+            },
+          ];
+        },
+        async fetch() {
+          return { synced: null, plain: 'picked by hand', instrumental: false };
+        },
+      };
+      await boot(undefined, [provider]);
+      await api('POST', '/settings/lyrics', { online: true, providers: ['netease'] });
+      await enable();
+
+      // nothing is playing through the live input yet
+      expect((await api('GET', '/tracks/live-apple-music/lyrics')).status).toBe(404);
+
+      await api('POST', '/apple-music/start');
+      const found = await api<TrackLyrics>('GET', '/tracks/live-apple-music/lyrics');
+      expect(found.body).toMatchObject({ state: 'found', source: 'netease', kind: 'synced' });
+      expect(found.body.lines.map((l) => l.text)).toEqual(['first line', 'second line']);
+      expect(asked).toEqual([
+        {
+          trackName: 'Private Title',
+          artistName: 'Private Artist',
+          albumName: 'Private Album',
+          durationSec: 200,
+        },
+      ]);
+      // asked once per song, calibrated per song
+      await api('GET', '/tracks/live-apple-music/lyrics');
+      expect(asked).toHaveLength(1);
+      const offset = await api<TrackLyrics>('POST', '/tracks/live-apple-music/lyrics/offset', {
+        offsetMs: 1500,
+      });
+      expect(offset.body.offsetMs).toBe(1500);
+
+      // the next song starts over (and lyric views are told to refetch)
+      events.length = 0;
+      await api('POST', '/engine/transport', { action: 'next' });
+      expect(
+        events.some((e) => e.type === 'lyrics.changed' && e.trackId === 'live-apple-music'),
+      ).toBe(true);
+      const next = await api<TrackLyrics>('GET', '/tracks/live-apple-music/lyrics');
+      expect(next.body).toMatchObject({ state: 'not_found', offsetMs: 0 });
+      // manual matching works like for a library track
+      const picked = await api<TrackLyrics>('POST', '/tracks/live-apple-music/lyrics/select', {
+        provider: 'netease',
+        ref: 'r1',
+      });
+      expect(picked.body).toMatchObject({ state: 'found', kind: 'plain', selectedByUser: true });
+
+      // going back to the first song brings its lyrics and calibration back without asking again
+      await api('POST', '/apple-music/control', { action: 'previous' });
+      media.session!.title = 'Private Title';
+      media.emit();
+      const back = await api<TrackLyrics>('GET', '/tracks/live-apple-music/lyrics');
+      expect(back.body).toMatchObject({ state: 'found', kind: 'synced', offsetMs: 1500 });
+      expect(asked.filter((q) => q.trackName === 'Private Title')).toHaveLength(1);
+
+      // nothing about the live songs is stored in the database
+      expect(ctx.lyrics.get('live-apple-music')).toBeNull();
+      expect(ctx.lyrics.counts().netease ?? 0).toBe(0);
+    },
+  );
+
+  it(
+    'does not ask a lyrics site unless online lyrics are turned on',
+    { timeout: 20_000 },
+    async () => {
+      let asked = 0;
+      const provider: OnlineLyricsProvider = {
+        id: 'netease',
+        blockedForMs: () => 0,
+        async find() {
+          asked += 1;
+          return null;
+        },
+        async search() {
+          return [];
+        },
+        async fetch() {
+          return null;
+        },
+      };
+      await boot(undefined, [provider]);
+      await enable();
+      await api('POST', '/apple-music/start');
+      const res = await api<TrackLyrics>('GET', '/tracks/live-apple-music/lyrics');
+      expect(res.body).toMatchObject({ state: 'not_found', online: { enabled: false } });
+      expect(asked).toBe(0);
+    },
+  );
 
   it('keeps the simulated source clearly marked', { timeout: 20_000 }, async () => {
     booted = true;
