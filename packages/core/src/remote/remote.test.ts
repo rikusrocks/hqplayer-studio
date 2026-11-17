@@ -409,6 +409,11 @@ describe('Web Remote LAN listener', () => {
       ['GET', '/maintenance/soak'],
       ['POST', '/maintenance/soak/start'],
       ['POST', '/maintenance/soak/stop'],
+      // DSP presets are changed from this computer only (like DSP itself)
+      ['GET', '/engine/dsp/presets'],
+      ['POST', '/engine/dsp/presets'],
+      ['DELETE', '/engine/dsp/presets/x'],
+      ['POST', '/engine/dsp/presets/x/apply'],
     ] as const) {
       const r = await lan(method, url, {
         token,

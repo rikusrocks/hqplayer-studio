@@ -1,5 +1,13 @@
-import type { DspChange, DspState, EngineSettings } from '@hqps/contracts';
-import { Icon, Spinner, useAsync, useCapabilityGate, useI18n, useStudio } from '@hqps/ui';
+import type { DspChange, DspPreset, DspState, EngineSettings } from '@hqps/contracts';
+import {
+  Icon,
+  Spinner,
+  useAsync,
+  useCapabilityGate,
+  useDialogs,
+  useI18n,
+  useStudio,
+} from '@hqps/ui';
 import { useEffect, useState } from 'react';
 import { BlockHead } from './SettingsSections';
 
@@ -187,9 +195,147 @@ export function DspControls() {
           </div>
         </div>
       )}
+      {state && (
+        <DspPresets
+          canApply={!disabled && busy === null}
+          applyReason={writeReason}
+          onApplied={(next) => setState(next)}
+          onFailed={() => setTick((n) => n + 1)}
+        />
+      )}
       <p className="hint hq-muted">{t('dsp.notHere')}</p>
     </div>
   );
+}
+
+/** Save the current selections under a name; apply / delete saved ones (D-041). */
+function DspPresets({
+  canApply,
+  applyReason,
+  onApplied,
+  onFailed,
+}: {
+  canApply: boolean;
+  applyReason: string | null;
+  onApplied: (state: DspState) => void;
+  onFailed: () => void;
+}) {
+  const { t } = useI18n();
+  const { client, run } = useStudio();
+  const { prompt, confirm } = useDialogs();
+  const loaded = useAsync(() => client.engine.dspPresets(), [client]);
+  const [presets, setPresets] = useState<DspPreset[] | null>(null);
+  const [chosen, setChosen] = useState('');
+  const [busy, setBusy] = useState(false);
+  const list = presets ?? loaded.data?.presets ?? [];
+  const current = list.find((p) => p.id === chosen) ?? list[0] ?? null;
+
+  const save = async () => {
+    const name = await prompt({
+      title: t('dsp.presets.saveTitle'),
+      label: t('dsp.presets.name'),
+      confirmLabel: t('dsp.presets.save'),
+    });
+    if (!name?.trim()) return;
+    setBusy(true);
+    const res = await run(() => client.engine.saveDspPreset(name.trim()), {
+      success: t('dsp.presets.saved', { name: name.trim() }),
+    });
+    setBusy(false);
+    if (res) {
+      setPresets(res.presets);
+      setChosen(res.presets.find((p) => p.name === name.trim())?.id ?? '');
+    }
+  };
+  const apply = async () => {
+    if (!current) return;
+    setBusy(true);
+    const next = await run(() => client.engine.applyDspPreset(current.id), {
+      success: t('dsp.presets.applied', { name: current.name }),
+    });
+    setBusy(false);
+    if (next) onApplied(next);
+    else onFailed();
+  };
+  const remove = async () => {
+    if (!current) return;
+    const ok = await confirm({
+      title: t('dsp.presets.deleteTitle'),
+      message: t('dsp.presets.deleteConfirm', { name: current.name }),
+      confirmLabel: t('dsp.presets.delete'),
+      danger: true,
+    });
+    if (!ok) return;
+    const res = await run(() => client.engine.deleteDspPreset(current.id));
+    if (res) {
+      setPresets(res.presets);
+      setChosen('');
+    }
+  };
+
+  return (
+    <div className="dsp-presets">
+      <h4>{t('dsp.presets.title')}</h4>
+      <p className="hint hq-muted">{t('dsp.presets.hint')}</p>
+      <div className="button-row">
+        {list.length > 0 && (
+          <>
+            <select
+              className="hq-input"
+              value={current?.id ?? ''}
+              onChange={(e) => setChosen(e.target.value)}
+              aria-label={t('dsp.presets.title')}
+            >
+              {list.map((p) => (
+                <option key={p.id} value={p.id} title={presetSummary(p, t)}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="hq-btn hq-btn--primary"
+              disabled={!canApply || busy || !current}
+              title={applyReason ?? undefined}
+              onClick={() => void apply()}
+            >
+              {busy ? <Spinner size={14} /> : <Icon name="check" size={14} />}
+              {t('dsp.presets.apply')}
+            </button>
+            <button
+              type="button"
+              className="hq-btn"
+              disabled={busy || !current}
+              onClick={() => void remove()}
+            >
+              <Icon name="trash" size={14} />
+              {t('dsp.presets.delete')}
+            </button>
+          </>
+        )}
+        <button type="button" className="hq-btn" disabled={busy} onClick={() => void save()}>
+          <Icon name="plus" size={14} />
+          {t('dsp.presets.saveCurrent')}
+        </button>
+      </div>
+      {current && <p className="hint hq-muted">{presetSummary(current, t)}</p>}
+    </div>
+  );
+}
+
+function presetSummary(p: DspPreset, t: T): string {
+  const v = p.values;
+  return [
+    v.mode === null ? null : modeLabel(v.mode, t),
+    v.filter1x === null ? null : `1x ${v.filter1x}`,
+    v.filterNx === null ? null : `Nx ${v.filterNx}`,
+    v.shaper,
+    v.rate === null ? null : rateLabel(v.rate, t),
+    v.invert ? t('dsp.invert') : null,
+    v.adaptiveVolume ? t('dsp.adaptiveVolume') : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 type T = ReturnType<typeof useI18n>['t'];

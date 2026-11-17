@@ -26,6 +26,7 @@ import { LyricsService, type LyricsServiceOptions } from './services/lyrics-serv
 import { QueueService, type QueueServiceOptions } from './services/queue-service';
 import { BackupService, type BackupServiceOptions } from './services/backup-service';
 import { SoakRecorder, type SoakRecorderOptions } from './services/soak-recorder';
+import { DspPresetService } from './services/dsp-presets';
 import { attachActivityLog } from './logging/activity-log';
 import { nullLog, type StudioLog } from './logging/studio-log';
 
@@ -84,6 +85,7 @@ export interface StudioServices {
   covers: CoverService;
   backups: BackupService;
   soak: SoakRecorder;
+  dspPresets: DspPresetService;
   log: StudioLog;
   ctx: LibraryContext;
 }
@@ -188,6 +190,7 @@ export async function createStudioServer(opts: StudioServerOptions): Promise<Stu
     covers,
     backups,
     soak,
+    dspPresets: new DspPresetService(engine, opts.ctx.settings, log),
     log,
     ctx: opts.ctx,
   };

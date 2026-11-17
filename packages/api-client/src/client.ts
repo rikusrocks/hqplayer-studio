@@ -12,6 +12,7 @@ import {
   CoverCandidateSchema,
   CoverSettingsSchema,
   DspStateSchema,
+  DspPresetListSchema,
   type DspChange,
   EngineCapabilitiesSchema,
   EngineCommandResultSchema,
@@ -197,6 +198,11 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       dsp: () => get(DspStateSchema, '/engine/dsp'),
       /** Change DSP selections (list indexes from `dsp()`); needs both switches on. */
       setDsp: (change: DspChange) => post(DspStateSchema, '/engine/dsp', change),
+      /** Named DSP presets (this computer only). */
+      dspPresets: () => get(DspPresetListSchema, '/engine/dsp/presets'),
+      saveDspPreset: (name: string) => post(DspPresetListSchema, '/engine/dsp/presets', { name }),
+      deleteDspPreset: (id: string) => del(DspPresetListSchema, `/engine/dsp/presets/${enc(id)}`),
+      applyDspPreset: (id: string) => post(DspStateSchema, `/engine/dsp/presets/${enc(id)}/apply`),
       /** HQPlayer's own playlist, read-only. */
       queue: () => get(EngineQueueSchema, '/engine/queue'),
       /** Privacy-safe diagnostics (this computer only): status + recent HQPlayer conversation. */

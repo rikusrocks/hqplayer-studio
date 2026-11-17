@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs';
 import {
   API_PREFIX,
   API_VERSION,
+  CreateDspPresetRequestSchema,
   DspChangeSchema,
   AddLibraryRootRequestSchema,
   AddPlaylistItemsRequestSchema,
@@ -303,6 +304,21 @@ export function registerApiRoutes(app: FastifyInstance, s: StudioServices): void
           });
           return state;
         });
+
+        // DSP presets (named sets of selections, applied through the same checked path)
+        api.get('/engine/dsp/presets', async () => ({ presets: s.dspPresets.list() }));
+        api.post('/engine/dsp/presets', async (req, reply) => {
+          const { name } = body(CreateDspPresetRequestSchema, req);
+          await s.dspPresets.saveCurrent(name);
+          void reply.status(201);
+          return { presets: s.dspPresets.list() };
+        });
+        api.delete('/engine/dsp/presets/:id', async (req) => ({
+          presets: s.dspPresets.remove(IdParams.parse(req.params).id),
+        }));
+        api.post('/engine/dsp/presets/:id/apply', async (req) =>
+          s.dspPresets.apply(IdParams.parse(req.params).id),
+        );
 
         api.post('/engine/mock', async (req) => {
           const adapter = engine.adapter;

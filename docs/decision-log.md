@@ -276,3 +276,10 @@ Format: problem · options · choice · why · risk · cost of reversing.
 - **Verdict:** `clean` / `issues-without-studio-activity` / `issues-with-studio-activity`. Totals include playing time, playing-while-scanning time, status rate and largest interval, transport / track changes split into studio / natural / external, per-format playing time, and one sample per minute (RSS, heap, CPU %, max loop delay).
 - **Privacy:** the report holds track numbers, durations, states, output format labels and timings — never titles, artists, albums, file names, paths, computer or user names (asserted in tests). Written every minute to `soak-reports/soak-<UTC>.json` (newest 20 kept); a run in progress when Studio quits is saved as `app-quit`.
 - **Limits:** the recorder sees what HQPlayer reports; an audible click without any status change is invisible to it — the user's notes with times complete the picture. **Reversal cost:** low.
+
+## D-041 DSP presets: stored by name, applied mode-first, all-or-nothing — 2026-11-17
+
+- **Request:** v0.4.0 left "presets (switch a set of DSP settings at once)" open; Phase 5 lists it as optional.
+- **Choice:** `DspPresetService` (Core), presets in `app_settings` (`dsp.presets`, at most 20) — no schema change. A preset stores the **names** of mode, 1x / Nx filter and modulator / noise shaping, the output rate in Hz, invert and adaptive volume, as read from HQPlayer when saved (indexes would silently point at another filter if HQPlayer's lists change).
+- **Apply** goes through the verified `setDsp` path (D-036): read the lists, switch the mode first if needed (the other lists depend on it), resolve every remaining name in the new mode's lists, then send only what differs in one change and read it back. If any item is missing, nothing else is sent and the mode is switched back (HQPlayer remembers selections per mode), so a refused preset leaves HQPlayer as it was; the error names the missing items.
+- **Gates:** saving only reads (`dsp.read`); applying needs both switches (`dsp.write`). Routes live on the loopback app only, like DSP changes. **Reversal cost:** low.

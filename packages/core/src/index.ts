@@ -14,3 +14,4 @@ export * from './services/soak-recorder';
 export * from './logging/studio-log';
 export * from './logging/redact';
 export * from './logging/crash-handlers';
+export * from './services/dsp-presets';

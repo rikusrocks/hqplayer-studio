@@ -1550,3 +1550,21 @@ body.is-mini {
   font-size: var(--fs-sm);
   margin-bottom: 6px;
 }
+.dsp-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.dsp-presets h4 {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.dsp-presets p {
+  margin: 0;
+}
+.dsp-presets select {
+  min-width: 180px;
+  max-width: 100%;
+}

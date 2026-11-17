@@ -71,6 +71,10 @@ HQPlayer Studio 是 **HQPlayer Desktop 6** 的第三方音乐库、播放列表�
 滤波器、调制器 / 噪声整形、输出采样率、反相和自适应音量。每次更改都会从 HQPlayer 读回确认。播放中更改会有短暂中断，
 约 5 秒内生效。输出设备、缓冲、卷积、矩阵、CUDA 等只能在 HQPlayer 自己的设置窗口里改。
 
+**预设**：同一页下方“把当前设置存为预设…”，起个名字（例如“DSD512 夜间”）；以后选中它点“应用”就会一次切换模式、滤波器、
+调制器、采样率、反相和自适应音量。如果 HQPlayer 里已经没有预设中的某个滤波器或采样率，Studio 会说明是哪一项，
+不会改动任何设置。
+
 ### 8. 数据备份与恢复
 
 **设置 → 常规 → 数据备份**
@@ -188,6 +192,9 @@ and type the 6-digit pairing code. Devices can be unpaired at any time. Phones n
 With control allowed, turn on "Allow Studio to change HQPlayer DSP settings" in **Settings → DSP** to change mode, 1x / Nx
 filters, modulator / noise shaping, output rate, invert and adaptive volume. Every change is read back from HQPlayer. Output
 device, buffers, convolution, matrix and CUDA stay in HQPlayer's own settings.
+
+**Presets**: "Save current settings as preset…" stores mode, filters, modulator, rate, invert and adaptive volume under a name;
+"Apply" switches them in one go. If HQPlayer no longer offers an item of the preset, Studio names it and changes nothing.
 
 ### 8. Backups and restore
 
