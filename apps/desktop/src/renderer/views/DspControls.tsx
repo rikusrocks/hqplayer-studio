@@ -9,7 +9,7 @@ import {
   useStudio,
 } from '@hqps/ui';
 import { useEffect, useState } from 'react';
-import { BlockHead } from './SettingsSections';
+import { BlockHead, Switch } from './SettingsSections';
 
 /**
  * Change HQPlayer's DSP selections from Studio (DSP gate verified, 2026-11-17): mode, 1x / Nx
@@ -121,23 +121,13 @@ export function DspControls() {
   return (
     <div className="settings-block">
       <BlockHead title={t('dsp.title')} layer="control" />
-      <label
-        className={`engine-option engine-control${settings?.allowControl ? '' : ' is-disabled'}`}
-      >
-        <input
-          type="checkbox"
-          role="switch"
-          checked={Boolean(settings?.allowDsp)}
-          disabled={!settings?.allowControl || busy !== null}
-          onChange={(e) => void toggleAllowed(e.target.checked)}
-        />
-        <span>
-          <strong>{t('dsp.allow')}</strong>
-          <span className="hint">
-            {settings?.allowControl ? t('dsp.allowHint') : t('dsp.needsControl')}
-          </span>
-        </span>
-      </label>
+      <Switch
+        checked={Boolean(settings?.allowDsp)}
+        disabled={!settings?.allowControl || busy !== null}
+        onChange={(v) => void toggleAllowed(v)}
+        title={t('dsp.allow')}
+        hint={settings?.allowControl ? t('dsp.allowHint') : t('dsp.needsControl')}
+      />
       {settings?.allowDsp && status.transport === 'playing' && (
         <p className="hint dsp-note">
           <Icon name="info" size={14} /> {t('dsp.whilePlaying')}
@@ -203,7 +193,6 @@ export function DspControls() {
           onFailed={() => setTick((n) => n + 1)}
         />
       )}
-      <p className="hint hq-muted">{t('dsp.notHere')}</p>
     </div>
   );
 }
@@ -275,8 +264,7 @@ function DspPresets({
 
   return (
     <div className="dsp-presets">
-      <h4>{t('dsp.presets.title')}</h4>
-      <p className="hint hq-muted">{t('dsp.presets.hint')}</p>
+      <h4 title={t('dsp.presets.hint')}>{t('dsp.presets.title')}</h4>
       <div className="button-row">
         {list.length > 0 && (
           <>

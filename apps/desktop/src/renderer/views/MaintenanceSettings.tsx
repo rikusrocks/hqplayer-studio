@@ -100,7 +100,6 @@ export function BackupSettings() {
   return (
     <div className="settings-block">
       <BlockHead title={t('maint.backup.title')} layer="studio" />
-      <p className="hint">{t('maint.backup.hint')}</p>
       <div className="kv">
         <span>{t('maint.backup.schema')}</span>
         <strong>
@@ -212,8 +211,7 @@ export function LogsCard() {
   const info: LogInfo | null = loaded.data ?? null;
   return (
     <div className="settings-block">
-      <h3>{t('maint.logs.title')}</h3>
-      <p className="hint">{t('maint.logs.hint')}</p>
+      <h3 title={t('maint.logs.hint')}>{t('maint.logs.title')}</h3>
       {!info ? (
         loaded.error ? (
           <ErrorBlock error={loaded.error} />
@@ -319,8 +317,7 @@ export function SoakTestCard() {
   const dur = (ms: number) => formatDuration(ms);
   return (
     <div className="settings-block">
-      <h3>{t('maint.soak.title')}</h3>
-      <p className="hint">{t('maint.soak.hint')}</p>
+      <h3 title={t('maint.soak.hint')}>{t('maint.soak.title')}</h3>
       {soak?.running ? (
         <>
           <div className="kv">

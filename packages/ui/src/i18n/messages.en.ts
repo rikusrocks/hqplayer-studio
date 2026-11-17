@@ -2,7 +2,7 @@ import type { MessageKey } from './messages.zh';
 
 /** English. TypeScript enforces the exact same key set as messages.zh.ts. */
 export const en: Record<MessageKey, string> = {
-  'app.name': 'HQPlayer Studio',
+  'app.name': 'HQP Studio',
   'app.disclaimer': 'Third-party client — not affiliated with Signalyst / HQPlayer',
 
   'nav.home': 'Home',
@@ -251,6 +251,21 @@ export const en: Record<MessageKey, string> = {
   'settings.theme': 'Theme',
   'settings.theme.dark': 'Dark',
   'settings.theme.light': 'Light',
+  'sidebar.minimise': 'Minimise sidebar',
+  'sidebar.expand': 'Expand sidebar',
+  'sidebar.showAll': 'Show full menu',
+  'sidebar.resize': 'Drag to resize',
+  'peek.playSelected': 'Play {count}',
+  'peek.next': 'Next',
+  'peek.queue': 'Queue',
+  'peek.playlist': 'Playlist',
+  'peek.clear': 'Clear',
+  'settings.theme.cobalt': 'Cobalt',
+  'settings.theme.citrus': 'Citrus',
+  'settings.theme.poppy': 'Poppy',
+  'settings.theme.pine': 'Pine',
+  'settings.theme.plum': 'Plum',
+  'settings.theme.ocean': 'Ocean',
   'settings.roots': 'Music folders',
   'settings.addRoot': 'Add folder',
   'settings.rootPlaceholder': 'e.g. D:\\Music or \\\\NAS\\music',
@@ -519,7 +534,7 @@ export const en: Record<MessageKey, string> = {
 
   'remote.title': 'Studio Remote',
   'remote.offline':
-    'Cannot reach the Studio server. Make sure the Windows PC is on and HQPlayer Studio is running.',
+    'Cannot reach the Studio server. Make sure the Windows PC is on and HQP Studio is running.',
   'remote.noAudio':
     'This page never plays audio itself — sound always comes from HQPlayer on Windows.',
   'remote.settings': 'Settings & connection',
@@ -529,7 +544,7 @@ export const en: Record<MessageKey, string> = {
   'remote.unpair': 'Unpair this device',
   'remote.unpairTitle': 'Unpair this device?',
   'remote.unpairMessage': 'You will need a new pairing code from the computer to use it again.',
-  'pair.title': 'Connect to HQPlayer Studio',
+  'pair.title': 'Connect to HQP Studio',
   'pair.intro':
     'On the computer, open Studio → Settings → Web Remote, click “Create pairing code”, then enter the 6 digits here.',
   'pair.code': 'Pairing code',
@@ -639,7 +654,7 @@ export const en: Record<MessageKey, string> = {
     'Windows’ volume overlay and lock screen will not show Studio as “now playing”: HQPlayer outputs the sound, Studio itself plays no audio.',
   'settings.tray': 'Show an icon in the notification area',
   'settings.trayHint':
-    'Right-click the icon for Play/Pause, Previous, Next, Mini Player, Show HQPlayer Studio and Quit. Click it to open the main window.',
+    'Right-click the icon for Play/Pause, Previous, Next, Mini Player, Show HQP Studio and Quit. Click it to open the main window.',
   'settings.closeToTray': 'Keep running when the main window is closed',
   'settings.closeToTrayHint':
     'The Web Remote and media keys keep working after you close the window; quit Studio from the tray icon’s menu.',

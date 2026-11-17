@@ -1,5 +1,4 @@
 import {
-  AlbumCard,
   AlbumGrid,
   Artwork,
   EmptyState,
@@ -11,6 +10,7 @@ import {
   useI18n,
   useStudio,
 } from '@hqps/ui';
+import { AlbumTile } from './AlbumTile';
 import { Section, ViewHeader } from './common';
 
 export function SearchView({ query }: { query: string }) {
@@ -27,7 +27,7 @@ export function SearchView({ query }: { query: string }) {
     return { albums, artists, tracks };
   }, [client, q, libraryVersion]);
 
-  if (!q) return <EmptyState icon="search" title={t('nav.search')} hint={t('search.hint')} />;
+  if (!q) return <EmptyState icon="search" title={t('nav.search')} />;
 
   return (
     <div className="view">
@@ -44,8 +44,8 @@ export function SearchView({ query }: { query: string }) {
           {results.data.albums.items.length > 0 && (
             <Section title={`${t('search.albums')} (${results.data.albums.total})`}>
               <AlbumGrid dense>
-                {results.data.albums.items.map((a) => (
-                  <AlbumCard key={a.id} album={a} href={buildHref('/albums', a.id)} />
+                {results.data.albums.items.map((a, i) => (
+                  <AlbumTile key={a.id} album={a} index={i} />
                 ))}
               </AlbumGrid>
             </Section>

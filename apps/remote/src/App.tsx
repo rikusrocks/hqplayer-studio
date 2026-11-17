@@ -1,4 +1,5 @@
 import {
+  BrandMark,
   ConnectionBadge,
   Icon,
   MockBadge,
@@ -65,7 +66,7 @@ export function App() {
       <header className="rm-header">
         <div className="rm-header__title">
           <span className="rm-logo" aria-hidden="true">
-            <Icon name="wave" size={16} />
+            <BrandMark size={20} />
           </span>
           {t('remote.title')}
         </div>

@@ -1,6 +1,5 @@
 import type { AlbumSort } from '@hqps/contracts';
 import {
-  AlbumCard,
   AlbumGrid,
   EmptyState,
   ErrorBlock,
@@ -16,6 +15,7 @@ import {
   useStudio,
 } from '@hqps/ui';
 import { useState } from 'react';
+import { AlbumTile } from './AlbumTile';
 import { ViewHeader } from './common';
 
 const SORTS: AlbumSort[] = ['artist', 'title', 'year', 'added'];
@@ -77,8 +77,8 @@ export function AlbumsView() {
       ) : (
         <>
           <AlbumGrid>
-            {albums.items.map((a) => (
-              <AlbumCard key={a.id} album={a} href={buildHref('/albums', a.id)} />
+            {albums.items.map((a, i) => (
+              <AlbumTile key={a.id} album={a} index={i % 24} />
             ))}
           </AlbumGrid>
           {albums.hasMore && (

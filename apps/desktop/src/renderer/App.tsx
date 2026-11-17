@@ -1,10 +1,9 @@
 import { matchRoute, useHashRoute, useI18n, type HashRoute } from '@hqps/ui';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { getShell } from './shell';
 import { PlayerBar } from './layout/PlayerBar';
 import { SidePanel } from './layout/SidePanel';
-import { Sidebar } from './layout/Sidebar';
-import { StatusBar } from './layout/StatusBar';
+import { Sidebar, useSidebar } from './layout/Sidebar';
 import { TopBar } from './layout/TopBar';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { AlbumDetailView } from './views/AlbumDetailView';
@@ -21,6 +20,8 @@ import { SettingsView } from './views/SettingsView';
 import { TracksView } from './views/TracksView';
 
 const PANEL_KEY = 'hqps.desktop.panel';
+/** Width of the side panel (queue / lyrics); the desktop window grows by this much for it. */
+const PANEL_WIDTH = 344;
 
 function readPanelOpen(): boolean {
   try {
@@ -60,35 +61,62 @@ export function App() {
   const route = useHashRoute('/');
   const [panelOpen, setPanelOpen] = useState(readPanelOpen);
   const { locale } = useI18n();
+  const sidebar = useSidebar();
   useKeyboardShortcuts();
   // The tray menu (main process) speaks the UI's language.
   useEffect(() => getShell()?.setLocale(locale), [locale]);
 
-  if (route.segments[0] === 'mini') return <MiniPlayer />;
+  const isMini = route.segments[0] === 'mini';
+  // Launched with the panel open: the window was restored without it, so extend it once.
+  useEffect(() => {
+    if (!isMini && readPanelOpen()) void getShell()?.setSidePanel(true, PANEL_WIDTH);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only at start
+  }, []);
 
+  if (isMini) return <MiniPlayer />;
+
+  /**
+   * The panel is appended to the window's right edge, never laid over the content: in the
+   * desktop app the window itself grows (first, so the content does not jump), in a browser
+   * tab or a maximized window the content makes room.
+   */
   const togglePanel = () => {
-    setPanelOpen((open) => {
-      try {
-        globalThis.localStorage?.setItem(PANEL_KEY, open ? '0' : '1');
-      } catch {
-        // ignore
-      }
-      return !open;
-    });
+    const next = !panelOpen;
+    try {
+      globalThis.localStorage?.setItem(PANEL_KEY, next ? '1' : '0');
+    } catch {
+      // ignore
+    }
+    const shell = getShell();
+    if (!shell) {
+      setPanelOpen(next);
+    } else if (next) {
+      void shell
+        .setSidePanel(true, PANEL_WIDTH)
+        .catch(() => false)
+        .then(() => setPanelOpen(true));
+    } else {
+      setPanelOpen(false);
+      void shell.setSidePanel(false, PANEL_WIDTH);
+    }
   };
 
   return (
-    <div className={`app${panelOpen ? ' app--panel' : ''}`}>
-      <Sidebar route={route} />
+    <div
+      className={`app${panelOpen ? ' app--panel' : ''}${sidebar.dragging ? ' is-resizing' : ''}`}
+      style={
+        { '--sidebar-w': `${sidebar.width}px`, '--panel-w': `${PANEL_WIDTH}px` } as CSSProperties
+      }
+    >
+      <Sidebar route={route} state={sidebar} />
       <main className="app__main">
-        <TopBar route={route} panelOpen={panelOpen} onTogglePanel={togglePanel} />
+        <TopBar route={route} />
         <div className="app__content" key={route.path}>
           {renderRoute(route)}
         </div>
       </main>
       {panelOpen && <SidePanel onClose={togglePanel} />}
       <PlayerBar panelOpen={panelOpen} onTogglePanel={togglePanel} />
-      <StatusBar />
     </div>
   );
 }

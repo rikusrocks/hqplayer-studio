@@ -4,9 +4,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   fitToDisplays,
+  growForPanel,
   loadWindowState,
   restoreBounds,
   saveWindowState,
+  shrinkAfterPanel,
   validateBounds,
 } from './window-state';
 
@@ -88,6 +90,44 @@ describe('restoreBounds', () => {
     ).toBeUndefined();
     expect(restoreBounds({ x: 0, y: 0, width: 50, height: 20 }, [primary], 'main')).toBeUndefined();
     expect(restoreBounds(undefined, [primary], 'mini')).toBeUndefined();
+  });
+});
+
+describe('side panel growth', () => {
+  const area = { x: 0, y: 0, width: 1920, height: 1040 };
+
+  it('extends the window to the right when there is room', () => {
+    const win = { x: 100, y: 50, width: 1280, height: 820 };
+    const { bounds, growth } = growForPanel(win, 344, area);
+    expect(bounds).toEqual({ x: 100, y: 50, width: 1624, height: 820 });
+    expect(growth).toEqual({ width: 344, shift: 0 });
+    expect(shrinkAfterPanel(bounds, growth)).toEqual(win);
+  });
+
+  it('slides left when the right edge of the screen is in the way', () => {
+    const win = { x: 600, y: 50, width: 1280, height: 820 }; // 40 px free on the right
+    const { bounds, growth } = growForPanel(win, 344, area);
+    expect(bounds).toEqual({ x: 296, y: 50, width: 1624, height: 820 });
+    expect(growth).toEqual({ width: 344, shift: 304 });
+    expect(shrinkAfterPanel(bounds, growth)).toEqual(win);
+  });
+
+  it('grows only as far as the screen allows', () => {
+    const win = { x: 100, y: 0, width: 1700, height: 900 }; // 120 right + 100 left = 220 < 344
+    const { bounds, growth } = growForPanel(win, 344, area);
+    expect(bounds).toEqual({ x: 0, y: 0, width: 1920, height: 900 });
+    expect(growth).toEqual({ width: 220, shift: 100 });
+    expect(shrinkAfterPanel(bounds, growth)).toEqual(win);
+  });
+
+  it('works on a display that does not start at 0,0 and never shrinks below the minimum', () => {
+    const leftScreen = { x: -1920, y: 0, width: 1920, height: 1040 };
+    const win = { x: -1000, y: 20, width: 900, height: 700 };
+    const { bounds, growth } = growForPanel(win, 344, leftScreen);
+    expect(bounds).toEqual({ x: -1244, y: 20, width: 1244, height: 700 });
+    expect(growth).toEqual({ width: 344, shift: 244 });
+    // the user dragged the window narrower while the panel was open
+    expect(shrinkAfterPanel({ ...bounds, width: 1000 }, growth, 720).width).toBe(720);
   });
 });
 

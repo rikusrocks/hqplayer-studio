@@ -67,3 +67,36 @@ export function Section({
     </section>
   );
 }
+
+/** Click-to-pick options; replaces a select box for short lists. */
+export function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+  disabled,
+}: {
+  value: T;
+  options: Array<{ id: T; label: string }>;
+  onChange: (next: T) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="hq-seg" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={o.id === value}
+          disabled={disabled}
+          className={`hq-seg__opt${o.id === value ? ' is-active' : ''}`}
+          onClick={() => o.id !== value && onChange(o.id)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
