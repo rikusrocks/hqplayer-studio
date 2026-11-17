@@ -169,7 +169,7 @@ export function Sidebar({ route, state }: { route: HashRoute; state: SidebarStat
 
   const settingsActive = isActive(route, '/settings');
   const brand = (
-    <a className="sidebar__brand" href="#/" title={t('app.disclaimer')}>
+    <a className="sidebar__brand" href="#/">
       <span className="sidebar__logo">
         <BrandMark size={28} />
       </span>

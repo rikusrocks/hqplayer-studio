@@ -28,6 +28,14 @@ const CHECK_ACTIONS: Partial<Record<AppleMusicCheck['id'], OpenTarget[]>> = {
   appRouting: ['app-volume'],
 };
 
+/** Set-up lines that Studio itself can fix: a link to the Studio page that does it. */
+const CHECK_LINKS: Partial<Record<AppleMusicCheck['id'], { href: string; label: MessageKey }>> = {
+  outputRate: { href: '#/settings/dsp', label: 'am.link.dsp' },
+};
+
+/** Addresses offered as one-click suggestions in the address line (HQPlayer's own come first). */
+const SUGGESTED_URIS = ['audio:default/44100/2', 'audio:default/48000/2', 'audio:default/0/2'];
+
 const STATUS_ICON: Record<AppleMusicCheck['status'], IconName> = {
   ok: 'check',
   missing: 'warning',
@@ -94,7 +102,6 @@ export function AppleMusicView() {
         <EnableBlock state={state} act={act} />
         <SetupBlock state={state} act={act} />
         <LastStart state={state} />
-        <Advanced state={state} act={act} />
         <div className="settings-block">
           <BlockHead title={t('am.limits.title')} layer="studio" />
           <ul className="am-notes">
@@ -229,7 +236,11 @@ function NowPlaying({
                 <button
                   type="button"
                   className="hq-btn"
-                  onClick={() => void act(() => client.appleMusic.stop(), t('am.stopped'))}
+                  onClick={() =>
+                    void act(() => client.appleMusic.stop(), t('am.stopped')).then(
+                      (s) => s && toasts.push('info', t('am.stoppedRate')),
+                    )
+                  }
                 >
                   <Icon name="stop" size={14} />
                   {t('am.stop')}
@@ -351,7 +362,10 @@ function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
         }
       />
       {!setup ? (
-        <p className="hint">{t('am.setup.never')}</p>
+        <>
+          <p className="hint">{t('am.setup.never')}</p>
+          <AddressEditor state={state} act={act} />
+        </>
       ) : (
         <>
           <ul className="am-checks">
@@ -366,6 +380,7 @@ function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
                     ? t(known as MessageKey)
                     : c.detail;
               const actions = c.status === 'ok' ? [] : (CHECK_ACTIONS[c.id] ?? []);
+              const link = c.status === 'ok' ? undefined : CHECK_LINKS[c.id];
               return (
                 <li key={c.id} className={`am-check am-check--${c.status}`}>
                   <span className="am-check__mark" title={t(`am.status.${c.status}` as MessageKey)}>
@@ -384,7 +399,19 @@ function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
                       </div>
                     )}
                     {detail && <div className="am-check__detail hq-mono">{detail}</div>}
+                    {c.id === 'outputRate' && (
+                      <div className="am-check__hint">{t('am.check.outputRate.back')}</div>
+                    )}
+                    {c.id === 'liveInputAddress' && <AddressEditor state={state} act={act} />}
                   </div>
+                  {link && (
+                    <div className="am-check__actions">
+                      <a className="hq-btn hq-btn--sm" href={link.href}>
+                        <Icon name="settings" size={12} />
+                        {t(link.label)}
+                      </a>
+                    </div>
+                  )}
                   {canOpen && actions.length > 0 && (
                     <div className="am-check__actions">
                       {actions.map((target) => (
@@ -506,7 +533,8 @@ function LastStart({ state }: { state: AppleMusicState }) {
   );
 }
 
-function Advanced({ state, act }: { state: AppleMusicState; act: Act }) {
+/** The `audio:` address Start tries first; lives in the set-up check's address line. */
+function AddressEditor({ state, act }: { state: AppleMusicState; act: Act }) {
   const { t } = useI18n();
   const { client } = useStudio();
   const [value, setValue] = useState(state.preferredUri ?? '');
@@ -514,22 +542,22 @@ function Advanced({ state, act }: { state: AppleMusicState; act: Act }) {
   const trimmed = value.trim();
   const valid = trimmed === '' || /^audio:\S/i.test(trimmed);
   const changed = trimmed !== (state.preferredUri ?? '');
+  const suggestions = [...new Set([...(state.setup?.listedInputs ?? []), ...SUGGESTED_URIS])];
   return (
-    <div className="settings-block">
-      <BlockHead title={t('am.advanced.title')} layer="studio" />
+    <div className="am-address">
       <div className="button-row">
         <input
           className="hq-input hq-mono am-uri"
           value={value}
-          placeholder="audio:default/0/2"
+          placeholder="audio:default/48000/2"
           spellCheck={false}
-          aria-label={t('am.advanced.title')}
+          aria-label={t('am.check.liveInputAddress')}
           aria-invalid={!valid}
           onChange={(e) => setValue(e.target.value)}
         />
         <button
           type="button"
-          className="hq-btn"
+          className="hq-btn hq-btn--sm"
           disabled={!valid || !changed}
           onClick={() =>
             void act(
@@ -540,6 +568,20 @@ function Advanced({ state, act }: { state: AppleMusicState; act: Act }) {
         >
           {t('am.advanced.save')}
         </button>
+      </div>
+      <div className="button-row am-address__suggest">
+        <span className="hint">{t('am.advanced.try')}</span>
+        {suggestions.map((uri) => (
+          <button
+            key={uri}
+            type="button"
+            className={`hq-btn hq-btn--sm hq-mono${trimmed === uri ? '' : ' hq-btn--ghost'}`}
+            aria-pressed={trimmed === uri}
+            onClick={() => setValue(uri)}
+          >
+            {uri}
+          </button>
+        ))}
       </div>
       <p className="hint">
         {t('am.advanced.hint')}

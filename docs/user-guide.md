@@ -152,7 +152,9 @@ Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打�
 
 准备（只需一次）：安装一块虚拟声卡（例如 VB-Audio 的 Hi-Fi Cable / VB-CABLE）；在 Windows 音量合成器里把 Apple Music
 的输出设为它（格式 24 位 / 44100 Hz，音量 100%）；在 Windows 隐私设置里允许桌面应用使用麦克风；
-在 HQPlayer → Settings → Input 里选这块虚拟声卡。
+在 HQPlayer → Settings → Input 里选这块虚拟声卡；HQPlayer 的输出采样率选一个固定值（不要用“自动 / Auto”，
+否则实时输入有时启动不了——可在 Studio 的“设置 → DSP”里改）。回到音乐库播放时，可能需要把它改回“自动”，
+让 HQPlayer 跟随每张专辑自己的采样率。
 
 使用：侧栏 **Apple Music** → 打开开关 → “检查这台电脑”（只读，逐项告诉你缺什么，并带你到对应的 Windows 页面）→
 在 Apple Music 应用里放一首歌 → 回到 Studio 点 **开始**。第一次请先把放大器音量调低。
@@ -160,6 +162,8 @@ Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打�
 点“停止并回到音乐库”或直接播放音乐库里的内容即可结束，原来的队列会放回 HQPlayer（不自动播放）。
 
 如果“开始”不成功，页面上的“上一次开始”会列出 HQPlayer 对每个地址的回答；点“复制给开发者”发回即可（不含曲名和路径）。
+检查结果里的“实时输入地址”一行可以填写 HQPlayer 需要的地址（例如 `audio:default/48000/2`，采样率与虚拟声卡一致），
+Studio 下次“开始”会先试它。
 
 歌词与队列：歌词按曲名和歌手从“设置 → 歌词”里已打开的在线来源查找（Apple Music 自己的歌词读不到），只保存在内存里；
 校准和手动匹配与音乐库曲目一样。队列面板显示“开始”之后播放过的歌曲——Apple Music 自己的“待播清单”无法从应用外读取。
@@ -299,7 +303,9 @@ upsamples it for the DAC. This has not been verified on HQPlayer 6 yet.
 
 Prepare once: install a virtual audio cable (for example VB-Audio's Hi-Fi Cable / VB-CABLE); in the Windows volume mixer send
 Apple Music to it (24 bit / 44100 Hz, volume 100 %); in Windows privacy settings allow desktop apps to use the microphone;
-in HQPlayer → Settings → Input choose the cable.
+in HQPlayer → Settings → Input choose the cable; choose a fixed HQPlayer output rate (not "Auto" — on Auto the live input
+sometimes does not start; Studio's Settings → DSP can change it). When you go back to your library you may want to switch it
+back to Auto, so HQPlayer follows each album's own rate.
 
 Use: sidebar **Apple Music** → turn the switch on → "Check this PC" (read-only; it lists what is missing and opens the right
 Windows page) → start a song in the Apple Music app → back in Studio press **Start**. Turn the amplifier down the first time.
@@ -308,7 +314,8 @@ Studio then shows Apple Music's title, artist, album and cover, and play / pause
 (not playing).
 
 If Start does not work, "Last start" lists what HQPlayer answered for each address; "Copy for the developer" gives a summary
-without titles or paths.
+without titles or paths. The set-up check's "Live input address" line takes the address HQPlayer needs (e.g.
+`audio:default/48000/2`, with the cable's rate); Studio tries it first on the next Start.
 
 Lyrics and queue: lyrics are looked up by title and artist in the online sources you enabled under Settings → Lyrics (Apple
 Music's own lyrics cannot be read) and are kept in memory only; calibration and manual matching work as for library tracks.
