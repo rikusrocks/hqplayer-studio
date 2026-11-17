@@ -1,12 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Theme = 'dark' | 'light';
+/**
+ * Colour themes. Each one is a combination of solid colours defined in styles/tokens.css
+ * (`[data-theme='<id>']`); `dark` and `light` are the neutral black/grey and white/grey pair.
+ */
+export const THEMES = [
+  'dark',
+  'light',
+  'cobalt',
+  'citrus',
+  'poppy',
+  'pine',
+  'plum',
+  'ocean',
+] as const;
+export type Theme = (typeof THEMES)[number];
 const STORAGE_KEY = 'hqps.theme';
+
+export function isTheme(value: unknown): value is Theme {
+  return typeof value === 'string' && (THEMES as readonly string[]).includes(value);
+}
 
 export function readStoredTheme(): Theme {
   try {
     const v = globalThis.localStorage?.getItem(STORAGE_KEY);
-    if (v === 'light' || v === 'dark') return v;
+    if (isTheme(v)) return v;
   } catch {
     // ignore
   }
@@ -18,7 +36,7 @@ export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
 }
 
-/** Dark-first theme preference, persisted per browser. */
+/** Theme preference, persisted per browser (dark by default). */
 export function useTheme(): [Theme, (t: Theme) => void] {
   const [theme, setThemeState] = useState<Theme>(readStoredTheme);
   useEffect(() => applyTheme(theme), [theme]);

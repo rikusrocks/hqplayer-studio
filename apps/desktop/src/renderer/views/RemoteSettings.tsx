@@ -13,6 +13,7 @@ import {
 } from '@hqps/ui';
 import { useEffect, useState } from 'react';
 import { QrCode } from './QrCode';
+import { Switch } from './SettingsSections';
 
 /** Settings → 网页遥控: LAN listener, pairing codes (with QR) and paired devices. */
 export function RemoteSettings() {
@@ -80,19 +81,13 @@ export function RemoteSettings() {
 
       <div className="settings-block">
         <h3>{t('settings.remoteLan')}</h3>
-        <label className="engine-option engine-control">
-          <input
-            type="checkbox"
-            role="switch"
-            checked={s.enabled}
-            disabled={busy || (!s.enabled && usable.length === 0)}
-            onChange={(e) => void apply(e.target.checked)}
-          />
-          <span>
-            <strong>{t('settings.remoteLanSwitch')}</strong>
-            <span className="hint">{t('settings.remoteLanSwitchHint')}</span>
-          </span>
-        </label>
+        <Switch
+          checked={s.enabled}
+          disabled={busy || (!s.enabled && usable.length === 0)}
+          onChange={(v) => void apply(v)}
+          title={t('settings.remoteLanSwitch')}
+          hint={`${t('settings.remoteLanSwitchHint')}\n${t('settings.remoteFirewall')}`}
+        />
         {s.interfaces.length === 0 || usable.length === 0 ? (
           <p className="hint">{t('settings.remoteNoNetwork')}</p>
         ) : null}
@@ -139,7 +134,6 @@ export function RemoteSettings() {
             </>
           )}
         </div>
-        <p className="hint">{t('settings.remoteFirewall')}</p>
         <p className="hint">{t('settings.remoteHttpNote')}</p>
       </div>
 
@@ -157,7 +151,6 @@ export function RemoteSettings() {
           </a>
         </span>
       </div>
-      <p className="hint">{t('remote.noAudio')}</p>
     </div>
   );
 }
@@ -190,8 +183,7 @@ function StatusBanner({ settings: s }: { settings: RemoteSettingsDto }) {
     <div className="hq-banner hq-banner--muted">
       <Icon name="remote" size={16} />
       <div className="hq-banner__body">
-        <strong>{t('settings.remoteDisabled')}</strong>
-        <span>{t('settings.remoteHint')}</span>
+        <strong title={t('settings.remoteHint')}>{t('settings.remoteDisabled')}</strong>
       </div>
     </div>
   );
@@ -263,7 +255,6 @@ function PairingBlock({
             </div>
             <div className="hq-muted">{t('settings.remotePairExpires', { time: mmss })}</div>
             <code className="hq-mono remote-url">{s.urls[0]}</code>
-            <p className="hint">{t('settings.remotePairHint')}</p>
             <div className="button-row">
               <button type="button" className="hq-btn hq-btn--sm" onClick={() => void cancel()}>
                 <Icon name="close" size={14} />
@@ -272,9 +263,7 @@ function PairingBlock({
             </div>
           </div>
         </div>
-      ) : (
-        <p className="hint">{t('settings.remotePairHint')}</p>
-      )}
+      ) : null}
     </div>
   );
 }

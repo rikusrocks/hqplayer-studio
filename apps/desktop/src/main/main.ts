@@ -140,7 +140,7 @@ if (primary) {
       studio?.server.hub.notice(
         'error',
         'internal_error',
-        'An internal error occurred in HQPlayer Studio. Details were saved to the log folder (Settings → Diagnostics).',
+        'An internal error occurred in HQP Studio. Details were saved to the log folder (Settings → Diagnostics).',
         report ? { report } : undefined,
       );
     },
@@ -168,7 +168,7 @@ function createMainWindow(): BrowserWindow {
     ...(saved ?? { width: 1280, height: 820 }),
     minWidth: 720,
     minHeight: 480,
-    title: 'HQPlayer Studio',
+    title: 'HQP Studio',
     backgroundColor: '#0f1115',
     autoHideMenuBar: true,
     show: false,
@@ -223,7 +223,7 @@ function createMiniWindow(): BrowserWindow {
     maximizable: false,
     fullscreenable: false,
     alwaysOnTop: windowState.miniAlwaysOnTop ?? true,
-    title: 'HQPlayer Studio — Mini',
+    title: 'HQP Studio — Mini',
     backgroundColor: '#0f1115',
     show: false,
     webPreferences: secureWebPreferences(),
@@ -892,8 +892,8 @@ async function offerOlderBackup(err: DatabaseTooNewError): Promise<boolean> {
     'pre-restore': '恢复前的数据',
   };
   const message = zh
-    ? '这个数据库来自更新版本的 HQPlayer Studio'
-    : 'This database is from a newer version of HQPlayer Studio';
+    ? '这个数据库来自更新版本的 HQP Studio'
+    : 'This database is from a newer version of HQP Studio';
   const detail = zh
     ? `数据库版本 ${err.dbVersion}，此版本（${app.getVersion()}）只支持到 ${err.supportedVersion}。为避免损坏，数据库没有被打开或修改。
 
@@ -916,7 +916,7 @@ async function offerOlderBackup(err: DatabaseTooNewError): Promise<boolean> {
       : ['Open backup folder', 'Quit'];
   const { response } = await dialog.showMessageBox({
     type: 'warning',
-    title: 'HQPlayer Studio',
+    title: 'HQP Studio',
     message,
     detail,
     buttons,
@@ -951,7 +951,7 @@ async function startCoreOrExplain(): Promise<Bootstrapped | null> {
   }
   log.crash('core-start-failed', { error: failure });
   dialog.showErrorBox(
-    'HQPlayer Studio',
+    'HQP Studio',
     `Studio Core failed to start:\n${log.redact((failure as Error).message)}\n\nDetails: ${FOLDERS.logs}`,
   );
   return null;

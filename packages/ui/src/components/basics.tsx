@@ -51,6 +51,45 @@ export function Artwork({
   );
 }
 
+/** The HQP Studio mark: H, Q and S drawn as one joined line. Colour comes from `color`. */
+export function BrandMark({ size = 24, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="20 68 216 120"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={20}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <path d="M36 84v88 M36 128h44 M80 84v88" />
+      <circle cx="128" cy="128" r="36" />
+      <path d="M150 150l22 22" />
+      <path d="M218 102C210 86 180 84 178 104C176 124 220 124 220 150C220 174 184 176 176 156" />
+    </svg>
+  );
+}
+
+/** Three animated bars marking what is playing; frozen while paused. */
+export function EqBars({ playing = true, className }: { playing?: boolean; className?: string }) {
+  return (
+    <span
+      className={`hq-eq${playing ? ' is-playing' : ''}${className ? ` ${className}` : ''}`}
+      aria-hidden="true"
+    >
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+
 export function EmptyState({
   icon = 'info',
   title,

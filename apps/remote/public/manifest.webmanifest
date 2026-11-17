@@ -1,8 +1,8 @@
 {
   "id": "/remote/",
-  "name": "HQPlayer Studio Remote",
+  "name": "HQP Studio Remote",
   "short_name": "Studio Remote",
-  "description": "Web remote for HQPlayer Studio. Audio always plays from HQPlayer on the host PC — never in the browser.",
+  "description": "Web remote for HQP Studio. Audio always plays from HQPlayer on the host PC — never in the browser.",
   "lang": "zh-CN",
   "start_url": "/remote/",
   "scope": "/remote/",

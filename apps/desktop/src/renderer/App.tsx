@@ -1,10 +1,9 @@
 import { matchRoute, useHashRoute, useI18n, type HashRoute } from '@hqps/ui';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { getShell } from './shell';
 import { PlayerBar } from './layout/PlayerBar';
 import { SidePanel } from './layout/SidePanel';
-import { Sidebar } from './layout/Sidebar';
-import { StatusBar } from './layout/StatusBar';
+import { Sidebar, useSidebar } from './layout/Sidebar';
 import { TopBar } from './layout/TopBar';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { AlbumDetailView } from './views/AlbumDetailView';
@@ -60,6 +59,7 @@ export function App() {
   const route = useHashRoute('/');
   const [panelOpen, setPanelOpen] = useState(readPanelOpen);
   const { locale } = useI18n();
+  const sidebar = useSidebar();
   useKeyboardShortcuts();
   // The tray menu (main process) speaks the UI's language.
   useEffect(() => getShell()?.setLocale(locale), [locale]);
@@ -78,17 +78,19 @@ export function App() {
   };
 
   return (
-    <div className={`app${panelOpen ? ' app--panel' : ''}`}>
-      <Sidebar route={route} />
+    <div
+      className={`app${panelOpen ? ' app--panel' : ''}${sidebar.dragging ? ' is-resizing' : ''}`}
+      style={{ '--sidebar-w': `${sidebar.width}px` } as CSSProperties}
+    >
+      <Sidebar route={route} state={sidebar} />
       <main className="app__main">
-        <TopBar route={route} panelOpen={panelOpen} onTogglePanel={togglePanel} />
+        <TopBar route={route} />
         <div className="app__content" key={route.path}>
           {renderRoute(route)}
         </div>
       </main>
       {panelOpen && <SidePanel onClose={togglePanel} />}
       <PlayerBar panelOpen={panelOpen} onTogglePanel={togglePanel} />
-      <StatusBar />
     </div>
   );
 }

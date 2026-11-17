@@ -1,74 +1,178 @@
 @import './components.css';
 
 /*
- * HQPlayer Studio design tokens — dark first, restrained, dense.
- * Accent is a warm brass/amber; status colours are reserved for state, never decoration.
+ * HQP Studio design tokens — flat, solid colour. Every theme is a combination of a few solid
+ * colours: the "rail" (sidebar + player), the ground the content sits on, the ink, and one pop
+ * colour for primary actions and selection. No gradients, no translucent washes, no blur.
+ *
+ * A theme only sets the base colours; everything else is derived below so a new theme is nine
+ * lines. Keep the list in sync with THEMES in ../theme.ts.
  */
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0d0e11;
-  --bg-sunken: #0a0b0d;
-  --surface-1: #14161a;
-  --surface-2: #1a1d22;
-  --surface-3: #22262d;
-  --surface-4: #2b3038;
-  --hover: rgb(255 255 255 / 0.05);
-  --active: rgb(255 255 255 / 0.09);
-  --border: rgb(255 255 255 / 0.07);
-  --border-strong: rgb(255 255 255 / 0.13);
-  --text: #e9ebef;
-  --text-2: #a3a9b5;
-  --text-3: #6c7280;
-  --accent: #d4a25c;
-  --accent-strong: #e6b671;
-  --accent-contrast: #1b1306;
-  --accent-soft: rgb(212 162 92 / 0.14);
-  --ok: #58bf88;
-  --warn: #e0b03e;
-  --danger: #e2675e;
-  --info: #6aa4e6;
-  --ok-soft: rgb(88 191 136 / 0.14);
-  --warn-soft: rgb(224 176 62 / 0.14);
-  --danger-soft: rgb(226 103 94 / 0.14);
-  --info-soft: rgb(106 164 230 / 0.14);
-  --range-track: rgb(255 255 255 / 0.14);
-  --shadow-pop: 0 14px 36px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
-  --shadow-card: 0 6px 18px rgb(0 0 0 / 0.35);
-  --art-placeholder: linear-gradient(135deg, #252a33, #171a1f);
+  --rail: #000000;
+  --rail-ink: #ffffff;
+  --rail-sub: #b5b5b5;
+  --bg: #171717;
+  --surface-1: #242424;
+  --text: #ffffff;
+  --text-2: #bdbdbd;
+  --accent: #ffffff;
+  --accent-contrast: #000000;
+  --ok: #2fd08a;
+  --warn: #ffa92e;
+  --danger: #ff5c5f;
+  --info: #49a8ff;
 }
-
 [data-theme='light'] {
   color-scheme: light;
-  --bg: #f4f4f2;
-  --bg-sunken: #ebebe8;
-  --surface-1: #ffffff;
-  --surface-2: #f7f7f5;
-  --surface-3: #eeeeeb;
-  --surface-4: #e3e3df;
-  --hover: rgb(0 0 0 / 0.04);
-  --active: rgb(0 0 0 / 0.08);
-  --border: rgb(0 0 0 / 0.08);
-  --border-strong: rgb(0 0 0 / 0.15);
-  --text: #18191c;
-  --text-2: #555a64;
-  --text-3: #8a8f99;
-  --accent: #a26a22;
-  --accent-strong: #8a5918;
+  --rail: #e6e6e6;
+  --rail-ink: #111111;
+  --rail-sub: #4d4d4d;
+  --bg: #ffffff;
+  --surface-1: #f1f1f1;
+  --text: #111111;
+  --text-2: #4a4a4a;
+  --accent: #111111;
   --accent-contrast: #ffffff;
-  --accent-soft: rgb(162 106 34 / 0.12);
-  --ok: #23854f;
-  --warn: #9a6c00;
-  --danger: #c23b32;
-  --info: #2f6db3;
-  --ok-soft: rgb(35 133 79 / 0.12);
-  --warn-soft: rgb(154 108 0 / 0.12);
-  --danger-soft: rgb(194 59 50 / 0.1);
-  --info-soft: rgb(47 109 179 / 0.1);
-  --range-track: rgb(0 0 0 / 0.14);
-  --shadow-pop: 0 14px 36px rgb(0 0 0 / 0.16), 0 2px 8px rgb(0 0 0 / 0.08);
-  --shadow-card: 0 6px 18px rgb(0 0 0 / 0.1);
-  --art-placeholder: linear-gradient(135deg, #e3e3df, #f2f2ef);
+  --ok: #0b7a4a;
+  --warn: #a14a00;
+  --danger: #c4162a;
+  --info: #0b62bd;
+}
+[data-theme='cobalt'] {
+  color-scheme: light;
+  --rail: #1b2cc1;
+  --rail-ink: #ffffff;
+  --rail-sub: #c9d0ff;
+  --bg: #ffffff;
+  --surface-1: #eef0ff;
+  --text: #0b1040;
+  --text-2: #3a4275;
+  --accent: #ff4a1c;
+  --accent-contrast: #1a0a00;
+  --ok: #0b7a4a;
+  --warn: #a14a00;
+  --danger: #c4162a;
+  --info: #0b62bd;
+}
+[data-theme='citrus'] {
+  color-scheme: light;
+  --rail: #ffd60a;
+  --rail-ink: #14110f;
+  --rail-sub: #4a3f00;
+  --bg: #ffffff;
+  --surface-1: #f1edff;
+  --text: #14110f;
+  --text-2: #4b4640;
+  --accent: #5b2eff;
+  --accent-contrast: #ffffff;
+  --ok: #0b7a4a;
+  --warn: #a14a00;
+  --danger: #c4162a;
+  --info: #0b62bd;
+}
+[data-theme='poppy'] {
+  color-scheme: light;
+  --rail: #e4002b;
+  --rail-ink: #ffffff;
+  --rail-sub: #ffd9df;
+  --bg: #ffffff;
+  --surface-1: #e9eeff;
+  --text: #0a1433;
+  --text-2: #3d4666;
+  --accent: #0a2463;
+  --accent-contrast: #ffffff;
+  --ok: #0b7a4a;
+  --warn: #a14a00;
+  --danger: #c4162a;
+  --info: #0b62bd;
+}
+[data-theme='pine'] {
+  color-scheme: dark;
+  --rail: #c6ff3d;
+  --rail-ink: #0b2a1c;
+  --rail-sub: #2f5b1f;
+  --bg: #0b3d2a;
+  --surface-1: #125a3d;
+  --text: #f4ffe8;
+  --text-2: #b9e8c9;
+  --accent: #ff6b35;
+  --accent-contrast: #1a0a00;
+  --ok: #7dffb6;
+  --warn: #ffd23f;
+  --danger: #ff8f8f;
+  --info: #8fd3ff;
+}
+[data-theme='plum'] {
+  color-scheme: dark;
+  --rail: #ff3d8b;
+  --rail-ink: #2a0a3b;
+  --rail-sub: #3d0f3a;
+  --bg: #2a0a3b;
+  --surface-1: #43125e;
+  --text: #fff1fa;
+  --text-2: #e3b9f0;
+  --accent: #ffd23f;
+  --accent-contrast: #2a0a3b;
+  --ok: #5dffb0;
+  --warn: #ffb84d;
+  --danger: #ff8fa3;
+  --info: #9fd0ff;
+}
+[data-theme='ocean'] {
+  color-scheme: dark;
+  --rail: #00d9c0;
+  --rail-ink: #04283f;
+  --rail-sub: #0a4a5e;
+  --bg: #062a4a;
+  --surface-1: #0b3e6b;
+  --text: #eaf8ff;
+  --text-2: #a9d4ee;
+  --accent: #ff7a1a;
+  --accent-contrast: #1a0a00;
+  --ok: #5dffb0;
+  --warn: #ffd23f;
+  --danger: #ff9a9a;
+  --info: #9fd0ff;
+}
+
+/* Anything sitting on the rail colour (sidebar, player) reads the same tokens, re-based. */
+.on-rail {
+  --bg: var(--rail);
+  --surface-1: color-mix(in srgb, var(--rail-ink) 14%, var(--rail));
+  --text: var(--rail-ink);
+  --text-2: var(--rail-sub);
+}
+
+/* Derived tokens: recomputed wherever the base colours change. */
+:root,
+[data-theme],
+.on-rail {
+  --bg-sunken: color-mix(in srgb, var(--text) 6%, var(--bg));
+  --surface-2: color-mix(in srgb, var(--text) 9%, var(--surface-1));
+  --surface-3: color-mix(in srgb, var(--text) 18%, var(--surface-1));
+  --surface-4: color-mix(in srgb, var(--text) 30%, var(--surface-1));
+  --hover: color-mix(in srgb, var(--text) 10%, var(--bg));
+  --active: color-mix(in srgb, var(--text) 18%, var(--bg));
+  --border: color-mix(in srgb, var(--text) 18%, var(--bg));
+  --border-strong: color-mix(in srgb, var(--text) 55%, var(--bg));
+  --text-3: var(--text-2);
+  --accent-strong: var(--accent);
+  --accent-soft: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  --ok-soft: color-mix(in srgb, var(--ok) 20%, var(--bg));
+  --warn-soft: color-mix(in srgb, var(--warn) 20%, var(--bg));
+  --danger-soft: color-mix(in srgb, var(--danger) 20%, var(--bg));
+  --info-soft: color-mix(in srgb, var(--info) 20%, var(--bg));
+  --range-track: color-mix(in srgb, var(--text) 28%, var(--bg));
+  --range-fill: var(--text);
+  /* floating things get a crisp outline and a hard offset shadow instead of a soft glow */
+  --outline: 2px solid var(--text);
+  --shadow-pop: 6px 6px 0 var(--text);
+  --shadow-card: 0 0 0 transparent;
+  --art-placeholder: var(--surface-2);
+  color: var(--text);
 }
 
 :root {
@@ -91,14 +195,16 @@
   --sp-4: 16px;
   --sp-5: 24px;
   --sp-6: 32px;
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --dur: 140ms;
-  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.25, 1.15);
+  --dur: 160ms;
+  --dur-slow: 300ms;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 5px var(--info);
 }
 
 *,
@@ -117,6 +223,9 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
+  transition:
+    background-color 260ms ease,
+    color 260ms ease;
   font-family: var(--font);
   font-size: var(--fs);
   line-height: 1.45;
@@ -178,7 +287,8 @@ img {
 }
 
 ::selection {
-  background: var(--accent-soft);
+  background: var(--text);
+  color: var(--bg);
 }
 
 * {

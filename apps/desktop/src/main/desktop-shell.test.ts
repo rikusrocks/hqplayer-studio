@@ -109,8 +109,8 @@ describe('tray menu', () => {
       ['previous', '上一首', true],
       ['next', '下一首', true],
       ['mini', '迷你播放器', true],
-      ['show', '显示 HQPlayer Studio', true],
-      ['quit', '退出 HQPlayer Studio', true],
+      ['show', '显示 HQP Studio', true],
+      ['quit', '退出 HQP Studio', true],
     ]);
   });
   it('disables controls Studio may not use and says why', () => {
@@ -129,6 +129,6 @@ describe('tray menu', () => {
     expect(
       trayTooltip({ locale: 'en', title: 'x'.repeat(300), artist: null }).length,
     ).toBeLessThanOrEqual(120);
-    expect(trayTooltip({ locale: 'en', title: null, artist: null })).toBe('HQPlayer Studio');
+    expect(trayTooltip({ locale: 'en', title: null, artist: null })).toBe('HQP Studio');
   });
 });

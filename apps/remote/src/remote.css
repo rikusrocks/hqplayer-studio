@@ -44,11 +44,7 @@ body {
   width: 26px;
   height: 26px;
   border-radius: 7px;
-  background: linear-gradient(
-    135deg,
-    var(--accent-strong),
-    color-mix(in srgb, var(--accent) 55%, #3a2a12)
-  );
+  background: var(--accent);
   color: var(--accent-contrast);
 }
 .rm-header__right {
@@ -239,8 +235,8 @@ button.rm-now__art {
   right: 0;
   z-index: 1;
   padding: 6px 12px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
+  border: 2px solid var(--text);
+  border-radius: var(--radius);
   background: var(--bg);
   color: var(--accent);
   font-size: var(--fs-sm);
@@ -725,11 +721,7 @@ a.rm-now__album {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: linear-gradient(
-    135deg,
-    var(--accent-strong),
-    color-mix(in srgb, var(--accent) 55%, #3a2a12)
-  );
+  background: var(--accent);
   color: var(--accent-contrast);
 }
 .rm-pair__intro {

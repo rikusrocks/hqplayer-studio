@@ -1,6 +1,6 @@
 /** Simplified Chinese (default locale). Keys must stay identical to messages.en.ts. */
 export const zh = {
-  'app.name': 'HQPlayer Studio',
+  'app.name': 'HQP Studio',
   'app.disclaimer': '第三方客户端，与 Signalyst / HQPlayer 官方无隶属关系',
 
   'nav.home': '首页',
@@ -245,6 +245,21 @@ export const zh = {
   'settings.theme': '主题',
   'settings.theme.dark': '深色',
   'settings.theme.light': '浅色',
+  'sidebar.minimise': '收起侧栏',
+  'sidebar.expand': '展开侧栏',
+  'sidebar.showAll': '显示完整菜单',
+  'sidebar.resize': '拖动调整宽度',
+  'peek.playSelected': '播放 {count} 首',
+  'peek.next': '下一首播放',
+  'peek.queue': '加入队列',
+  'peek.playlist': '播放列表',
+  'peek.clear': '清除',
+  'settings.theme.cobalt': '钴蓝',
+  'settings.theme.citrus': '柠黄',
+  'settings.theme.poppy': '罂粟红',
+  'settings.theme.pine': '松绿',
+  'settings.theme.plum': '梅紫',
+  'settings.theme.ocean': '海蓝',
   'settings.roots': '音乐目录',
   'settings.addRoot': '添加目录',
   'settings.rootPlaceholder': '例如 D:\\Music 或 \\\\NAS\\music',
@@ -501,7 +516,7 @@ export const zh = {
   'realtime.closed': '已断开',
 
   'remote.title': 'Studio 遥控',
-  'remote.offline': '无法连接 Studio 服务。请确认 Windows 主机已开机并正在运行 HQPlayer Studio。',
+  'remote.offline': '无法连接 Studio 服务。请确认 Windows 主机已开机并正在运行 HQP Studio。',
   'remote.noAudio': '网页本身不播放音频，声音始终由 Windows 上的 HQPlayer 输出。',
   'remote.settings': '设置与连接',
   'remote.server': '服务器',
@@ -510,7 +525,7 @@ export const zh = {
   'remote.unpair': '取消此设备的配对',
   'remote.unpairTitle': '取消此设备的配对？',
   'remote.unpairMessage': '之后需要在电脑上生成新的配对码才能再次使用。',
-  'pair.title': '连接到 HQPlayer Studio',
+  'pair.title': '连接到 HQP Studio',
   'pair.intro':
     '在电脑上的 Studio 中打开 设置 → 网页遥控，点“生成配对码”，然后在这里输入 6 位数字。',
   'pair.code': '配对码',
@@ -617,7 +632,7 @@ export const zh = {
     'Windows 音量浮窗和锁屏上的“正在播放”不会显示 Studio：声音由 HQPlayer 输出，Studio 自己不播放音频。',
   'settings.tray': '在任务栏通知区域显示图标',
   'settings.trayHint':
-    '右键图标：播放/暂停、上一首、下一首、迷你播放器、显示 HQPlayer Studio、退出。单击图标打开主窗口。',
+    '右键图标：播放/暂停、上一首、下一首、迷你播放器、显示 HQP Studio、退出。单击图标打开主窗口。',
   'settings.closeToTray': '关闭主窗口时继续在后台运行',
   'settings.closeToTrayHint':
     '关闭窗口后网页遥控和媒体键继续可用；要退出 Studio，请用托盘图标菜单中的“退出”。',

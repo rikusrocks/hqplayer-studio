@@ -2,6 +2,7 @@ import {
   ConnectionBadge,
   Icon,
   LOCALES,
+  THEMES,
   useAsync,
   useDialogs,
   useI18n,
@@ -116,8 +117,11 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               value={theme}
               onChange={(e) => setTheme(e.target.value as Theme)}
             >
-              <option value="dark">{t('settings.theme.dark')}</option>
-              <option value="light">{t('settings.theme.light')}</option>
+              {THEMES.map((id) => (
+                <option key={id} value={id}>
+                  {t(`settings.theme.${id}`)}
+                </option>
+              ))}
             </select>
           </label>
         </div>

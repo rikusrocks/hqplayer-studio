@@ -9,15 +9,7 @@ import {
 } from '@hqps/ui';
 import { useEffect, useState } from 'react';
 
-export function TopBar({
-  route,
-  panelOpen,
-  onTogglePanel,
-}: {
-  route: HashRoute;
-  panelOpen: boolean;
-  onTogglePanel: () => void;
-}) {
+export function TopBar({ route }: { route: HashRoute }) {
   const t = useT();
   const onSearchRoute = route.segments[0] === 'search';
   const routeQuery = onSearchRoute ? (route.query.q ?? '') : '';
@@ -64,23 +56,14 @@ export function TopBar({
         className="topbar__search"
         value={q}
         onChange={setQ}
-        placeholder={t('search.placeholder')}
+        placeholder={t('nav.search')}
         scope="global"
       />
-      <div className="topbar__right">
+      {/* engine state; click it for the engine settings */}
+      <a className="topbar__status" href="#/settings/playback">
         <MockBadge />
         <ConnectionBadge />
-        <button
-          type="button"
-          className={`hq-icon-btn${panelOpen ? ' is-active' : ''}`}
-          onClick={onTogglePanel}
-          aria-pressed={panelOpen}
-          aria-label={t('player.togglePanel')}
-          title={t('player.togglePanel')}
-        >
-          <Icon name="panel" size={18} />
-        </button>
-      </div>
+      </a>
     </header>
   );
 }

@@ -42,8 +42,10 @@ const LAYER_ICON = {
   native: 'external',
 } as const;
 
+/** Marks who owns a setting. Studio's own settings are the default and carry no tag. */
 export function LayerTag({ layer }: { layer: SettingLayer }) {
   const { t } = useI18n();
+  if (layer === 'studio') return null;
   return (
     <span
       className={`layer-tag layer-tag--${layer}`}
@@ -52,20 +54,6 @@ export function LayerTag({ layer }: { layer: SettingLayer }) {
       <Icon name={LAYER_ICON[layer]} size={12} />
       {t(`settings.layer.${layer}` as MessageKey)}
     </span>
-  );
-}
-
-export function SettingsLegend() {
-  const { t } = useI18n();
-  return (
-    <div className="settings-legend" aria-label={t('settings.legend')}>
-      {(['studio', 'control', 'readonly', 'native'] as const).map((l) => (
-        <div key={l} className="settings-legend__item">
-          <LayerTag layer={l} />
-          <span>{t(`settings.layer.${l}.hint` as MessageKey)}</span>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -89,21 +77,31 @@ export function BlockHead({
   );
 }
 
-function Switch({
+/**
+ * One setting = one row: the name on the left, the toggle on the right. The explanation is a
+ * tooltip (hover the row); `note` is only for a short live status.
+ */
+export function Switch({
   checked,
   disabled,
   onChange,
   title,
   hint,
+  note,
 }: {
   checked: boolean;
   disabled?: boolean;
   onChange: (next: boolean) => void;
   title: string;
-  hint?: ReactNode;
+  hint?: string;
+  note?: ReactNode;
 }) {
   return (
-    <label className={`engine-option engine-control${disabled ? ' is-disabled' : ''}`}>
+    <label className={`setting-row${disabled ? ' is-disabled' : ''}`} title={hint}>
+      <span className="setting-row__label">
+        {title}
+        {note}
+      </span>
       <input
         type="checkbox"
         role="switch"
@@ -111,10 +109,6 @@ function Switch({
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
-      <span>
-        <strong>{title}</strong>
-        {hint && <span className="hint">{hint}</span>}
-      </span>
     </label>
   );
 }
@@ -173,17 +167,21 @@ export function DesktopIntegration() {
             onChange={(v) => void set({ mediaKeys: v })}
             title={t('settings.mediaKeys')}
             hint={
-              <>
-                {state.mediaKeys.supported
-                  ? t('settings.mediaKeysHint')
-                  : t('settings.mediaKeys.unsupported')}
-                {keys && keys.enabled && keys.registered.length > 0 && (
-                  <span className="hq-ok-text">
-                    {' '}
-                    {t('settings.mediaKeys.active', { count: keys.registered.length })}
-                  </span>
-                )}
-              </>
+              state.mediaKeys.supported
+                ? t('settings.mediaKeysHint')
+                : t('settings.mediaKeys.unsupported')
+            }
+            note={
+              keys &&
+              keys.enabled &&
+              keys.registered.length > 0 && (
+                <span
+                  className="hq-badge hq-badge--ok"
+                  title={t('settings.mediaKeys.active', { count: keys.registered.length })}
+                >
+                  {keys.registered.length}
+                </span>
+              )
             }
           />
           {keys && keys.unavailable.length > 0 && (
@@ -198,7 +196,6 @@ export function DesktopIntegration() {
               </span>
             </div>
           )}
-          <p className="hint">{t('settings.mediaKeys.smtc')}</p>
           <Switch
             checked={state.prefs.tray}
             disabled={!state.tray.supported}
@@ -235,9 +232,7 @@ function OpenHqplayer() {
       alive = false;
     };
   }, [api]);
-  if (!api || !state?.supported || !state.running) {
-    return <p className="hint">{t('settings.openHqplayerManual')}</p>;
-  }
+  if (!api || !state?.supported || !state.running) return null;
   return (
     <div className="button-row">
       <button
@@ -253,7 +248,6 @@ function OpenHqplayer() {
         <Icon name="external" size={14} />
         {t('settings.openHqplayer')}
       </button>
-      <span className="hint">{t('settings.openHqplayerHint')}</span>
     </div>
   );
 }
@@ -281,16 +275,8 @@ export function DspSettings() {
   ];
   return (
     <div className="settings-stack">
-      <div className="hq-banner hq-banner--info">
-        <Icon name="info" size={16} />
-        <span>{t('settings.dsp.whyReadonly')}</span>
-      </div>
       {status.connection !== 'connected' && (
-        <EmptyState
-          icon="wave"
-          title={t('settings.dspUnavailable')}
-          hint={t('engine.disconnectedReason')}
-        />
+        <EmptyState icon="wave" title={t('settings.dspUnavailable')} />
       )}
       <DspControls />
       <table className="hq-table layer-table">
@@ -365,11 +351,10 @@ export function OutputSettings() {
               : '—'}
           </strong>
         </div>
-        <p className="hint">{volumeReason ?? t('settings.output.volumeHint')}</p>
+        {volumeReason && <p className="hint">{volumeReason}</p>}
       </div>
       <div className="settings-block">
         <BlockHead title={t('settings.output.device')} layer="native" />
-        <p className="hint">{t('settings.output.deviceNative')}</p>
         <OpenHqplayer />
       </div>
     </div>
@@ -430,10 +415,6 @@ export function LyricsSettings() {
   return (
     <div className="settings-stack">
       <div className="settings-block">
-        <BlockHead title={t('settings.lyrics.local')} layer="studio" />
-        <p className="hint">{t('settings.lyrics.localHint')}</p>
-      </div>
-      <div className="settings-block">
         <BlockHead title={t('settings.lyrics.onlineTitle')} layer="studio" />
         <Switch
           checked={current.online}
@@ -454,9 +435,6 @@ export function LyricsSettings() {
       </div>
       <div className="settings-block">
         <BlockHead title={t('settings.lyrics.sources')} layer="studio" />
-        <p className="hint">
-          {t(current.online ? 'settings.lyrics.sourcesHint' : 'settings.lyrics.sourcesOffHint')}
-        </p>
         {current.providers.map((p) => (
           <Switch
             key={p.id}
@@ -464,20 +442,17 @@ export function LyricsSettings() {
             disabled={!current.online}
             onChange={(v) => void setProvider(p.id, v)}
             title={t(`lyrics.provider.${p.id}`)}
-            hint={
-              <>
-                {t(`settings.lyrics.provider.${p.id}`)}
-                {current.online && p.enabled && p.pausedForMs > 0 && (
-                  <>
-                    {' '}
-                    <em>
-                      {t('settings.lyrics.providerPaused', {
-                        seconds: Math.ceil(p.pausedForMs / 1000),
-                      })}
-                    </em>
-                  </>
-                )}
-              </>
+            hint={t(`settings.lyrics.provider.${p.id}`)}
+            note={
+              current.online &&
+              p.enabled &&
+              p.pausedForMs > 0 && (
+                <span className="hq-badge hq-badge--warn">
+                  {t('settings.lyrics.providerPaused', {
+                    seconds: Math.ceil(p.pausedForMs / 1000),
+                  })}
+                </span>
+              )
             }
           />
         ))}
@@ -508,11 +483,6 @@ export function LyricsSettings() {
             notFound: c.notFound,
           })}
         </p>
-        <p className="hint">{t('settings.lyrics.clearHint')}</p>
-      </div>
-      <div className="settings-block">
-        <BlockHead title={t('settings.lyrics.calibration')} layer="studio" />
-        <p className="hint">{t('settings.lyrics.calibrationHint')}</p>
       </div>
     </div>
   );
@@ -577,7 +547,6 @@ export function CoverSettings() {
   return (
     <div className="settings-block">
       <BlockHead title={t('settings.covers.title')} layer="studio" />
-      <p className="hint">{t('settings.covers.localHint')}</p>
       <Switch
         checked={current.online}
         onChange={(v) => void setOnline(v)}
@@ -593,20 +562,16 @@ export function CoverSettings() {
               checked={p.enabled}
               onChange={(v) => void setProvider(p.id, v)}
               title={t(`covers.provider.${p.id}`)}
-              hint={
-                <>
-                  {t(`settings.covers.provider.${p.id}`)}
-                  {p.enabled && p.pausedForMs > 0 && (
-                    <>
-                      {' '}
-                      <em>
-                        {t('settings.lyrics.providerPaused', {
-                          seconds: Math.ceil(p.pausedForMs / 1000),
-                        })}
-                      </em>
-                    </>
-                  )}
-                </>
+              hint={t(`settings.covers.provider.${p.id}`)}
+              note={
+                p.enabled &&
+                p.pausedForMs > 0 && (
+                  <span className="hq-badge hq-badge--warn">
+                    {t('settings.lyrics.providerPaused', {
+                      seconds: Math.ceil(p.pausedForMs / 1000),
+                    })}
+                  </span>
+                )
               }
             />
           ))}
