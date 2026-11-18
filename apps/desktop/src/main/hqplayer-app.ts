@@ -2,8 +2,9 @@
  * Starting HQPlayer Desktop from Studio and keeping its window out of the way (Windows only).
  *
  * Studio never changes HQPlayer's installation or settings: it only starts the program the user
- * already has, and shows / minimizes / hides its window with the standard Win32 ShowWindow call
- * (via PowerShell, so no native addon is needed). A hidden HQPlayer keeps running and playing;
+ * already has, shows / minimizes / hides its window with the standard Win32 ShowWindow call
+ * (via PowerShell, so no native addon is needed) and — only for a settings restore the user asked
+ * for (hqp-settings-backup.ts) — asks it to quit the normal way (WM_CLOSE). A hidden HQPlayer keeps running and playing;
  * Studio controls it over its API as usual, and "显示 HQPlayer" brings the window back.
  *
  * Every step reports what happened (`HqpRunReport`): where the program was looked for, whether it
@@ -23,7 +24,8 @@ const { basename, dirname, join } = win32;
 const execFileP = promisify(execFile);
 
 export type HqpWindowMode = 'normal' | 'minimized' | 'hidden';
-export type HqpWindowAction = 'list' | 'show' | 'hide' | 'minimize';
+/** `close` asks HQPlayer to quit the normal way (WM_CLOSE, like clicking its window's ×). */
+export type HqpWindowAction = 'list' | 'show' | 'hide' | 'minimize' | 'close';
 
 export interface HqpAppPrefs {
   /** HQPlayer Desktop's .exe; null = auto-detect. */
@@ -567,6 +569,7 @@ public static class HqpsWin {
   [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint msg, IntPtr w, IntPtr l);
   public static List<IntPtr> TopLevel(uint[] pids) {
     var found = new List<IntPtr>();
     var set = new HashSet<uint>(pids);
@@ -597,6 +600,11 @@ if ($pids.Count -gt 0) {
       'minimize' {
         if ($visible -and -not $iconic -and $title.Length -gt 0) {
           [void][HqpsWin]::ShowWindow($h, 6); $iconic = $true; $changed = $true
+        }
+      }
+      'close' {
+        if ($title.Length -gt 0 -and "$cls|$title" -match $env:HQPS_SHOW) {
+          [void][HqpsWin]::PostMessage($h, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero); $changed = $true
         }
       }
       'show' {

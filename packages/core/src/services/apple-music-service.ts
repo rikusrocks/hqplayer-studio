@@ -8,6 +8,7 @@ import {
   type AppleMusicCheck,
   type AppleMusicControlAction,
   type AppleMusicState,
+  type DspChange,
   type EngineStatus,
   type LiveNowPlaying,
   type LivePlayedSong,
@@ -36,6 +37,13 @@ export const APPLE_MUSIC_ENABLED_SETTING = 'appleMusic.enabled';
 export const APPLE_MUSIC_URI_SETTING = 'appleMusic.preferredUri';
 /** The live-input URI that worked last time (string or null). */
 export const APPLE_MUSIC_LAST_URI_SETTING = 'appleMusic.lastUri';
+/** Switch the output rate from Auto to a fixed rate while the live input plays (boolean, default true). */
+export const APPLE_MUSIC_AUTO_RATE_SETTING = 'appleMusic.autoRate';
+/**
+ * The output rate (Hz, 0 = Auto) Studio switched away from at Start, put back at Stop. Kept in
+ * the settings so a Studio restart in between still puts it back.
+ */
+export const APPLE_MUSIC_RATE_BEFORE_SETTING = 'appleMusic.rateBeforeLive';
 
 /**
  * Tried after the user's own URI, the one that worked last time and whatever HQPlayer lists.
@@ -93,6 +101,7 @@ const BLOCK_MESSAGES: Record<AppleMusicBlock, string> = {
 export class AppleMusicService implements LiveSourceHook {
   private enabled = false;
   private preferredUri: string | null = null;
+  private autoRate = true;
   private liveUri: string | null = null;
   private phase: AppleMusicState['phase'] = 'idle';
   private sessions: MediaSession[] = [];
@@ -130,6 +139,7 @@ export class AppleMusicService implements LiveSourceHook {
     this.enabled = this.settings.get<boolean>(APPLE_MUSIC_ENABLED_SETTING, false);
     this.preferredUri = this.settings.get<string | null>(APPLE_MUSIC_URI_SETTING, null);
     this.liveUri = this.settings.get<string | null>(APPLE_MUSIC_LAST_URI_SETTING, null);
+    this.autoRate = this.settings.get<boolean>(APPLE_MUSIC_AUTO_RATE_SETTING, true) !== false;
     this.applyPolicy();
     this.engine.setLiveSource(this);
     this.offStatus = this.engine.onStatus(() => this.onEngineStatus());
@@ -151,6 +161,7 @@ export class AppleMusicService implements LiveSourceHook {
       phase: this.phase,
       liveUri: this.liveUri,
       preferredUri: this.preferredUri,
+      autoRate: this.autoRate,
       nowPlaying: this.nowPlaying(),
       mediaError: this.mediaError,
       blocked: this.blocked(),
@@ -166,6 +177,20 @@ export class AppleMusicService implements LiveSourceHook {
   }
 
   async updateSettings(patch: UpdateAppleMusicSettingsRequest): Promise<AppleMusicState> {
+    if (patch.autoRate !== undefined) {
+      this.autoRate = patch.autoRate;
+      this.settings.set(APPLE_MUSIC_AUTO_RATE_SETTING, patch.autoRate);
+      if (this.setup) {
+        // the output-rate line depends on this switch
+        const line = await this.checkOutputRate().catch(() => null);
+        if (line) {
+          this.setup = {
+            ...this.setup,
+            checks: this.setup.checks.map((c) => (c.id === 'outputRate' ? line : c)),
+          };
+        }
+      }
+    }
     if (patch.preferredUri !== undefined) {
       this.preferredUri = patch.preferredUri;
       this.settings.set(APPLE_MUSIC_URI_SETTING, patch.preferredUri);
@@ -296,9 +321,13 @@ export class AppleMusicService implements LiveSourceHook {
       const index = dsp.selected?.rate ?? null;
       const chosen = index === null ? undefined : dsp.rates.find((r) => r.index === index);
       if (chosen) {
-        return chosen.rate === 0
-          ? { id: 'outputRate', status: 'missing', detail: 'rate_auto' }
-          : { id: 'outputRate', status: 'ok', detail: formatRate(chosen.rate) };
+        if (chosen.rate !== 0) {
+          return { id: 'outputRate', status: 'ok', detail: formatRate(chosen.rate) };
+        }
+        // Auto is fine when Studio switches to a fixed rate for the live input by itself
+        return this.autoRate && this.engine.can('dsp.write')
+          ? { id: 'outputRate', status: 'ok', detail: 'rate_auto_switch' }
+          : { id: 'outputRate', status: 'missing', detail: 'rate_auto' };
       }
       // The engine did not say which entry is selected: report the rate it plays at, if any.
       if (dsp.current.rate)
@@ -330,6 +359,7 @@ export class AppleMusicService implements LiveSourceHook {
           [this.preferredUri, this.liveUri, ...listed, ...DEFAULT_LIVE_URIS].filter(isLiveInputUri),
         ),
       ].slice(0, MAX_CANDIDATES);
+      await this.fixRateForLive();
       this.queue.suspendForLive(() => this.released());
       // Several stop / clear / add / play rounds in a row: far longer than one command.
       const result = await this.engine.run(
@@ -357,6 +387,7 @@ export class AppleMusicService implements LiveSourceHook {
           tried: result.attempts.map((a) => a.uri).join(','),
         });
         await this.restoreQueue();
+        await this.putRateBack();
         this.hub.notice(
           'warning',
           'applemusic_start_failed',
@@ -368,12 +399,71 @@ export class AppleMusicService implements LiveSourceHook {
       this.lastStart = { at, ok: false, attempts: [], error: (err as Error).message };
       this.log.warn('apple-music', 'start failed', { error: (err as Error).name });
       await this.restoreQueue().catch(() => undefined);
+      await this.putRateBack();
       throw err;
     } finally {
       this.publish();
       this.engine.republish();
     }
     return this.get();
+  }
+
+  /**
+   * Start: HQPlayer's output rate on Auto may keep a live input from starting, so (when the
+   * switch is on) pick a fixed rate — the rate HQPlayer outputs now, else the highest it offers —
+   * and remember Auto so Stop puts it back. Never throws: a refused change only gets logged.
+   */
+  private async fixRateForLive(): Promise<void> {
+    if (!this.autoRate || !this.engine.can('dsp.write')) return;
+    try {
+      const dsp = await this.readDsp();
+      const selected = dsp.rates.find((r) => r.index === dsp.selected?.rate);
+      if (!selected || selected.rate !== 0) return; // already a fixed rate (or unknown)
+      const fixed = dsp.rates.filter((r) => r.rate > 0);
+      if (fixed.length === 0) return;
+      const now = dsp.current.rate ? fixed.find((r) => r.rate === dsp.current.rate) : undefined;
+      const target = now ?? fixed.reduce((a, b) => (b.rate > a.rate ? b : a));
+      await this.writeDsp({ rate: target.index });
+      this.settings.set(APPLE_MUSIC_RATE_BEFORE_SETTING, 0);
+      this.log.info('apple-music', 'output rate fixed for the live input', { rate: target.rate });
+    } catch (err) {
+      this.log.warn('apple-music', 'could not fix the output rate', {
+        error: (err as Error).message,
+      });
+    }
+  }
+
+  /** Stop (or a failed start): back to the rate that was selected before Start. */
+  private async putRateBack(): Promise<void> {
+    const before = this.settings.get<number | null>(APPLE_MUSIC_RATE_BEFORE_SETTING, null);
+    if (typeof before !== 'number') return;
+    try {
+      const dsp = await this.readDsp();
+      const entry = dsp.rates.find((r) => r.rate === before);
+      if (entry && dsp.selected?.rate !== entry.index) await this.writeDsp({ rate: entry.index });
+      this.settings.set(APPLE_MUSIC_RATE_BEFORE_SETTING, null);
+      this.log.info('apple-music', 'output rate put back', { rate: before });
+    } catch (err) {
+      // kept in the settings: the next Stop tries again
+      this.log.warn('apple-music', 'could not put the output rate back', {
+        error: (err as Error).message,
+      });
+    }
+  }
+
+  private readDsp() {
+    return this.engine.run('getDspState', (a) => {
+      if (!a.getDspState)
+        throw new CapabilityUnavailableError('dsp.read', 'adapter cannot read DSP state');
+      return a.getDspState();
+    });
+  }
+
+  private writeDsp(change: DspChange) {
+    return this.engine.run('setDsp', (a) => {
+      if (!a.setDsp) throw new CapabilityUnavailableError('dsp.write', 'adapter cannot change DSP');
+      return a.setDsp(change);
+    });
   }
 
   /** Leave the live input: Studio's queue goes back into HQPlayer, not playing. */
@@ -387,6 +477,7 @@ export class AppleMusicService implements LiveSourceHook {
       if (session?.status === 'Playing')
         await this.media.control(session.app, 'pause').catch(() => false);
       await this.restoreQueue();
+      await this.putRateBack();
       this.log.info('apple-music', 'live input stopped');
     } finally {
       this.phase = 'idle';

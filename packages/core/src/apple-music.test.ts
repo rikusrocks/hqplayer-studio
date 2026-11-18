@@ -311,6 +311,75 @@ describe('Apple Music through a live input', () => {
     expect(status().track?.source ?? null).toBeNull();
   });
 
+  it(
+    'switches the output rate from Auto to a fixed rate for the live input and back on Stop',
+    { timeout: 20_000 },
+    async () => {
+      await boot();
+      await enable();
+      // a writable DSP: rates Auto (0) / 705.6 kHz / 768 kHz, Auto selected, output now 768 kHz
+      let selectedRate = 0;
+      const writes: unknown[] = [];
+      const real = adapter.getDspState.bind(adapter);
+      const rates = [
+        { index: 0, rate: 0 },
+        { index: 1, rate: 705_600 },
+        { index: 2, rate: 768_000 },
+      ];
+      const dsp = async () => ({
+        ...(await real()),
+        rates,
+        current: { mode: 'PCM', filter: null, shaper: null, rate: 768_000 },
+        selected: {
+          mode: null,
+          filter1x: null,
+          filterNx: null,
+          shaper: null,
+          rate: selectedRate,
+          invert: null,
+          adaptiveVolume: null,
+          convolution: null,
+        },
+      });
+      vi.spyOn(adapter, 'getDspState').mockImplementation(dsp);
+      Object.assign(adapter, {
+        setDsp: async (change: { rate?: number }) => {
+          writes.push(change);
+          if (change.rate !== undefined) selectedRate = change.rate;
+          return dsp();
+        },
+      });
+      const can = server.engine.can.bind(server.engine);
+      vi.spyOn(server.engine, 'can').mockImplementation((k) => k === 'dsp.write' || can(k));
+
+      // Auto is fine on the check: Studio handles it
+      const checked = await api<AppleMusicState>('POST', '/apple-music/check');
+      expect(checked.body.setup!.checks.find((c) => c.id === 'outputRate')).toMatchObject({
+        status: 'ok',
+        detail: 'rate_auto_switch',
+      });
+
+      await api('POST', '/apple-music/start');
+      expect(writes).toEqual([{ rate: 2 }]); // the rate HQPlayer outputs now
+      expect(ctx.settings.get('appleMusic.rateBeforeLive', null)).toBe(0);
+
+      await api('POST', '/apple-music/stop');
+      expect(writes).toEqual([{ rate: 2 }, { rate: 0 }]); // back to Auto
+      expect(ctx.settings.get('appleMusic.rateBeforeLive', null)).toBeNull();
+
+      // switched off: Auto is left alone and flagged again
+      const off = await api<AppleMusicState>('POST', '/apple-music/settings', { autoRate: false });
+      expect(off.body.autoRate).toBe(false);
+      expect(off.body.setup!.checks.find((c) => c.id === 'outputRate')).toMatchObject({
+        status: 'missing',
+        detail: 'rate_auto',
+      });
+      await api('POST', '/apple-music/start');
+      expect(writes).toHaveLength(2);
+      vi.restoreAllMocks();
+    },
+  );
+
   it('ends by itself when something from the library is played', { timeout: 20_000 }, async () => {
     await boot();
     await enable();

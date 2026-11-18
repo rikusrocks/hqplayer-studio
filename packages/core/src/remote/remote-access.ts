@@ -13,6 +13,14 @@ import {
   systemInterfaces,
   type InterfaceProvider,
 } from './lan-address';
+import {
+  deviceTargets,
+  prefixLength,
+  sweepTargets,
+  systemNetmask,
+  udpAnnouncer,
+  type LanAnnouncer,
+} from './lan-announce';
 import { PairingService, type PairingOptions } from './pairing';
 
 /** app_settings key: `{ enabled, interfaceName, address, port }` of the LAN listener. */
@@ -44,6 +52,15 @@ export interface RemoteAccessOptions {
   /** Re-check the network every N ms (address changed / port freed). Default 30 s; 0 = off. */
   checkIntervalMs?: number;
   pairing?: PairingOptions;
+  /**
+   * Announces this PC to paired phones (see lan-announce.ts). Default: UDP; off (null) whenever
+   * `testBindAddress` is set, so tests never send packets on a real network.
+   */
+  announcer?: LanAnnouncer | null;
+  /** Netmask of the listening address (tests). Default: read from the system. */
+  netmaskOf?: (address: string) => string | null;
+  /** Announce tick in ms (default 20 s; paired devices every 3rd tick, the /24 while pairing). */
+  announceIntervalMs?: number;
 }
 
 type AppFactory = (binding: LanBinding) => Promise<FastifyInstance>;
@@ -63,6 +80,10 @@ export class RemoteAccessService {
   private chain: Promise<unknown> = Promise.resolve();
   private stopped = false;
   private readonly interfacesOf: InterfaceProvider;
+  private readonly announcer: LanAnnouncer | null;
+  private announceTimer: ReturnType<typeof setInterval> | null = null;
+  private announceTicks = 0;
+  private lastSweepAt = 0;
 
   constructor(
     private readonly ctx: LibraryContext,
@@ -72,7 +93,68 @@ export class RemoteAccessService {
   ) {
     this.pairing = new PairingService(ctx.remoteDevices, opts.pairing);
     this.interfacesOf = opts.interfaces ?? systemInterfaces;
-    this.pairing.onChange(() => this.changed());
+    this.announcer =
+      opts.announcer !== undefined ? opts.announcer : opts.testBindAddress ? null : udpAnnouncer;
+    this.pairing.onChange(() => {
+      this.changed();
+      // a pairing code was just shown: make the PC findable for the phone that will scan it
+      if (this.pairing.activeCode() && Date.now() - this.lastSweepAt > 5_000) {
+        void this.announce(true);
+      }
+    });
+  }
+
+  /**
+   * Tell the network where this PC is (see lan-announce.ts): paired devices' last addresses,
+   * plus every address of the local /24 when `sweep` is set. Never throws.
+   */
+  async announce(sweep: boolean): Promise<string[]> {
+    const binding = this.binding;
+    if (!this.announcer || !binding || this.stopped) return [];
+    const from = binding.lanAddress;
+    let prefix: number | null;
+    try {
+      prefix = prefixLength((this.opts.netmaskOf ?? systemNetmask)(from));
+    } catch {
+      prefix = null;
+    }
+    const targets = new Set(
+      deviceTargets(
+        from,
+        prefix,
+        this.pairing.list().map((d) => d.lastAddress),
+      ),
+    );
+    if (sweep) {
+      this.lastSweepAt = Date.now();
+      for (const ip of sweepTargets(from, prefix)) targets.add(ip);
+    }
+    const list = [...targets];
+    try {
+      await this.announcer.send(from, list);
+    } catch {
+      // best effort
+    }
+    return list;
+  }
+
+  private startAnnouncing(): void {
+    if (!this.announcer || this.announceTimer) return;
+    const every = this.opts.announceIntervalMs ?? 20_000;
+    if (every <= 0) return;
+    this.announceTicks = 0;
+    this.announceTimer = setInterval(() => {
+      if (!this.isListening()) return;
+      this.announceTicks += 1;
+      const pairing = this.pairing.activeCode() !== null;
+      if (pairing || this.announceTicks % 3 === 0) void this.announce(pairing);
+    }, every);
+    this.announceTimer.unref?.();
+  }
+
+  private stopAnnouncing(): void {
+    if (this.announceTimer) clearInterval(this.announceTimer);
+    this.announceTimer = null;
   }
 
   private changed(): void {
@@ -222,6 +304,9 @@ export class RemoteAccessService {
       this.binding = { ...binding, interfaceName: where.interfaceName, lanAddress: where.address };
       this.error = null;
       this.changed();
+      // phones that were paired before (and any phone about to pair) can find the PC at once
+      void this.announce(true);
+      this.startAnnouncing();
     } catch (err) {
       await app?.close().catch(() => undefined);
       const code = (err as NodeJS.ErrnoException).code;
@@ -255,6 +340,7 @@ export class RemoteAccessService {
   }
 
   private async closeListener(): Promise<void> {
+    this.stopAnnouncing();
     const app = this.app;
     this.app = null;
     this.binding = null;

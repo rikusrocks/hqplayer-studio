@@ -688,6 +688,34 @@ describe('Web Remote realtime', () => {
   });
 });
 
+describe('Web Remote announce (phones can find the PC)', () => {
+  it('announces the PC to the network when listening and to paired phones afterwards', async () => {
+    const sent: Array<{ from: string; to: string[] }> = [];
+    await server.close();
+    server = await createStudioServer(
+      options({
+        announcer: {
+          send: async (from, to) => {
+            sent.push({ from, to });
+          },
+        },
+        netmaskOf: () => '255.255.255.0',
+        announceIntervalMs: 0,
+      }),
+    );
+    await server.listen();
+    await enableLan();
+    await vi.waitFor(() => expect(sent.length).toBeGreaterThan(0));
+    // listener started: the whole /24 (the PC's own address excluded)
+    expect(sent[0]!.from).toBe('192.168.1.20');
+    expect(sent[0]!.to).toHaveLength(253);
+    expect(sent[0]!.to).not.toContain('192.168.1.20');
+
+    await pairPhone();
+    expect(await server.remote.announce(false)).toEqual([PHONE]);
+  });
+});
+
 describe('Web Remote lifecycle', () => {
   it('turning LAN access off closes the listener; devices and the setting survive a restart', async () => {
     await enableLan();

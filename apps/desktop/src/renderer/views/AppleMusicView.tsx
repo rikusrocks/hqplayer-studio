@@ -10,7 +10,6 @@ import {
   useI18n,
   useStudio,
   useToasts,
-  type IconName,
   type MessageKey,
 } from '@hqps/ui';
 import { useEffect, useState } from 'react';
@@ -30,18 +29,12 @@ const CHECK_ACTIONS: Partial<Record<AppleMusicCheck['id'], OpenTarget[]>> = {
 
 /** Set-up lines that Studio itself can fix: a link to the Studio page that does it. */
 const CHECK_LINKS: Partial<Record<AppleMusicCheck['id'], { href: string; label: MessageKey }>> = {
+  engine: { href: '#/settings/playback', label: 'am.link.playback' },
   outputRate: { href: '#/settings/dsp', label: 'am.link.dsp' },
 };
 
 /** Addresses offered as one-click suggestions in the address line (HQPlayer's own come first). */
 const SUGGESTED_URIS = ['audio:default/44100/2', 'audio:default/48000/2', 'audio:default/0/2'];
-
-const STATUS_ICON: Record<AppleMusicCheck['status'], IconName> = {
-  ok: 'check',
-  missing: 'warning',
-  unknown: 'info',
-  manual: 'dot',
-};
 
 /**
  * Apple Music through HQPlayer. Everything happens on this page: turning the source on,
@@ -333,21 +326,107 @@ function EnableBlock({ state, act }: { state: AppleMusicState; act: Act }) {
   );
 }
 
+/** The order the guide walks through (Windows itself is shown as a banner instead). */
+const GUIDE_ORDER: AppleMusicCheck['id'][] = [
+  'engine',
+  'appleMusicApp',
+  'virtualCable',
+  'cableFormat',
+  'microphoneAccess',
+  'appRouting',
+  'hqplayerInput',
+  'outputRate',
+  'liveInputAddress',
+];
+/** Steps Studio cannot see from outside: the user confirms them ("I've done this"). */
+const CONFIRM_KEY = 'hqps.am.guide.confirmed';
+/** Re-check the PC this often while the guide still has open steps (ms). */
+const RECHECK_MS = 8_000;
+
+function readConfirmed(): Partial<Record<AppleMusicCheck['id'], boolean>> {
+  try {
+    return JSON.parse(globalThis.localStorage?.getItem(CONFIRM_KEY) ?? '{}') as Partial<
+      Record<AppleMusicCheck['id'], boolean>
+    >;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Step-by-step connection guide. Each step says what to do, offers the button that opens the
+ * right Windows page (or does it in Studio), and is ticked off by itself: the PC is checked again
+ * whenever the user comes back to Studio and every few seconds while a step is open. Steps
+ * Studio cannot see are confirmed by the user. Checking only reads; it changes nothing.
+ */
 function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
   const { t, locale } = useI18n();
   const { client, run } = useStudio();
   const [busy, setBusy] = useState(false);
-  const check = async () => {
-    setBusy(true);
-    await act(() => client.appleMusic.check());
-    setBusy(false);
-  };
+  const [confirmed, setConfirmed] = useState(readConfirmed);
+  const [open, setOpen] = useState<string | null>(null);
   const setup = state.setup;
   const canOpen = state.supported && !state.simulated;
+
+  const check = async (quiet = false) => {
+    if (!quiet) setBusy(true);
+    try {
+      if (quiet) {
+        const next = await client.appleMusic.check().catch(() => null);
+        if (next) await act(() => Promise.resolve(next));
+      } else {
+        await act(() => client.appleMusic.check());
+      }
+    } finally {
+      if (!quiet) setBusy(false);
+    }
+  };
+
+  const steps = GUIDE_ORDER.map((id) => setup?.checks.find((c) => c.id === id)).filter(
+    (c): c is AppleMusicCheck => c !== undefined,
+  );
+  const isDone = (c: AppleMusicCheck) =>
+    c.status === 'ok' ||
+    ((c.status === 'manual' || c.status === 'unknown') && confirmed[c.id] === true);
+  const doneCount = steps.filter(isDone).length;
+  const current = steps.find((c) => !isDone(c)) ?? null;
+  const allDone = steps.length > 0 && current === null;
+  const shown = open ?? current?.id ?? null;
+
+  // first visit: look at the PC right away; afterwards keep looking while steps are open
+  useEffect(() => {
+    if (!setup && state.supported) void check(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once
+  }, []);
+  useEffect(() => {
+    if (!state.supported || allDone) return;
+    const again = () => {
+      if (document.visibilityState === 'visible') void check(true);
+    };
+    const timer = setInterval(again, RECHECK_MS);
+    window.addEventListener('focus', again);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', again);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the check reads fresh state itself
+  }, [state.supported, allDone]);
+
+  const confirm = (id: AppleMusicCheck['id'], value: boolean) => {
+    const next = { ...confirmed, [id]: value };
+    setConfirmed(next);
+    setOpen(null);
+    try {
+      globalThis.localStorage?.setItem(CONFIRM_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="settings-block">
       <BlockHead
-        title={t('am.setup.title')}
+        title={t('am.guide.title')}
         layer="studio"
         aside={
           <button
@@ -368,8 +447,45 @@ function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
         </>
       ) : (
         <>
-          <ul className="am-checks">
-            {setup.checks.map((c) => {
+          <div className="am-guide__progress">
+            <div
+              className="am-guide__bar"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={steps.length}
+              aria-valuenow={doneCount}
+            >
+              <span style={{ width: `${(doneCount / Math.max(1, steps.length)) * 100}%` }} />
+            </div>
+            <span className="hint">
+              {allDone
+                ? t('am.guide.allDone')
+                : t('am.guide.progress', { done: doneCount, total: steps.length })}
+            </span>
+          </div>
+          {allDone && (
+            <div className="hq-banner hq-banner--info am-guide__ready">
+              <Icon name="check" size={16} />
+              <div className="hq-banner__body">
+                <strong>{t('am.guide.ready')}</strong>
+                <span>{t('am.guide.readyHint')}</span>
+              </div>
+              {state.phase === 'idle' && state.enabled && !state.blocked && (
+                <button
+                  type="button"
+                  className="hq-btn hq-btn--sm hq-btn--primary"
+                  onClick={() => void act(() => client.appleMusic.start())}
+                >
+                  <Icon name="play" size={14} />
+                  {t('am.guide.start')}
+                </button>
+              )}
+            </div>
+          )}
+          <ol className="am-guide">
+            {steps.map((c, i) => {
+              const done = isDone(c);
+              const expanded = shown === c.id;
               const known = `am.detail.${c.detail ?? ''}`;
               const detail =
                 c.detail === null
@@ -379,64 +495,108 @@ function SetupBlock({ state, act }: { state: AppleMusicState; act: Act }) {
                   : hasMessage(known)
                     ? t(known as MessageKey)
                     : c.detail;
-              const actions = c.status === 'ok' ? [] : (CHECK_ACTIONS[c.id] ?? []);
-              const link = c.status === 'ok' ? undefined : CHECK_LINKS[c.id];
+              const actions = CHECK_ACTIONS[c.id] ?? [];
+              const link = CHECK_LINKS[c.id];
+              const howKey = `am.guide.how.${c.id}`;
               return (
-                <li key={c.id} className={`am-check am-check--${c.status}`}>
-                  <span className="am-check__mark" title={t(`am.status.${c.status}` as MessageKey)}>
-                    <Icon name={STATUS_ICON[c.status]} size={14} />
-                  </span>
-                  <div className="am-check__body">
-                    <div className="am-check__name">
-                      {t(`am.check.${c.id}` as MessageKey)}
-                      <span className="am-check__status">
-                        {t(`am.status.${c.status}` as MessageKey)}
-                      </span>
-                    </div>
-                    {c.status !== 'ok' && (
-                      <div className="am-check__hint">
-                        {t(`am.check.${c.id}.hint` as MessageKey)}
+                <li
+                  key={c.id}
+                  className={`am-guide__step${done ? ' is-done' : ''}${
+                    current?.id === c.id ? ' is-current' : ''
+                  }${expanded ? ' is-open' : ''} am-check--${c.status}`}
+                >
+                  <button
+                    type="button"
+                    className="am-guide__head"
+                    aria-expanded={expanded}
+                    onClick={() => setOpen(expanded ? '' : c.id)}
+                  >
+                    <span className="am-guide__num" aria-hidden>
+                      {done ? <Icon name="check" size={14} /> : i + 1}
+                    </span>
+                    <span className="am-guide__name">{t(`am.check.${c.id}` as MessageKey)}</span>
+                    <span className="am-check__status">
+                      {done && c.status !== 'ok'
+                        ? t('am.guide.confirmed')
+                        : t(`am.status.${c.status}` as MessageKey)}
+                    </span>
+                  </button>
+                  {expanded && (
+                    <div className="am-guide__body">
+                      <p>{t(`am.check.${c.id}.hint` as MessageKey)}</p>
+                      {hasMessage(howKey) && (
+                        <ol className="am-guide__how">
+                          {t(howKey as MessageKey)
+                            .split('\n')
+                            .map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                        </ol>
+                      )}
+                      {detail && <div className="am-check__detail hq-mono">{detail}</div>}
+                      {c.id === 'outputRate' && (
+                        <Switch
+                          checked={state.autoRate}
+                          onChange={(v) =>
+                            void act(() => client.appleMusic.update({ autoRate: v }))
+                          }
+                          title={t('am.guide.autoRate')}
+                          hint={t('am.guide.autoRate.hint')}
+                        />
+                      )}
+                      {c.id === 'liveInputAddress' && <AddressEditor state={state} act={act} />}
+                      <div className="am-guide__actions">
+                        {canOpen &&
+                          actions.map((target) => (
+                            <button
+                              key={target}
+                              type="button"
+                              className="hq-btn hq-btn--sm"
+                              onClick={() => void run(() => client.appleMusic.open(target))}
+                            >
+                              <Icon name="external" size={12} />
+                              {t(
+                                target === 'apple-music'
+                                  ? 'am.openApp'
+                                  : (`am.open.${target}` as MessageKey),
+                              )}
+                            </button>
+                          ))}
+                        {link && c.status !== 'ok' && (
+                          <a className="hq-btn hq-btn--sm" href={link.href}>
+                            <Icon name="settings" size={12} />
+                            {t(link.label)}
+                          </a>
+                        )}
+                        {(c.status === 'manual' || c.status === 'unknown') &&
+                          (confirmed[c.id] ? (
+                            <button
+                              type="button"
+                              className="hq-btn hq-btn--sm hq-btn--ghost"
+                              onClick={() => confirm(c.id, false)}
+                            >
+                              {t('am.guide.undo')}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="hq-btn hq-btn--sm hq-btn--primary"
+                              onClick={() => confirm(c.id, true)}
+                            >
+                              <Icon name="check" size={12} />
+                              {t('am.guide.didIt')}
+                            </button>
+                          ))}
                       </div>
-                    )}
-                    {detail && <div className="am-check__detail hq-mono">{detail}</div>}
-                    {c.id === 'outputRate' && (
-                      <div className="am-check__hint">{t('am.check.outputRate.back')}</div>
-                    )}
-                    {c.id === 'liveInputAddress' && <AddressEditor state={state} act={act} />}
-                  </div>
-                  {link && (
-                    <div className="am-check__actions">
-                      <a className="hq-btn hq-btn--sm" href={link.href}>
-                        <Icon name="settings" size={12} />
-                        {t(link.label)}
-                      </a>
-                    </div>
-                  )}
-                  {canOpen && actions.length > 0 && (
-                    <div className="am-check__actions">
-                      {actions.map((target) => (
-                        <button
-                          key={target}
-                          type="button"
-                          className="hq-btn hq-btn--sm"
-                          onClick={() => void run(() => client.appleMusic.open(target))}
-                        >
-                          <Icon name="external" size={12} />
-                          {t(
-                            target === 'apple-music'
-                              ? 'am.openApp'
-                              : (`am.open.${target}` as MessageKey),
-                          )}
-                        </button>
-                      ))}
                     </div>
                   )}
                 </li>
               );
             })}
-          </ul>
+          </ol>
           <p className="hint">
-            {t('am.setup.checkedAt', { time: clock(setup.checkedAt, locale) })}
+            {t('am.setup.checkedAt', { time: clock(setup.checkedAt, locale) })} ·{' '}
+            {t('am.guide.auto')}
           </p>
         </>
       )}

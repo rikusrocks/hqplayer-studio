@@ -1,6 +1,7 @@
 import { normalizePairingCode, PairRequestSchema } from '@hqps/contracts';
 import { describe, expect, it } from 'vitest';
 import { classifyIPv4, listLanInterfaces, resolveBindAddress } from './lan-address';
+import { deviceTargets, inSubnet, prefixLength, sweepTargets } from './lan-announce';
 import { FixedWindowLimiter } from './rate-limit';
 import { opaqueUri, redactPaths, REDACTED_PATH, sanitizeForLan } from './sanitize';
 
@@ -138,5 +139,40 @@ describe('pairing request validation', () => {
     expect(
       PairRequestSchema.safeParse({ code: '123456', deviceName: 'x'.repeat(61) }).success,
     ).toBe(false);
+  });
+});
+
+describe('LAN announce targets', () => {
+  it('reads prefix lengths and rejects broken masks', () => {
+    expect(prefixLength('255.255.255.0')).toBe(24);
+    expect(prefixLength('255.255.0.0')).toBe(16);
+    expect(prefixLength('255.255.255.252')).toBe(30);
+    expect(prefixLength('255.0.255.0')).toBeNull();
+    expect(prefixLength(null)).toBeNull();
+    expect(inSubnet('192.168.50.225', '192.168.50.89', 24)).toBe(true);
+    expect(inSubnet('192.168.50.225', '192.168.51.89', 24)).toBe(false);
+  });
+
+  it('sweeps only a home-sized network and never itself', () => {
+    const all = sweepTargets('192.168.50.225', 24);
+    expect(all).toHaveLength(253);
+    expect(all).not.toContain('192.168.50.225');
+    expect(all[0]).toBe('192.168.50.1');
+    expect(all.at(-1)).toBe('192.168.50.254');
+    expect(sweepTargets('10.0.0.5', 16)).toEqual([]);
+    expect(sweepTargets('10.0.0.5', null)).toEqual([]);
+  });
+
+  it('announces to paired devices on the same network only', () => {
+    expect(
+      deviceTargets('192.168.50.225', 24, [
+        '192.168.50.89',
+        '::ffff:192.168.50.179',
+        '192.168.50.89',
+        '192.168.50.225',
+        '10.1.1.1',
+        null,
+      ]),
+    ).toEqual(['192.168.50.89', '192.168.50.179']);
   });
 });

@@ -141,6 +141,11 @@ export const AppleMusicStateSchema = z.object({
   liveUri: z.string().nullable(),
   /** The user's own choice of live input, tried before the built-in ones. */
   preferredUri: z.string().nullable(),
+  /**
+   * While Apple Music plays, Studio switches HQPlayer's output rate from Auto to a fixed rate
+   * (live inputs may not start on Auto) and back to Auto on Stop. Default on.
+   */
+  autoRate: z.boolean(),
   nowPlaying: LiveNowPlayingSchema.nullable(),
   /** The Windows query itself failed (shown on the page; never hidden). */
   mediaError: z.string().nullable(),
@@ -175,10 +180,14 @@ export const UpdateAppleMusicSettingsRequestSchema = z
   .object({
     enabled: z.boolean().optional(),
     preferredUri: LiveInputUriSchema.nullable().optional(),
+    autoRate: z.boolean().optional(),
   })
-  .refine((v) => v.enabled !== undefined || v.preferredUri !== undefined, {
-    message: 'Nothing to update',
-  });
+  .refine(
+    (v) => v.enabled !== undefined || v.preferredUri !== undefined || v.autoRate !== undefined,
+    {
+      message: 'Nothing to update',
+    },
+  );
 export type UpdateAppleMusicSettingsRequest = z.infer<typeof UpdateAppleMusicSettingsRequestSchema>;
 
 export const AppleMusicControlRequestSchema = z.object({
@@ -195,6 +204,7 @@ export function idleAppleMusicState(): AppleMusicState {
     phase: 'idle',
     liveUri: null,
     preferredUri: null,
+    autoRate: true,
     nowPlaying: null,
     mediaError: null,
     blocked: 'disabled',

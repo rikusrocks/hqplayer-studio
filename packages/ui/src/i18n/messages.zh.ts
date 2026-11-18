@@ -966,7 +966,7 @@ export const zh = {
   'am.detail.no_session': '正在运行，但还没有播放过',
   'am.check.outputRate': 'HQPlayer 输出采样率是固定值',
   'am.check.outputRate.hint':
-    '设为“自动（Auto）”时，HQPlayer 有时无法启动实时输入。请在 Studio（设置 → DSP）或 HQPlayer 主窗口选一个固定的输出采样率，再按“开始”。',
+    '设为“自动（Auto）”时，HQPlayer 有时无法启动实时输入。打开下面的开关后，Studio 会在播放 Apple Music 时自动改用固定采样率，之后再改回“自动”。',
   'am.check.outputRate.back':
     '回到音乐库播放时，可能需要把输出采样率改回“自动（Auto）”，让 HQPlayer 跟随每张专辑自己的采样率。',
   'am.check.liveInputAddress': '实时输入地址',
@@ -1183,6 +1183,76 @@ export const zh = {
   'setup.again.hint':
     '重新走一遍第一次使用时的设置：检查 HQPlayer、添加音乐文件夹、选择连接与控制权限。',
   'setup.again.run': '重新运行设置向导',
+  'hqpSet.title': 'HQPlayer 设置备份',
+  'hqpSet.hint':
+    'Studio 会在 HQPlayer 的设置文件（输出设备、缓冲、输入、音量、DSP、卷积/矩阵等全部设置）每次变化时自动保存一份副本。如果 HQPlayer 某次启动后变成了空白的默认设置，点“恢复”即可放回之前的设置：Studio 会先关闭 HQPlayer，再写回副本并重新启动它。',
+  'hqpSet.file': '设置文件',
+  'hqpSet.found': '已找到',
+  'hqpSet.notFound': '没有找到 HQPlayer 的设置文件（HQPlayer 可能还没保存过设置）',
+  'hqpSet.lastCheck': '上次检查',
+  'hqpSet.none': '还没有副本。打开 HQPlayer 并设置一次后，Studio 会自动保存。',
+  'hqpSet.backupNow': '立即备份',
+  'hqpSet.saved': '已保存 HQPlayer 设置副本',
+  'hqpSet.openFolder': '打开文件夹',
+  'hqpSet.reason.auto': '自动',
+  'hqpSet.reason.manual': '手动',
+  'hqpSet.reason.before-restore': '恢复前的设置',
+  'hqpSet.size': '{kb} KB · {n} 项',
+  'hqpSet.looksReset': '疑似被重置',
+  'hqpSet.pinned': '已固定',
+  'hqpSet.pin': '固定（永久保留）',
+  'hqpSet.unpin': '取消固定',
+  'hqpSet.restore': '恢复',
+  'hqpSet.restoreTitle': '恢复 HQPlayer 设置',
+  'hqpSet.restoreConfirm':
+    '把 HQPlayer 的设置恢复为 {when} 的副本？Studio 会先关闭 HQPlayer（正在播放的音乐会停止），保存当前设置为一份副本，写回所选副本，然后重新启动 HQPlayer。',
+  'hqpSet.restored': 'HQPlayer 设置已恢复，HQPlayer 正在重新启动',
+  'hqpSet.notNow': '暂不',
+  'hqpSet.resetTitle': 'HQPlayer 的设置似乎被重置了',
+  'hqpSet.resetBody':
+    'HQPlayer 的设置文件变成了接近默认的空白设置。可以恢复 {when} 的完整设置（会先关闭再重新启动 HQPlayer）。',
+  'hqpSet.error.still_running':
+    'HQPlayer 没有退出，设置文件没有被改动。请手动关闭 HQPlayer 后再点“恢复”。',
+  'hqpSet.error.not_found': '找不到这份副本。',
+  'hqpSet.error.damaged': '这份副本已损坏，没有使用。',
+  'hqpSet.error.write_failed': '写入 HQPlayer 设置文件失败，HQPlayer 已重新启动且设置未改变。',
+  'hqpSet.error.no_settings_path': '这台电脑上找不到 HQPlayer 的设置文件位置。',
+  'hqpSet.step.read': '读取副本',
+  'hqpSet.step.close': '关闭 HQPlayer',
+  'hqpSet.step.keep-current': '保存当前设置',
+  'hqpSet.step.write': '写回副本',
+  'hqpSet.step.start': '重新启动 HQPlayer',
+  'am.guide.title': '连接向导',
+  'am.guide.progress': '已完成 {done} / {total} 步',
+  'am.guide.allDone': '全部完成',
+  'am.guide.ready': '可以开始了',
+  'am.guide.readyHint': '在 Apple Music 里选歌，然后按“开始”：HQPlayer 会切换到实时输入。',
+  'am.guide.start': '开始',
+  'am.guide.confirmed': '已确认',
+  'am.guide.didIt': '我已完成这一步',
+  'am.guide.undo': '撤销确认',
+  'am.guide.auto': '回到 Studio 时会自动重新检查，完成的步骤会自动打勾。',
+  'am.guide.autoRate': '播放 Apple Music 时自动改用固定输出采样率',
+  'am.guide.autoRate.hint':
+    '按“开始”时，如果 HQPlayer 的输出采样率是“自动（Auto）”，Studio 会改用当前（或最高）的固定采样率；按“停止”后自动改回“自动”。',
+  'am.detail.rate_auto_switch': '自动（Auto）— 播放时 Studio 会自动改用固定采样率',
+  'am.guide.how.engine':
+    '打开 设置 → 播放，开启“允许 Studio 控制 HQPlayer”。\n确认 HQPlayer 已经打开并显示“已连接”。',
+  'am.guide.how.appleMusicApp':
+    '点“打开 Apple Music”（没有安装的话，从 Microsoft Store 安装）。\n在 Apple Music 里随便播放一首歌，Windows 才会把它列为播放器。',
+  'am.guide.how.virtualCable':
+    '点“VB-Audio 网站”，下载 VB-CABLE Driver。\n解压后右键 VBCABLE_Setup_x64.exe →“以管理员身份运行”→ Install Driver。\n重启电脑，再回到这里，这一步会自动打勾。',
+  'am.guide.how.cableFormat':
+    '点“声音设置”→“更多声音设置”。\n“播放”选项卡：CABLE Input → 属性 → 高级 → 24 位，44100 Hz → 确定。\n“录制”选项卡：CABLE Output → 属性 → 高级 → 同样 24 位，44100 Hz；“级别”设为 100。\n完成后点“我已完成这一步”。',
+  'am.guide.how.microphoneAccess':
+    '点“隐私设置”。\n打开“麦克风访问权限”和“允许桌面应用访问麦克风”。回到这里会自动打勾。',
+  'am.guide.how.appRouting':
+    '先在 Apple Music 里播放一首歌（音量合成器里才会出现它）。\n点“音量合成器”，找到 Apple Music →“输出设备”选 CABLE Input (VB-Audio Virtual Cable)。\n完成后点“我已完成这一步”。',
+  'am.guide.how.hqplayerInput':
+    '在 HQPlayer 里打开 Settings → Input（音频输入）。\nBackend 选 WASAPI，Device 选 CABLE Output (VB-Audio Virtual Cable)，声道 2。\n点 OK 保存，然后点“我已完成这一步”。',
+  'am.guide.how.liveInputAddress':
+    '通常不需要设置：按“开始”时 Studio 会自己找到可用的地址。\n如果开始失败，下面可以填写 HQPlayer 需要的地址（其中的采样率应与虚拟声卡的采样率一致）。',
+  'am.link.playback': '设置 → 播放',
 } satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof zh;

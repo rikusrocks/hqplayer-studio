@@ -11,7 +11,7 @@ import {
   useStudio,
   useT,
 } from '@hqps/ui';
-import { useState } from 'react';
+import { useCallback, useRef, useState, type PointerEvent } from 'react';
 
 type Tab = 'now' | 'lyrics' | 'queue';
 const TABS: Tab[] = ['now', 'lyrics', 'queue'];
@@ -28,7 +28,83 @@ function readTab(): Tab {
 
 const TAB_LABEL = { now: 'nav.nowPlaying', lyrics: 'nav.lyrics', queue: 'nav.queue' } as const;
 
-export function SidePanel({ onClose }: { onClose: () => void }) {
+const WIDTH_KEY = 'hqps.desktop.panel.width';
+/** Default width of the side panel (queue / lyrics / now playing). */
+export const PANEL_DEFAULT_WIDTH = 344;
+const PANEL_MIN_WIDTH = 280;
+const PANEL_MAX_WIDTH = 720;
+/** The library content always keeps at least this much room next to the panel. */
+const CONTENT_MIN_WIDTH = 420;
+
+function clampPanel(w: number, sidebarWidth: number): number {
+  const room = (globalThis.innerWidth ?? 1600) - sidebarWidth - CONTENT_MIN_WIDTH;
+  const max = Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, room));
+  return Math.round(Math.min(max, Math.max(PANEL_MIN_WIDTH, w)));
+}
+
+export interface PanelWidthState {
+  width: number;
+  dragging: boolean;
+  startResize: (e: PointerEvent<HTMLElement>) => void;
+  resetWidth: () => void;
+}
+
+/** Width of the side panel, dragged at its left edge and remembered across launches. */
+export function usePanelWidth(sidebarWidth: number): PanelWidthState {
+  const [width, setWidth] = useState(() => {
+    try {
+      const stored = Number(globalThis.localStorage?.getItem(WIDTH_KEY));
+      return Number.isFinite(stored) && stored > 0
+        ? Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, stored))
+        : PANEL_DEFAULT_WIDTH;
+    } catch {
+      return PANEL_DEFAULT_WIDTH;
+    }
+  });
+  const [dragging, setDragging] = useState(false);
+  const widthRef = useRef(width);
+  widthRef.current = width;
+  const save = (w: number) => {
+    try {
+      globalThis.localStorage?.setItem(WIDTH_KEY, String(w));
+    } catch {
+      // ignore
+    }
+  };
+
+  const startResize = useCallback(
+    (e: PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const handle = e.currentTarget;
+      handle.setPointerCapture(e.pointerId);
+      setDragging(true);
+      const onMove = (ev: globalThis.PointerEvent) => {
+        setWidth(clampPanel(globalThis.innerWidth - ev.clientX, sidebarWidth));
+      };
+      const stop = () => {
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', stop);
+        handle.removeEventListener('pointercancel', stop);
+        setDragging(false);
+        save(widthRef.current);
+      };
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', stop);
+      handle.addEventListener('pointercancel', stop);
+    },
+    [sidebarWidth],
+  );
+
+  const resetWidth = useCallback(() => {
+    setWidth(PANEL_DEFAULT_WIDTH);
+    save(PANEL_DEFAULT_WIDTH);
+  }, []);
+
+  return { width, dragging, startResize, resetWidth };
+}
+
+export function SidePanel({ onClose, size }: { onClose: () => void; size: PanelWidthState }) {
   const t = useT();
   const [tab, setTabState] = useState<Tab>(readTab);
   const setTab = (next: Tab) => {
@@ -42,6 +118,18 @@ export function SidePanel({ onClose }: { onClose: () => void }) {
 
   return (
     <aside className="sidepanel" aria-label={t('queue.title')}>
+      {/* drag the left edge to resize, double-click for the default width */}
+      <button
+        type="button"
+        className={`sidepanel__resize${size.dragging ? ' is-dragging' : ''}`}
+        onPointerDown={size.startResize}
+        onDoubleClick={size.resetWidth}
+        aria-label={t('sidebar.resize')}
+        title={t('sidebar.resize')}
+        tabIndex={-1}
+      >
+        <span />
+      </button>
       <div className="sidepanel__tabs" role="tablist">
         {TABS.map((id) => (
           <button

@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('studioShell', {
     ipcRenderer.invoke('studio:set-always-on-top', on === true) as Promise<boolean>,
   pickFolder: (): Promise<string | null> =>
     ipcRenderer.invoke('studio:pick-folder') as Promise<string | null>,
-  openFolder: (which: 'logs' | 'backups' | 'soak'): Promise<string> =>
+  openFolder: (which: 'logs' | 'backups' | 'soak' | 'hqp-settings'): Promise<string> =>
     ipcRenderer.invoke('studio:open-folder', String(which)) as Promise<string>,
   hqplayerApp: {
     get: () => ipcRenderer.invoke('studio:hqp-app:get'),
@@ -35,5 +35,13 @@ contextBridge.exposeInMainWorld('studioShell', {
     pickExe: () => ipcRenderer.invoke('studio:hqp-app:pick-exe'),
     diagnostics: () => ipcRenderer.invoke('studio:hqp-app:diagnostics'),
     probe: (): Promise<boolean> => ipcRenderer.invoke('studio:hqp-app:probe') as Promise<boolean>,
+  },
+  hqplayerSettings: {
+    get: () => ipcRenderer.invoke('studio:hqp-settings:get'),
+    backupNow: () => ipcRenderer.invoke('studio:hqp-settings:backup-now'),
+    pin: (id: string, pinned: boolean) =>
+      ipcRenderer.invoke('studio:hqp-settings:pin', String(id), pinned === true),
+    dismiss: () => ipcRenderer.invoke('studio:hqp-settings:dismiss'),
+    restore: (id: string) => ipcRenderer.invoke('studio:hqp-settings:restore', String(id)),
   },
 });

@@ -2,7 +2,7 @@ import { matchRoute, useHashRoute, useI18n, useStudio, type HashRoute } from '@h
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { getShell } from './shell';
 import { PlayerBar } from './layout/PlayerBar';
-import { SidePanel } from './layout/SidePanel';
+import { SidePanel, usePanelWidth } from './layout/SidePanel';
 import { Sidebar, useSidebar } from './layout/Sidebar';
 import { TopBar } from './layout/TopBar';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
@@ -12,6 +12,7 @@ import { AppleMusicView } from './views/AppleMusicView';
 import { ArtistDetailView } from './views/ArtistDetailView';
 import { ArtistsView } from './views/ArtistsView';
 import { FoldersView } from './views/FoldersView';
+import { HqpResetBanner } from './views/HqpSettingsBackup';
 import { HomeView } from './views/HomeView';
 import { MiniPlayer } from './views/MiniPlayer';
 import { PlaylistDetailView } from './views/PlaylistDetailView';
@@ -22,8 +23,6 @@ import { OPEN_SETUP_EVENT, SetupWizard } from './views/SetupWizard';
 import { TracksView } from './views/TracksView';
 
 const PANEL_KEY = 'hqps.desktop.panel';
-/** Width of the side panel (queue / lyrics); the desktop window grows by this much for it. */
-const PANEL_WIDTH = 344;
 
 function readPanelOpen(): boolean {
   try {
@@ -65,6 +64,8 @@ export function App() {
   const [panelOpen, setPanelOpen] = useState(readPanelOpen);
   const { locale } = useI18n();
   const sidebar = useSidebar();
+  // the desktop window grows by the panel's width when it opens (and shrinks by it when closed)
+  const panel = usePanelWidth(sidebar.width);
   useKeyboardShortcuts();
   const setup = useSetupWizard();
   // The tray menu (main process) speaks the UI's language.
@@ -73,7 +74,7 @@ export function App() {
   const isMini = route.segments[0] === 'mini';
   // Launched with the panel open: the window was restored without it, so extend it once.
   useEffect(() => {
-    if (!isMini && readPanelOpen()) void getShell()?.setSidePanel(true, PANEL_WIDTH);
+    if (!isMini && readPanelOpen()) void getShell()?.setSidePanel(true, panel.width);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only at start
   }, []);
 
@@ -96,30 +97,33 @@ export function App() {
       setPanelOpen(next);
     } else if (next) {
       void shell
-        .setSidePanel(true, PANEL_WIDTH)
+        .setSidePanel(true, panel.width)
         .catch(() => false)
         .then(() => setPanelOpen(true));
     } else {
       setPanelOpen(false);
-      void shell.setSidePanel(false, PANEL_WIDTH);
+      void shell.setSidePanel(false, panel.width);
     }
   };
 
   return (
     <div
-      className={`app${panelOpen ? ' app--panel' : ''}${sidebar.dragging ? ' is-resizing' : ''}`}
+      className={`app${panelOpen ? ' app--panel' : ''}${
+        sidebar.dragging || panel.dragging ? ' is-resizing' : ''
+      }`}
       style={
-        { '--sidebar-w': `${sidebar.width}px`, '--panel-w': `${PANEL_WIDTH}px` } as CSSProperties
+        { '--sidebar-w': `${sidebar.width}px`, '--panel-w': `${panel.width}px` } as CSSProperties
       }
     >
       <Sidebar route={route} state={sidebar} />
       <main className="app__main">
         <TopBar route={route} />
+        <HqpResetBanner />
         <div className="app__content" key={route.path}>
           {renderRoute(route)}
         </div>
       </main>
-      {panelOpen && <SidePanel onClose={togglePanel} />}
+      {panelOpen && <SidePanel onClose={togglePanel} size={panel} />}
       <PlayerBar panelOpen={panelOpen} onTogglePanel={togglePanel} />
       {setup.open && <SetupWizard onClose={setup.close} />}
     </div>

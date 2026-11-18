@@ -1239,12 +1239,39 @@ a.album-peek__artist:hover {
 /* ---- side panel --------------------------------------------------------------------------- */
 .sidepanel {
   grid-area: panel;
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
   border-left: 2px solid var(--text);
   background: var(--bg);
   animation: panel-in 260ms var(--ease) both;
+}
+/* drag the left edge to resize (same handle as the sidebar's) */
+.sidepanel__resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -8px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.sidepanel__resize span {
+  width: 6px;
+  height: 48px;
+  border-radius: 3px;
+  background: var(--text);
+  outline: 2px solid var(--bg);
+  transform: scaleY(0);
+  transition: transform var(--dur) var(--ease-spring);
+}
+.sidepanel__resize:hover span,
+.sidepanel__resize.is-dragging span {
+  transform: scaleY(1);
 }
 @keyframes panel-in {
   from {
@@ -2611,4 +2638,143 @@ body.is-mini {
 }
 .about__link .hint {
   font-weight: 400;
+}
+
+/* ---- HQPlayer settings backups ------------------------------------------------------------ */
+.hqp-reset-banner {
+  margin: 0 24px 8px;
+}
+.hqp-set__actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.hqp-set__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.hqp-set__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+.hqp-set__item.is-suspect {
+  background: var(--warn-soft);
+}
+.hqp-set__meta {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.hqp-set__tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--fs-xs, 11px);
+  font-weight: 700;
+  background: var(--warn);
+  color: var(--bg);
+}
+.hqp-set__tag--pin {
+  background: var(--text);
+}
+
+/* ---- Apple Music connection guide ---------------------------------------------------------- */
+.am-guide__progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+.am-guide__bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+.am-guide__bar span {
+  display: block;
+  height: 100%;
+  background: var(--text);
+  transition: width 400ms var(--ease);
+}
+.am-guide__ready {
+  margin-bottom: 12px;
+}
+.am-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.am-guide__step {
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  transition: background var(--dur) var(--ease);
+}
+.am-guide__step.is-current {
+  outline: 2px solid var(--text);
+}
+.am-guide__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--text);
+}
+.am-guide__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+.am-guide__step.is-done .am-guide__num {
+  background: var(--text);
+  color: var(--bg);
+}
+.am-guide__name {
+  flex: 1;
+  font-weight: 700;
+}
+.am-guide__step.is-done:not(.is-open) .am-guide__name {
+  opacity: 0.7;
+}
+.am-guide__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 12px 46px;
+}
+.am-guide__body > p {
+  margin: 0;
+}
+.am-guide__how {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.am-guide__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
