@@ -20,6 +20,8 @@ interface ConfirmOptions {
   title: string;
   message: string;
   confirmLabel?: string;
+  /** Text of the second button (default "Cancel"). */
+  cancelLabel?: string;
   danger?: boolean;
 }
 
@@ -125,7 +127,7 @@ function DialogView({ dialog, onDone }: { dialog: DialogState; onDone: () => voi
         )}
         <div className="hq-dialog__actions">
           <button type="button" className="hq-btn hq-btn--ghost" onClick={cancel}>
-            {t('common.cancel')}
+            {(dialog.kind === 'confirm' && dialog.cancelLabel) || t('common.cancel')}
           </button>
           <button
             ref={confirmRef}

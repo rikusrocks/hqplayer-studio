@@ -70,6 +70,7 @@ import {
   type HqpWindowAction,
   type HqpWindowInfo,
 } from './hqplayer-app';
+import { defaultSettingsPath, HqpSettingsBackups } from './hqp-settings-backup';
 import {
   fitToDisplays,
   growForPanel,
@@ -100,6 +101,10 @@ const FOLDERS = {
   logs: join(app.getPath('userData'), SMOKE ? 'smoke-logs' : 'logs'),
   backups: join(dataDir, 'backups'),
   soak: join(app.getPath('userData'), SMOKE ? 'smoke-soak-reports' : 'soak-reports'),
+  'hqp-settings': join(
+    app.getPath('userData'),
+    SMOKE ? 'smoke-hqplayer-settings' : 'hqplayer-settings-backups',
+  ),
 } as const;
 type FolderId = keyof typeof FOLDERS;
 
@@ -785,12 +790,102 @@ async function hqpStartup(): Promise<void> {
 function hqpOnEngineConnection(connected: boolean): void {
   const cameUp = connected && !hqpEngineConnected;
   hqpEngineConnected = connected;
+  // HQPlayer (re)started: its settings file may have changed — or been reset
+  if (cameUp) hqpSettingsCheckSoon();
   if (!cameUp || process.platform !== 'win32') return;
   if (hqpPrefs().windowMode === 'normal' || hqpWatch) return; // nothing to do / already watching
   void hqpEnsure('connected', false).catch(() => undefined);
 }
 
+// ------------------------------------------------------------------ HQPlayer settings backups
+
+/** Copies of HQPlayer's own settings file (see hqp-settings-backup.ts). */
+const hqpSettings = new HqpSettingsBackups({
+  dir: FOLDERS['hqp-settings'],
+  settingsPath: () => defaultSettingsPath(),
+});
+let hqpSettingsTimer: ReturnType<typeof setInterval> | null = null;
+
+function hqpSettingsCheckSoon(delayMs = 3_000): void {
+  setTimeout(() => {
+    void hqpSettings
+      .check()
+      .then((s) => {
+        if (s.resetWarning) {
+          log.warn('hqp-settings', 'HQPlayer settings look reset', {
+            current: s.resetWarning.currentId,
+            good: s.resetWarning.goodId,
+          });
+        }
+      })
+      .catch((err: unknown) => log.warn('hqp-settings', 'check failed', { error: String(err) }));
+  }, delayMs).unref?.();
+}
+
+function startHqpSettingsBackups(): void {
+  hqpSettingsCheckSoon(1_000);
+  // HQPlayer writes the file when its settings are saved and when it quits
+  hqpSettingsTimer ??= setInterval(() => hqpSettingsCheckSoon(0), 5 * 60_000);
+  hqpSettingsTimer.unref?.();
+}
+
+/** HQPlayer's process for the restore: is it running, close it the normal way, start it. */
+const hqpProcessControl = {
+  async isRunning(): Promise<boolean> {
+    if (process.platform !== 'win32') return probeControlPort();
+    const exe = await hqpResolveExe();
+    try {
+      return findHqplayerProcess(await listProcesses(), exe.exePath) !== null;
+    } catch {
+      return probeControlPort();
+    }
+  },
+  async close(): Promise<void> {
+    if (process.platform !== 'win32') return;
+    if (hqpWatch) hqpWatch.cancelled = true;
+    const exe = await hqpResolveExe();
+    const proc = findHqplayerProcess(await listProcesses().catch(() => []), exe.exePath);
+    const image = proc?.image ?? exe.exePath;
+    if (image) await windowControl(processNameOf(image), 'close');
+  },
+  async start(): Promise<void> {
+    if (process.platform !== 'win32') return;
+    const report = await hqpEnsure('manual', true);
+    if (
+      report &&
+      (report.process.status === 'start-failed' || report.process.status === 'no-exe')
+    ) {
+      throw new Error(`HQPlayer did not start (${report.process.status})`);
+    }
+  },
+};
+
+function registerHqpSettingsIpc(): void {
+  ipcMain.handle('studio:hqp-settings:get', async (event) =>
+    fromStudio(event) ? hqpSettings.state() : null,
+  );
+  ipcMain.handle('studio:hqp-settings:backup-now', async (event) =>
+    fromStudio(event) ? hqpSettings.check('manual') : null,
+  );
+  ipcMain.handle('studio:hqp-settings:pin', async (event, id: unknown, pinned: unknown) =>
+    fromStudio(event) && typeof id === 'string' ? hqpSettings.setPinned(id, pinned === true) : null,
+  );
+  ipcMain.handle('studio:hqp-settings:dismiss', async (event) =>
+    fromStudio(event) ? hqpSettings.dismissWarning() : null,
+  );
+  ipcMain.handle('studio:hqp-settings:restore', async (event, id: unknown) => {
+    if (!fromStudio(event) || typeof id !== 'string') return null;
+    log.info('hqp-settings', 'restoring HQPlayer settings', { backup: id });
+    const report = await hqpSettings.restore(id, hqpProcessControl);
+    const steps = report.steps.map((x) => `${x.id}:${x.ok ? 'ok' : 'failed'}`).join(' ');
+    if (report.ok) log.info('hqp-settings', 'restore finished', { steps });
+    else log.warn('hqp-settings', 'restore failed', { error: report.error ?? null, steps });
+    return report;
+  });
+}
+
 function registerHqplayerIpc(): void {
+  registerHqpSettingsIpc();
   ipcMain.handle('studio:hqp-app:get', async (event) => (fromStudio(event) ? hqpState() : null));
   ipcMain.handle('studio:hqp-app:set', async (event, patch: unknown) => {
     if (!fromStudio(event) || !studio) return null;
@@ -1136,6 +1231,7 @@ app.whenReady().then(async () => {
   });
   // Nothing in here throws: every outcome ends up in the report shown in Settings.
   void hqpStartup().catch((err: unknown) => console.error('HQPlayer startup step failed:', err));
+  startHqpSettingsBackups();
 });
 
 app.on('window-all-closed', () => {

@@ -1,3 +1,4 @@
+import type { AppleMusicOpenTarget } from '@hqps/contracts';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
@@ -41,7 +42,7 @@ export interface SystemAudioInfo {
   errors: string[];
 }
 
-export type OpenTarget = 'sound' | 'app-volume' | 'microphone' | 'cable-site' | 'apple-music';
+export type OpenTarget = AppleMusicOpenTarget;
 
 export interface WindowsMedia {
   /** False on anything but Windows. */
@@ -379,11 +380,21 @@ export function sniffImageMime(data: Buffer, declared = ''): string | null {
   return /^image\/(png|jpeg|gif|webp|bmp)$/.test(declared) ? declared : null;
 }
 
-const OPEN_URIS: Record<Exclude<OpenTarget, 'apple-music'>, string> = {
+const OPEN_URIS: Record<
+  Exclude<OpenTarget, 'apple-music' | 'sound-playback' | 'sound-recording'>,
+  string
+> = {
   sound: 'ms-settings:sound',
   'app-volume': 'ms-settings:apps-volume',
   microphone: 'ms-settings:privacy-microphone',
   'cable-site': 'https://vb-audio.com/Cable/',
+  'apple-music-store': 'ms-windows-store://search/?query=Apple%20Music',
+};
+
+/** The classic Sound control panel on its Playback (0) or Recording (1) tab. */
+const SOUND_PANEL_TAB: Partial<Record<OpenTarget, string>> = {
+  'sound-playback': 'mmsys.cpl,,0',
+  'sound-recording': 'mmsys.cpl,,1',
 };
 
 const METHODS: Record<MediaAction, string> = {
@@ -467,10 +478,18 @@ class PowerShellMedia implements WindowsMedia {
   }
 
   open(target: OpenTarget, familyName?: string | null): Promise<void> {
+    const tab = SOUND_PANEL_TAB[target];
+    if (tab) {
+      return new Promise((resolve, reject) => {
+        const proc = spawn('control.exe', [tab], { windowsHide: true, stdio: 'ignore' });
+        proc.on('error', reject);
+        proc.on('spawn', () => resolve());
+      });
+    }
     const uri =
       target === 'apple-music'
         ? `shell:AppsFolder\\${familyName ?? 'AppleInc.AppleMusicWin_nzyj5cx40ttqa'}!App`
-        : OPEN_URIS[target];
+        : OPEN_URIS[target as keyof typeof OPEN_URIS];
     return new Promise((resolve, reject) => {
       // explorer.exe hands the URI to Windows (settings page, default browser or Store app);
       // it exits with code 1 even on success, so only a failure to start counts.

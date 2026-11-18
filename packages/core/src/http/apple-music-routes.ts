@@ -1,5 +1,7 @@
 import {
   AppleMusicControlRequestSchema,
+  AppleMusicOpenTargetSchema,
+  RateSwitchBackRequestSchema,
   UpdateAppleMusicSettingsRequestSchema,
   type AppleMusicState,
 } from '@hqps/contracts';
@@ -7,9 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { StudioServices } from '../server';
 
-const OpenRequestSchema = z.object({
-  target: z.enum(['sound', 'app-volume', 'microphone', 'cable-site', 'apple-music']),
-});
+const OpenRequestSchema = z.object({ target: AppleMusicOpenTargetSchema });
 
 /**
  * Apple Music (live input) API, inside `/api/v1`. This computer only: paired phones see what is
@@ -27,6 +27,9 @@ export function registerAppleMusicRoutes(api: FastifyInstance, s: StudioServices
   api.post('/apple-music/check', async (): Promise<AppleMusicState> => am.checkSetup());
   api.post('/apple-music/start', async (): Promise<AppleMusicState> => am.start());
   api.post('/apple-music/stop', async (): Promise<AppleMusicState> => am.stop());
+  api.post('/apple-music/rate-switch-back', async (req): Promise<AppleMusicState> =>
+    am.answerRateSwitchBack(RateSwitchBackRequestSchema.parse(req.body ?? {}).accept),
+  );
   api.post('/apple-music/control', async (req): Promise<AppleMusicState> =>
     am.control(AppleMusicControlRequestSchema.parse(req.body ?? {}).action),
   );

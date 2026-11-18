@@ -18,6 +18,6 @@ All three share one data folder (`%APPDATA%\HQPlayer Studio`): switching, updati
 - 用户指南 / User guide: [docs/user-guide.md](https://github.com/rikusrocks/hqplayer-studio/blob/v{{VERSION}}/docs/user-guide.md)
 - 更新内容 / Changes: [docs/PROGRESS.md](https://github.com/rikusrocks/hqplayer-studio/blob/v{{VERSION}}/docs/PROGRESS.md)
 
-程序没有数字签名，第一次运行时 Windows SmartScreen 可能提示“已保护你的电脑”：点“更多信息 → 仍要运行”。Studio 不会修改 HQPlayer 的安装、许可证或 DSP / 输出设置，除非你在 Studio 里明确开启相应开关；它不会上传任何数据。
+程序没有数字签名，第一次运行时 Windows SmartScreen 可能提示“已保护你的电脑”：点“更多信息 → 仍要运行”。Studio 不会修改 HQPlayer 的安装、许可证或 DSP / 输出设置，除非你在 Studio 里明确开启相应开关；只有在你点“恢复 HQPlayer 设置”时，它才会把之前备份的 HQPlayer 设置文件写回去。它不会上传任何数据。
 
-The program is not code-signed; on first start Windows SmartScreen may say "Windows protected your PC": choose "More info → Run anyway". Studio never changes HQPlayer's installation, licence or DSP / output settings unless you turn on the matching switch in Studio, and it uploads nothing.
+The program is not code-signed; on first start Windows SmartScreen may say "Windows protected your PC": choose "More info → Run anyway". Studio never changes HQPlayer's installation, licence or DSP / output settings unless you turn on the matching switch in Studio; it writes HQPlayer's settings file only when you click "Restore" on a backup of it. It uploads nothing.

@@ -982,7 +982,7 @@ export const en: Record<MessageKey, string> = {
   'am.check.windows': 'Windows',
   'am.check.windows.hint': 'Apple Music’s song information comes from Windows.',
   'am.check.engine': 'HQPlayer connected and controllable',
-  'am.check.engine.hint': 'Studio must be allowed to control HQPlayer (Settings → HQPlayer).',
+  'am.check.engine.hint': 'Studio must be allowed to control HQPlayer (Settings → Playback).',
   'am.check.appleMusicApp': 'Apple Music app',
   'am.check.appleMusicApp.hint': 'Windows only lists it as a player after it has played something.',
   'am.check.virtualCable': 'Virtual audio cable',
@@ -1002,7 +1002,7 @@ export const en: Record<MessageKey, string> = {
     'HQPlayer → Settings → Input. Studio cannot change this; below is what HQPlayer lists.',
   'am.check.outputRate': 'HQPlayer output rate is a fixed rate',
   'am.check.outputRate.hint':
-    'On “Auto” HQPlayer sometimes will not start a live input. Pick a fixed output rate in Studio (Settings → DSP) or in HQPlayer’s main window, then press Start again.',
+    'On “Auto” HQPlayer sometimes will not start a live input. With the switch below on, Studio picks a fixed rate itself while Apple Music plays and goes back to Auto afterwards.',
   'am.check.outputRate.back':
     'When you go back to your library, you may want to switch the output rate back to Auto, so HQPlayer follows each album’s own rate.',
   'am.check.liveInputAddress': 'Live input address',
@@ -1233,4 +1233,100 @@ export const en: Record<MessageKey, string> = {
   'setup.again.hint':
     'Go through the first-start setup again: check HQPlayer, add music folders, choose connection and control.',
   'setup.again.run': 'Run setup again',
+  'hqpSet.title': 'HQPlayer settings backups',
+  'hqpSet.hint':
+    "Studio keeps a copy of HQPlayer's settings file (output device, buffer, input, volume, DSP, convolution / matrix — everything) every time it changes. If HQPlayer ever comes back with blank default settings, click Restore: Studio closes HQPlayer, puts the copy back and starts HQPlayer again.",
+  'hqpSet.file': 'Settings file',
+  'hqpSet.found': 'Found',
+  'hqpSet.notFound':
+    "HQPlayer's settings file was not found (HQPlayer may not have saved its settings yet)",
+  'hqpSet.lastCheck': 'Last checked',
+  'hqpSet.none': 'No copies yet. Studio saves one by itself once HQPlayer has been set up.',
+  'hqpSet.backupNow': 'Back up now',
+  'hqpSet.saved': "Saved a copy of HQPlayer's settings",
+  'hqpSet.openFolder': 'Open folder',
+  'hqpSet.reason.auto': 'Automatic',
+  'hqpSet.reason.manual': 'Manual',
+  'hqpSet.reason.before-restore': 'Before a restore',
+  'hqpSet.size': '{kb} KB · {n} items',
+  'hqpSet.looksReset': 'Looks reset',
+  'hqpSet.pinned': 'Pinned',
+  'hqpSet.pin': 'Pin (keep forever)',
+  'hqpSet.unpin': 'Unpin',
+  'hqpSet.restore': 'Restore',
+  'hqpSet.restoreTitle': 'Restore HQPlayer settings',
+  'hqpSet.restoreConfirm':
+    "Put HQPlayer's settings back to the copy from {when}? Studio first closes HQPlayer (music that is playing stops), keeps the current settings as a copy, writes the chosen copy and starts HQPlayer again.",
+  'hqpSet.restored': 'HQPlayer settings restored; HQPlayer is starting again',
+  'hqpSet.notNow': 'Not now',
+  'hqpSet.resetTitle': "HQPlayer's settings look reset",
+  'hqpSet.resetBody':
+    "HQPlayer's settings file is back to near-blank defaults. You can restore the full settings from {when} (HQPlayer is closed and started again).",
+  'hqpSet.error.still_running':
+    'HQPlayer did not quit, so its settings file was not touched. Close HQPlayer yourself, then click Restore again.',
+  'hqpSet.error.not_found': 'That copy is missing.',
+  'hqpSet.error.damaged': 'That copy is damaged and was not used.',
+  'hqpSet.error.write_failed':
+    "Writing HQPlayer's settings file failed; HQPlayer was started again with its settings unchanged.",
+  'hqpSet.error.no_settings_path':
+    'Studio does not know where HQPlayer keeps its settings on this computer.',
+  'hqpSet.step.read': 'Read the copy',
+  'hqpSet.step.close': 'Close HQPlayer',
+  'hqpSet.step.keep-current': 'Keep the current settings',
+  'hqpSet.step.write': 'Write the copy back',
+  'hqpSet.step.start': 'Start HQPlayer again',
+  'am.guide.title': 'Connection guide',
+  'am.guide.progress': '{done} of {total} steps done',
+  'am.guide.allDone': 'All done',
+  'am.guide.ready': 'Ready to go',
+  'am.guide.readyHint':
+    'Pick music in Apple Music, then press Start: HQPlayer switches to the live input.',
+  'am.guide.start': 'Start',
+  'am.guide.confirmed': 'Confirmed',
+  'am.guide.didIt': "I've done this",
+  'am.guide.undo': 'Undo',
+  'am.guide.auto':
+    'Checked again whenever you come back to Studio; finished steps tick themselves.',
+  'am.guide.autoRate': 'Use a fixed output rate while Apple Music plays',
+  'am.guide.autoRate.hint':
+    "When you press Start and HQPlayer's output rate is Auto, Studio switches to the rate it outputs now (or the highest); Stop puts it back to Auto.",
+  'am.detail.rate_auto_switch': 'Auto — Studio switches to a fixed rate while it plays',
+  'am.guide.how.liveInputAddress':
+    'Usually nothing to do: Start finds a working address by itself.\nIf Start fails, enter the address HQPlayer needs below (its rate should match the cable’s rate).',
+  'am.link.playback': 'Settings → Playback',
+  'am.rate.title': 'Output rate while Apple Music plays',
+  'am.rate.keep': "Don't change (keep HQPlayer's setting)",
+  'am.rate.auto': 'Automatic (a fixed rate only when HQPlayer is on Auto)',
+  'am.rate.hint':
+    "On Start Studio switches HQPlayer to the rate chosen here. When local music plays afterwards and the rate before Apple Music was different, Studio asks whether to switch back. The list is HQPlayer's for its current mode (PCM / SDM).",
+  'am.rate.cannotRead': "HQPlayer's rate list could not be read (is HQPlayer connected?).",
+  'am.rate.needsDsp': 'Studio first needs to be allowed to change HQPlayer DSP settings:',
+  'am.detail.rate_not_offered': "HQPlayer's current mode does not offer the chosen rate",
+  'am.switchBack.title': 'Switch the output rate back?',
+  'am.switchBack.message':
+    "For Apple Music, Studio switched HQPlayer's output rate to {from}. Local music is playing now; before Apple Music it was {to}. Switch back to {to}? (Playback pauses for a moment.)",
+  'am.switchBack.accept': 'Switch back to {to}',
+  'am.switchBack.keep': 'Keep {from}',
+  'am.switchBack.done': 'Output rate switched back to {to}',
+  'am.hqp.launch': 'Start HQPlayer',
+  'am.hqp.show': 'Show HQPlayer',
+  'am.open.sound-playback': 'Playback devices',
+  'am.open.sound-recording': 'Recording devices',
+  'am.open.apple-music-store': 'Microsoft Store',
+  'am.guide.how.engine':
+    'Studio must be able to control HQPlayer: in Settings → Playback turn on “Allow Studio to control HQPlayer”.\nHQPlayer must be open and show as connected.',
+  'am.guide.how.appleMusicApp':
+    'Open Apple Music (install it from the Microsoft Store if needed).\nPlay any song once, so Windows lists Apple Music as a player.',
+  'am.guide.how.virtualCable':
+    'Download the VB-CABLE Driver from VB-Audio’s site.\nUnzip it, right-click VBCABLE_Setup_x64.exe → “Run as administrator” → Install Driver.\nRestart the PC and come back — this step ticks itself (CABLE Input then shows under playback devices).',
+  'am.guide.how.cableFormat':
+    'Playback devices: CABLE Input → Properties → Advanced → 24 bit, 44100 Hz → OK.\nRecording devices: CABLE Output → Properties → Advanced → the same 24 bit, 44100 Hz; Levels at 100.\nThen click “I’ve done this”.',
+  'am.guide.how.microphoneAccess':
+    'In the privacy settings turn on “Microphone access” and “Let desktop apps access your microphone”.\nThis step ticks itself when you come back.',
+  'am.guide.how.appRouting':
+    'Play a song in Apple Music first (only then does it show up in the mixer).\nIn the volume mixer find Apple Music → Output device → CABLE Input (VB-Audio Virtual Cable).\nThen click “I’ve done this”.',
+  'am.guide.how.hqplayerInput':
+    'In HQPlayer’s window open Settings → Input.\nBackend WASAPI, Device CABLE Output (VB-Audio Virtual Cable), 2 channels.\nClick OK, then “I’ve done this”.',
+  'am.guide.how.outputRate':
+    'Choose below which rate HQPlayer uses while Apple Music plays (needs the change switch in Settings → DSP).',
 };

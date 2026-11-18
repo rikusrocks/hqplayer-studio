@@ -40,6 +40,7 @@ import { BackupSettings, LogsCard, SoakTestCard } from './MaintenanceSettings';
 import { EqSettings } from './EqSettings';
 import { openSetupWizard } from './SetupWizard';
 import { AboutSettings } from './AboutSettings';
+import { HqpSettingsBackupCard } from './HqpSettingsBackup';
 import {
   BlockHead,
   CoverSettings,
@@ -477,6 +478,7 @@ function PlaybackSettings() {
     <div className="settings-stack">
       <EngineModeCard />
       <HqplayerAppCard />
+      <HqpSettingsBackupCard />
       <h3 className="settings-block__title">
         {t('settings.capabilities')}
         <LayerTag layer="readonly" />

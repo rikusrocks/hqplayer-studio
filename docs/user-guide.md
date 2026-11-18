@@ -67,6 +67,10 @@ HQPlayer Studio 是 **HQPlayer Desktop 6** 的第三方音乐库、播放列表�
 2. 手机浏览器打开页面上显示的地址（或扫二维码），输入电脑上显示的 6 位配对码。
 3. 设备列表里可以随时取消某台设备的配对。手机能浏览、播放、切歌、改队列，但永远拿不到设置、诊断、文件夹管理或文件路径。
    请不要把这个端口映射到公网。
+4. **电脑上能打开、手机打不开？** 有些 Wi-Fi 网卡（例如 MediaTek MT7902）在节能时不回应“谁是这个地址”的询问，
+   手机就找不到电脑。Studio 会定期向已配对的手机（以及显示配对码时向整个家庭网段）发一个空的小数据包，让手机记住电脑的位置。
+   要彻底解决：在电脑的 设备管理器 → 网络适配器 → 你的 Wi-Fi 网卡 → 属性 里，“电源管理”取消“允许计算机关闭此设备以节约电源”，
+   “高级”里把 ARP Offload / NS Offload / Packet Coalescing 设为 Disabled；或者用网线连接电脑。
 
 ### 7. DSP 设置
 
@@ -96,6 +100,15 @@ ParametricEQ.txt，点“应用”即可。有提升时 Studio 会自动降低�
 - **立即备份**：随时手动备份一份。
 - **恢复…**：选一份备份 → 确认 → Studio 重新启动并换上这份备份。当前数据会先另存为“恢复前的数据”，所以恢复也可以撤销。
   HQPlayer 不受影响。
+
+**HQPlayer 设置备份（设置 → 播放）**
+
+- Studio 会在 HQPlayer 的设置文件（`%LOCALAPPDATA%\HQPlayer\settings.xml`：输出设备、缓冲、输入、音量、DSP、卷积 / 矩阵……）
+  每次变化时自动保存一份副本，放在 `%APPDATA%\HQPlayer Studio\hqplayer-settings-backups`。备份只读取文件，不改动 HQPlayer。
+- 如果 HQPlayer 某次变成了空白的默认设置，所有页面顶部会出现提示，点“恢复”即可。也可以在列表里选任意一份副本恢复。
+- 恢复时 Studio 会先正常关闭 HQPlayer（正在播放的音乐会停止），把当前设置另存一份，写回副本，再重新启动 HQPlayer。
+  如果 HQPlayer 没有退出，Studio 不会改动文件，请手动关闭 HQPlayer 后再点“恢复”。
+- “固定”可以让某份副本永久保留（默认保留最近 30 份，以及设置最完整的一份）。
 
 ### 9. 退回旧版本
 
@@ -152,11 +165,14 @@ Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打�
 
 准备（只需一次）：安装一块虚拟声卡（例如 VB-Audio 的 Hi-Fi Cable / VB-CABLE）；在 Windows 音量合成器里把 Apple Music
 的输出设为它（格式 24 位 / 44100 Hz，音量 100%）；在 Windows 隐私设置里允许桌面应用使用麦克风；
-在 HQPlayer → Settings → Input 里选这块虚拟声卡；HQPlayer 的输出采样率选一个固定值（不要用“自动 / Auto”，
-否则实时输入有时启动不了——可在 Studio 的“设置 → DSP”里改）。回到音乐库播放时，可能需要把它改回“自动”，
-让 HQPlayer 跟随每张专辑自己的采样率。
+在 HQPlayer → Settings → Input 里选这块虚拟声卡。页面上的 **连接向导** 会一步一步带你完成：每一步都有具体操作和对应的
+Windows 设置按钮，回到 Studio 时自动重新检查，完成的步骤自动打勾；Studio 看不到的步骤点“我已完成这一步”。
+每一行操作说明旁边都有直达按钮（Windows 声音面板的播放 / 录制设备、音量合成器、隐私设置、HQPlayer 窗口等）。
+输出采样率：页面上的“Apple Music 播放时的输出采样率”可以选“不改动”、“自动选择”（HQPlayer 为“自动 / Auto”时改用固定值——
+设为 Auto 时实时输入有时启动不了）或某个具体采样率；需要开启 DSP 开关。“停止”后不会自动改回：之后播放本地音乐时，
+如果采样率与 Apple Music 之前不同，Studio 会问你是否改回（中途退出 Studio 也一样会问）。
 
-使用：侧栏 **Apple Music** → 打开开关 → “检查这台电脑”（只读，逐项告诉你缺什么，并带你到对应的 Windows 页面）→
+使用：侧栏 **Apple Music** → 打开开关 → 按连接向导完成各步 →
 在 Apple Music 应用里放一首歌 → 回到 Studio 点 **开始**。第一次请先把放大器音量调低。
 之后 Studio 会显示 Apple Music 的曲名、歌手、专辑和封面，播放 / 暂停 / 上一首 / 下一首会转给 Apple Music 应用。
 点“停止并回到音乐库”或直接播放音乐库里的内容即可结束，原来的队列会放回 HQPlayer（不自动播放）。
@@ -226,6 +242,12 @@ explained in [Getting started](getting-started.md#3-the-setup-wizard-opens-on-th
 **Settings → Web Remote**: enable LAN access on your home network, open the shown address on the phone (or scan the QR code)
 and type the 6-digit pairing code. Devices can be unpaired at any time. Phones never get settings, diagnostics, folder management or paths.
 
+**Works on the PC but not on the phone?** Some Wi-Fi cards (e.g. MediaTek MT7902) stop answering "who has this address?" while
+power saving, so the phone cannot find the PC. Studio regularly sends paired phones (and, while a pairing code is shown, the
+home network) one empty packet so they remember where the PC is. The real fix: Device Manager → Network adapters → your Wi-Fi
+card → Properties: on Power Management untick "Allow the computer to turn off this device", on Advanced set ARP Offload /
+NS Offload / Packet Coalescing to Disabled — or connect the PC with a cable.
+
 ### 7. DSP settings
 
 With control allowed, turn on "Allow Studio to change HQPlayer DSP settings" in **Settings → DSP** to change mode, 1x / Nx
@@ -253,6 +275,15 @@ this with a test filter that only makes music quieter; your EQ goes back after y
   Kept: 7 daily, 5 before-update, 10 manual, 5 data-before-restore.
 - **Back up now** makes one immediately. **Restore…** restarts Studio with the chosen backup; the current data is kept as a
   "data before restore" backup first, so a restore can be undone. HQPlayer is not affected.
+
+**HQPlayer settings backups (Settings → Playback)**
+
+- Studio copies HQPlayer's settings file (`%LOCALAPPDATA%\HQPlayer\settings.xml`: output device, buffer, input, volume, DSP,
+  convolution / matrix …) every time it changes, into `%APPDATA%\HQPlayer Studio\hqplayer-settings-backups`. Backing up only reads.
+- If HQPlayer ever comes back with blank default settings, a banner on every page offers Restore; any copy in the list can be restored.
+- Restore closes HQPlayer the normal way (music stops), keeps the current settings as a copy, writes the chosen copy and starts
+  HQPlayer again. If HQPlayer does not quit, nothing is changed — close it yourself and click Restore again.
+- Pin a copy to keep it forever (otherwise the newest 30 and the most complete one are kept).
 
 ### 9. Going back to an older version
 
@@ -303,12 +334,16 @@ upsamples it for the DAC. This has not been verified on HQPlayer 6 yet.
 
 Prepare once: install a virtual audio cable (for example VB-Audio's Hi-Fi Cable / VB-CABLE); in the Windows volume mixer send
 Apple Music to it (24 bit / 44100 Hz, volume 100 %); in Windows privacy settings allow desktop apps to use the microphone;
-in HQPlayer → Settings → Input choose the cable; choose a fixed HQPlayer output rate (not "Auto" — on Auto the live input
-sometimes does not start; Studio's Settings → DSP can change it). When you go back to your library you may want to switch it
-back to Auto, so HQPlayer follows each album's own rate.
+in HQPlayer → Settings → Input choose the cable. The page's **Connection guide** walks you through it step by step: each step says
+what to do and opens the right Windows page, everything is checked again when you come back to Studio and finished steps tick
+themselves; steps Studio cannot see are confirmed with "I've done this". Output rate: on "Auto" HQPlayer sometimes does not
+start a live input. Every how-to line has a button that goes straight to the right place (Sound panel playback /
+recording devices, volume mixer, privacy settings, HQPlayer's window …). "Output rate while Apple Music plays" offers: don't
+change, automatic (a fixed rate only when HQPlayer is on Auto), or a specific rate; it needs the DSP switch. Stop does not
+switch back by itself: when local music plays afterwards at a different rate than before Apple Music, Studio asks whether to
+switch back (also after Studio was closed in between).
 
-Use: sidebar **Apple Music** → turn the switch on → "Check this PC" (read-only; it lists what is missing and opens the right
-Windows page) → start a song in the Apple Music app → back in Studio press **Start**. Turn the amplifier down the first time.
+Use: sidebar **Apple Music** → turn the switch on → finish the guide's steps → start a song in the Apple Music app → back in Studio press **Start**. Turn the amplifier down the first time.
 Studio then shows Apple Music's title, artist, album and cover, and play / pause / previous / next go to the Apple Music app.
 "Stop and return to the library", or simply playing something from the library, ends it; your queue is put back in HQPlayer
 (not playing).

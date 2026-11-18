@@ -2,6 +2,7 @@ import {
   API_PREFIX,
   AppleMusicStateSchema,
   type AppleMusicControlAction,
+  type AppleMusicOpenTarget,
   type UpdateAppleMusicSettingsRequest,
   AlbumCoverSchema,
   AlbumDetailSchema,
@@ -364,8 +365,11 @@ export function createStudioClient(options: StudioClientOptions = {}) {
       control: (action: AppleMusicControlAction) =>
         post(AppleMusicStateSchema, '/apple-music/control', { action }),
       /** Open a Windows settings page, the cable maker's site or the Apple Music app. */
-      open: (target: 'sound' | 'app-volume' | 'microphone' | 'cable-site' | 'apple-music') =>
+      open: (target: AppleMusicOpenTarget) =>
         post(z.object({ ok: z.literal(true) }), '/apple-music/open', { target }),
+      /** Answer "switch the output rate back?" (false = keep it and do not ask again). */
+      rateSwitchBack: (accept: boolean) =>
+        post(AppleMusicStateSchema, '/apple-music/rate-switch-back', { accept }),
     },
 
     /** Online covers — this computer only. */

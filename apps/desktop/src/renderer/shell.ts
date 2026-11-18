@@ -3,6 +3,7 @@
  * Absent when the UI runs in a normal browser — always feature-detect.
  */
 import type { HqpAppPrefs, HqpAppState } from '../main/hqplayer-app';
+import type { HqpSettingsBackupState, RestoreReport } from '../main/hqp-settings-backup';
 
 export interface StudioShell {
   isElectron: true;
@@ -30,7 +31,18 @@ export interface StudioShell {
   setAlwaysOnTop(on: boolean): Promise<boolean>;
   pickFolder(): Promise<string | null>;
   /** Open one of Studio's own folders in Explorer: '' when it opened, otherwise the error. */
-  openFolder(which: 'logs' | 'backups' | 'soak'): Promise<string>;
+  openFolder(which: 'logs' | 'backups' | 'soak' | 'hqp-settings'): Promise<string>;
+  /**
+   * Copies of HQPlayer's own settings file (devices, buffer, input, volume, DSP …). Absent in an
+   * older desktop app. Restore closes HQPlayer, writes the copy and starts HQPlayer again.
+   */
+  hqplayerSettings?: {
+    get(): Promise<HqpSettingsBackupState | null>;
+    backupNow(): Promise<HqpSettingsBackupState | null>;
+    pin(id: string, pinned: boolean): Promise<HqpSettingsBackupState | null>;
+    dismiss(): Promise<HqpSettingsBackupState | null>;
+    restore(id: string): Promise<RestoreReport | null>;
+  };
   /** Start / show / hide HQPlayer Desktop (Windows). */
   hqplayerApp: {
     get(): Promise<HqpAppState | null>;
@@ -59,6 +71,11 @@ export interface DesktopShellState {
 
 // Types only: nothing from the main process is bundled into the renderer.
 export type { HqpAppPrefs, HqpAppState, HqpRunReport, HqpSearchStep } from '../main/hqplayer-app';
+export type {
+  HqpSettingsBackup,
+  HqpSettingsBackupState,
+  RestoreReport,
+} from '../main/hqp-settings-backup';
 
 declare global {
   interface Window {
