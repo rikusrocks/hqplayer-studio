@@ -167,8 +167,10 @@ Apple Music 订阅曲目有版权保护，HQPlayer 不能把它们当文件打�
 的输出设为它（格式 24 位 / 44100 Hz，音量 100%）；在 Windows 隐私设置里允许桌面应用使用麦克风；
 在 HQPlayer → Settings → Input 里选这块虚拟声卡。页面上的 **连接向导** 会一步一步带你完成：每一步都有具体操作和对应的
 Windows 设置按钮，回到 Studio 时自动重新检查，完成的步骤自动打勾；Studio 看不到的步骤点“我已完成这一步”。
-输出采样率：HQPlayer 设为“自动 / Auto”时实时输入有时启动不了。开启 DSP 开关后，Studio 会在“开始”时自动改用固定采样率，
-“停止”后改回“自动”（向导第 8 步的开关，默认开启）。
+每一行操作说明旁边都有直达按钮（Windows 声音面板的播放 / 录制设备、音量合成器、隐私设置、HQPlayer 窗口等）。
+输出采样率：页面上的“Apple Music 播放时的输出采样率”可以选“不改动”、“自动选择”（HQPlayer 为“自动 / Auto”时改用固定值——
+设为 Auto 时实时输入有时启动不了）或某个具体采样率；需要开启 DSP 开关。“停止”后不会自动改回：之后播放本地音乐时，
+如果采样率与 Apple Music 之前不同，Studio 会问你是否改回（中途退出 Studio 也一样会问）。
 
 使用：侧栏 **Apple Music** → 打开开关 → 按连接向导完成各步 →
 在 Apple Music 应用里放一首歌 → 回到 Studio 点 **开始**。第一次请先把放大器音量调低。
@@ -335,8 +337,11 @@ Apple Music to it (24 bit / 44100 Hz, volume 100 %); in Windows privacy settings
 in HQPlayer → Settings → Input choose the cable. The page's **Connection guide** walks you through it step by step: each step says
 what to do and opens the right Windows page, everything is checked again when you come back to Studio and finished steps tick
 themselves; steps Studio cannot see are confirmed with "I've done this". Output rate: on "Auto" HQPlayer sometimes does not
-start a live input. With the DSP switch on, Studio switches to a fixed rate on Start and back to Auto on Stop (the switch in
-step 8, on by default).
+start a live input. Every how-to line has a button that goes straight to the right place (Sound panel playback /
+recording devices, volume mixer, privacy settings, HQPlayer's window …). "Output rate while Apple Music plays" offers: don't
+change, automatic (a fixed rate only when HQPlayer is on Auto), or a specific rate; it needs the DSP switch. Stop does not
+switch back by itself: when local music plays afterwards at a different rate than before Apple Music, Studio asks whether to
+switch back (also after Studio was closed in between).
 
 Use: sidebar **Apple Music** → turn the switch on → finish the guide's steps → start a song in the Apple Music app → back in Studio press **Start**. Turn the amplifier down the first time.
 Studio then shows Apple Music's title, artist, album and cover, and play / pause / previous / next go to the Apple Music app.

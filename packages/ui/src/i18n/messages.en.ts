@@ -982,7 +982,7 @@ export const en: Record<MessageKey, string> = {
   'am.check.windows': 'Windows',
   'am.check.windows.hint': 'Apple Music’s song information comes from Windows.',
   'am.check.engine': 'HQPlayer connected and controllable',
-  'am.check.engine.hint': 'Studio must be allowed to control HQPlayer (Settings → HQPlayer).',
+  'am.check.engine.hint': 'Studio must be allowed to control HQPlayer (Settings → Playback).',
   'am.check.appleMusicApp': 'Apple Music app',
   'am.check.appleMusicApp.hint': 'Windows only lists it as a player after it has played something.',
   'am.check.virtualCable': 'Virtual audio cable',
@@ -1291,21 +1291,42 @@ export const en: Record<MessageKey, string> = {
   'am.guide.autoRate.hint':
     "When you press Start and HQPlayer's output rate is Auto, Studio switches to the rate it outputs now (or the highest); Stop puts it back to Auto.",
   'am.detail.rate_auto_switch': 'Auto — Studio switches to a fixed rate while it plays',
-  'am.guide.how.engine':
-    'Open Settings → Playback and turn on “Allow Studio to control HQPlayer”.\nMake sure HQPlayer is open and shows as connected.',
-  'am.guide.how.appleMusicApp':
-    'Click “Open Apple Music” (install it from the Microsoft Store if needed).\nPlay any song once, so Windows lists Apple Music as a player.',
-  'am.guide.how.virtualCable':
-    'Click “VB-Audio’s site” and download the VB-CABLE Driver.\nUnzip it, right-click VBCABLE_Setup_x64.exe → “Run as administrator” → Install Driver.\nRestart the PC and come back here — this step ticks itself.',
-  'am.guide.how.cableFormat':
-    'Click “Sound settings” → “More sound settings”.\nPlayback tab: CABLE Input → Properties → Advanced → 24 bit, 44100 Hz → OK.\nRecording tab: CABLE Output → Properties → Advanced → the same 24 bit, 44100 Hz; Levels at 100.\nThen click “I’ve done this”.',
-  'am.guide.how.microphoneAccess':
-    'Click “Privacy settings”.\nTurn on “Microphone access” and “Let desktop apps access your microphone”. This step ticks itself when you come back.',
-  'am.guide.how.appRouting':
-    'Play a song in Apple Music first (only then does it show up in the mixer).\nClick “Volume mixer”, find Apple Music → Output device → CABLE Input (VB-Audio Virtual Cable).\nThen click “I’ve done this”.',
-  'am.guide.how.hqplayerInput':
-    'In HQPlayer open Settings → Input.\nBackend WASAPI, Device CABLE Output (VB-Audio Virtual Cable), 2 channels.\nClick OK, then “I’ve done this”.',
   'am.guide.how.liveInputAddress':
     'Usually nothing to do: Start finds a working address by itself.\nIf Start fails, enter the address HQPlayer needs below (its rate should match the cable’s rate).',
   'am.link.playback': 'Settings → Playback',
+  'am.rate.title': 'Output rate while Apple Music plays',
+  'am.rate.keep': "Don't change (keep HQPlayer's setting)",
+  'am.rate.auto': 'Automatic (a fixed rate only when HQPlayer is on Auto)',
+  'am.rate.hint':
+    "On Start Studio switches HQPlayer to the rate chosen here. When local music plays afterwards and the rate before Apple Music was different, Studio asks whether to switch back. The list is HQPlayer's for its current mode (PCM / SDM).",
+  'am.rate.cannotRead': "HQPlayer's rate list could not be read (is HQPlayer connected?).",
+  'am.rate.needsDsp': 'Studio first needs to be allowed to change HQPlayer DSP settings:',
+  'am.detail.rate_not_offered': "HQPlayer's current mode does not offer the chosen rate",
+  'am.switchBack.title': 'Switch the output rate back?',
+  'am.switchBack.message':
+    "For Apple Music, Studio switched HQPlayer's output rate to {from}. Local music is playing now; before Apple Music it was {to}. Switch back to {to}? (Playback pauses for a moment.)",
+  'am.switchBack.accept': 'Switch back to {to}',
+  'am.switchBack.keep': 'Keep {from}',
+  'am.switchBack.done': 'Output rate switched back to {to}',
+  'am.hqp.launch': 'Start HQPlayer',
+  'am.hqp.show': 'Show HQPlayer',
+  'am.open.sound-playback': 'Playback devices',
+  'am.open.sound-recording': 'Recording devices',
+  'am.open.apple-music-store': 'Microsoft Store',
+  'am.guide.how.engine':
+    'Studio must be able to control HQPlayer: in Settings → Playback turn on “Allow Studio to control HQPlayer”.\nHQPlayer must be open and show as connected.',
+  'am.guide.how.appleMusicApp':
+    'Open Apple Music (install it from the Microsoft Store if needed).\nPlay any song once, so Windows lists Apple Music as a player.',
+  'am.guide.how.virtualCable':
+    'Download the VB-CABLE Driver from VB-Audio’s site.\nUnzip it, right-click VBCABLE_Setup_x64.exe → “Run as administrator” → Install Driver.\nRestart the PC and come back — this step ticks itself (CABLE Input then shows under playback devices).',
+  'am.guide.how.cableFormat':
+    'Playback devices: CABLE Input → Properties → Advanced → 24 bit, 44100 Hz → OK.\nRecording devices: CABLE Output → Properties → Advanced → the same 24 bit, 44100 Hz; Levels at 100.\nThen click “I’ve done this”.',
+  'am.guide.how.microphoneAccess':
+    'In the privacy settings turn on “Microphone access” and “Let desktop apps access your microphone”.\nThis step ticks itself when you come back.',
+  'am.guide.how.appRouting':
+    'Play a song in Apple Music first (only then does it show up in the mixer).\nIn the volume mixer find Apple Music → Output device → CABLE Input (VB-Audio Virtual Cable).\nThen click “I’ve done this”.',
+  'am.guide.how.hqplayerInput':
+    'In HQPlayer’s window open Settings → Input.\nBackend WASAPI, Device CABLE Output (VB-Audio Virtual Cable), 2 channels.\nClick OK, then “I’ve done this”.',
+  'am.guide.how.outputRate':
+    'Choose below which rate HQPlayer uses while Apple Music plays (needs the change switch in Settings → DSP).',
 };

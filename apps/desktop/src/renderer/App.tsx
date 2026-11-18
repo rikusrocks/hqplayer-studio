@@ -13,6 +13,7 @@ import { ArtistDetailView } from './views/ArtistDetailView';
 import { ArtistsView } from './views/ArtistsView';
 import { FoldersView } from './views/FoldersView';
 import { HqpResetBanner } from './views/HqpSettingsBackup';
+import { useRateSwitchBack } from './views/RateSwitchBack';
 import { HomeView } from './views/HomeView';
 import { MiniPlayer } from './views/MiniPlayer';
 import { PlaylistDetailView } from './views/PlaylistDetailView';
@@ -68,6 +69,7 @@ export function App() {
   const panel = usePanelWidth(sidebar.width);
   useKeyboardShortcuts();
   const setup = useSetupWizard();
+  useRateSwitchBack();
   // The tray menu (main process) speaks the UI's language.
   useEffect(() => getShell()?.setLocale(locale), [locale]);
 

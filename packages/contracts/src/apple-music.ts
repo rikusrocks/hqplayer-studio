@@ -146,6 +146,19 @@ export const AppleMusicStateSchema = z.object({
    * (live inputs may not start on Auto) and back to Auto on Stop. Default on.
    */
   autoRate: z.boolean(),
+  /**
+   * The output rate (Hz) to use while Apple Music plays; null = automatic: only when HQPlayer is
+   * on Auto, the rate it outputs now (else the highest it offers). Used when `autoRate` is on.
+   */
+  liveRate: z.number().int().positive().nullable(),
+  /**
+   * Local music is playing at the rate Studio chose for Apple Music, and the rate before Apple
+   * Music was different: the desktop app asks whether to switch back (`toRate` 0 = Auto).
+   * Survives a Studio restart (the record is kept in the settings until answered).
+   */
+  rateSwitchBack: z
+    .object({ fromRate: z.number().int().nonnegative(), toRate: z.number().int().nonnegative() })
+    .nullable(),
   nowPlaying: LiveNowPlayingSchema.nullable(),
   /** The Windows query itself failed (shown on the page; never hidden). */
   mediaError: z.string().nullable(),
@@ -181,14 +194,29 @@ export const UpdateAppleMusicSettingsRequestSchema = z
     enabled: z.boolean().optional(),
     preferredUri: LiveInputUriSchema.nullable().optional(),
     autoRate: z.boolean().optional(),
+    liveRate: z.number().int().positive().nullable().optional(),
   })
-  .refine(
-    (v) => v.enabled !== undefined || v.preferredUri !== undefined || v.autoRate !== undefined,
-    {
-      message: 'Nothing to update',
-    },
-  );
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
+    message: 'Nothing to update',
+  });
 export type UpdateAppleMusicSettingsRequest = z.infer<typeof UpdateAppleMusicSettingsRequestSchema>;
+
+/** The answer to "switch the output rate back?" (`accept: false` = keep it, do not ask again). */
+export const RateSwitchBackRequestSchema = z.object({ accept: z.boolean() });
+export type RateSwitchBackRequest = z.infer<typeof RateSwitchBackRequestSchema>;
+
+/** Windows pages / programs the Apple Music guide can open. */
+export const AppleMusicOpenTargetSchema = z.enum([
+  'sound',
+  'sound-playback',
+  'sound-recording',
+  'app-volume',
+  'microphone',
+  'cable-site',
+  'apple-music',
+  'apple-music-store',
+]);
+export type AppleMusicOpenTarget = z.infer<typeof AppleMusicOpenTargetSchema>;
 
 export const AppleMusicControlRequestSchema = z.object({
   action: z.enum(['play', 'pause', 'toggle', 'next', 'previous']),
@@ -205,6 +233,8 @@ export function idleAppleMusicState(): AppleMusicState {
     liveUri: null,
     preferredUri: null,
     autoRate: true,
+    liveRate: null,
+    rateSwitchBack: null,
     nowPlaying: null,
     mediaError: null,
     blocked: 'disabled',

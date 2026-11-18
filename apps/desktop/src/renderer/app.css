@@ -2778,3 +2778,38 @@ body.is-mini {
   flex-wrap: wrap;
   gap: 6px;
 }
+
+.am-guide__how li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.am-guide__how li > span:first-child {
+  flex: 1 1 260px;
+}
+.am-guide__go {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.am-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.am-rate__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.am-rate__label {
+  font-weight: 700;
+}
+.am-rate p {
+  margin: 0;
+}

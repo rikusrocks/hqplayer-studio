@@ -941,7 +941,7 @@ export const zh = {
   'am.check.windows': 'Windows',
   'am.check.windows.hint': 'Apple Music 的曲目信息来自 Windows。',
   'am.check.engine': 'HQPlayer 已连接并可控制',
-  'am.check.engine.hint': '需要允许 Studio 控制 HQPlayer（设置 → HQPlayer）。',
+  'am.check.engine.hint': '需要允许 Studio 控制 HQPlayer（设置 → 播放）。',
   'am.check.appleMusicApp': 'Apple Music 应用',
   'am.check.appleMusicApp.hint': '它播放过内容之后，Windows 才会把它列为播放器。',
   'am.check.virtualCable': '虚拟声卡',
@@ -1236,23 +1236,44 @@ export const zh = {
   'am.guide.autoRate.hint':
     '按“开始”时，如果 HQPlayer 的输出采样率是“自动（Auto）”，Studio 会改用当前（或最高）的固定采样率；按“停止”后自动改回“自动”。',
   'am.detail.rate_auto_switch': '自动（Auto）— 播放时 Studio 会自动改用固定采样率',
-  'am.guide.how.engine':
-    '打开 设置 → 播放，开启“允许 Studio 控制 HQPlayer”。\n确认 HQPlayer 已经打开并显示“已连接”。',
-  'am.guide.how.appleMusicApp':
-    '点“打开 Apple Music”（没有安装的话，从 Microsoft Store 安装）。\n在 Apple Music 里随便播放一首歌，Windows 才会把它列为播放器。',
-  'am.guide.how.virtualCable':
-    '点“VB-Audio 网站”，下载 VB-CABLE Driver。\n解压后右键 VBCABLE_Setup_x64.exe →“以管理员身份运行”→ Install Driver。\n重启电脑，再回到这里，这一步会自动打勾。',
-  'am.guide.how.cableFormat':
-    '点“声音设置”→“更多声音设置”。\n“播放”选项卡：CABLE Input → 属性 → 高级 → 24 位，44100 Hz → 确定。\n“录制”选项卡：CABLE Output → 属性 → 高级 → 同样 24 位，44100 Hz；“级别”设为 100。\n完成后点“我已完成这一步”。',
-  'am.guide.how.microphoneAccess':
-    '点“隐私设置”。\n打开“麦克风访问权限”和“允许桌面应用访问麦克风”。回到这里会自动打勾。',
-  'am.guide.how.appRouting':
-    '先在 Apple Music 里播放一首歌（音量合成器里才会出现它）。\n点“音量合成器”，找到 Apple Music →“输出设备”选 CABLE Input (VB-Audio Virtual Cable)。\n完成后点“我已完成这一步”。',
-  'am.guide.how.hqplayerInput':
-    '在 HQPlayer 里打开 Settings → Input（音频输入）。\nBackend 选 WASAPI，Device 选 CABLE Output (VB-Audio Virtual Cable)，声道 2。\n点 OK 保存，然后点“我已完成这一步”。',
   'am.guide.how.liveInputAddress':
     '通常不需要设置：按“开始”时 Studio 会自己找到可用的地址。\n如果开始失败，下面可以填写 HQPlayer 需要的地址（其中的采样率应与虚拟声卡的采样率一致）。',
   'am.link.playback': '设置 → 播放',
+  'am.rate.title': 'Apple Music 播放时的输出采样率',
+  'am.rate.keep': '不改动（保持 HQPlayer 当前设置）',
+  'am.rate.auto': '自动选择（仅当 HQPlayer 为“自动”时改为固定值）',
+  'am.rate.hint':
+    '按“开始”时 Studio 会把 HQPlayer 切到这里选的采样率。之后播放本地音乐时，如果采样率和 Apple Music 之前不同，会询问是否改回。列表来自 HQPlayer 当前模式（PCM / SDM）。',
+  'am.rate.cannotRead': '读取不到 HQPlayer 的采样率列表（HQPlayer 未连接？）。',
+  'am.rate.needsDsp': '需要先允许 Studio 修改 HQPlayer 的 DSP 设置：',
+  'am.detail.rate_not_offered': 'HQPlayer 当前模式没有所选的采样率',
+  'am.switchBack.title': '改回输出采样率？',
+  'am.switchBack.message':
+    '播放 Apple Music 时，Studio 把 HQPlayer 的输出采样率改成了 {from}。现在在播放本地音乐，播放 Apple Music 之前的设置是 {to}。要改回 {to} 吗？（更改时播放会短暂中断。）',
+  'am.switchBack.accept': '改回 {to}',
+  'am.switchBack.keep': '保持 {from}',
+  'am.switchBack.done': '输出采样率已改回 {to}',
+  'am.hqp.launch': '启动 HQPlayer',
+  'am.hqp.show': '显示 HQPlayer',
+  'am.open.sound-playback': '播放设备',
+  'am.open.sound-recording': '录制设备',
+  'am.open.apple-music-store': 'Microsoft Store',
+  'am.guide.how.engine':
+    'Studio 需要能控制 HQPlayer：在 设置 → 播放 里开启“允许 Studio 控制 HQPlayer”。\nHQPlayer 要先打开并显示“已连接”。',
+  'am.guide.how.appleMusicApp':
+    '打开 Apple Music（没有安装的话，从 Microsoft Store 安装）。\n在 Apple Music 里随便播放一首歌，Windows 才会把它列为播放器。',
+  'am.guide.how.virtualCable':
+    '从 VB-Audio 网站下载 VB-CABLE Driver。\n解压后右键 VBCABLE_Setup_x64.exe →“以管理员身份运行”→ Install Driver。\n重启电脑后回到这里，这一步会自动打勾（播放设备里应出现 CABLE Input）。',
+  'am.guide.how.cableFormat':
+    '播放设备：CABLE Input → 属性 → 高级 → 24 位，44100 Hz → 确定。\n录制设备：CABLE Output → 属性 → 高级 → 同样 24 位，44100 Hz；“级别”设为 100。\n完成后点“我已完成这一步”。',
+  'am.guide.how.microphoneAccess':
+    '在隐私设置里打开“麦克风访问权限”和“允许桌面应用访问麦克风”。\n回到这里会自动打勾。',
+  'am.guide.how.appRouting':
+    '先在 Apple Music 里播放一首歌（音量合成器里才会出现它）。\n在音量合成器里找到 Apple Music →“输出设备”选 CABLE Input (VB-Audio Virtual Cable)。\n完成后点“我已完成这一步”。',
+  'am.guide.how.hqplayerInput':
+    '在 HQPlayer 窗口里打开 Settings → Input（音频输入）。\nBackend 选 WASAPI，Device 选 CABLE Output (VB-Audio Virtual Cable)，声道 2。\n点 OK 保存，然后点“我已完成这一步”。',
+  'am.guide.how.outputRate':
+    '在下面选择 Apple Music 播放时使用的采样率（需要开启 设置 → DSP 里的修改开关）。',
 } satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof zh;
