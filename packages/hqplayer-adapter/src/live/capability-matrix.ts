@@ -101,7 +101,7 @@ export const DESKTOP6_EVIDENCE: Record<EngineCapabilityKey, CapabilityEvidence> 
     status: 'confirmed',
     readOnly: false,
     evidence: 'PlaylistAdd queued="1" clear="0" appends (Gate C 2026-11-10, engine 6.1.0)',
-    note: '“Play Next” has no SDK command and stays unavailable on the real engine.',
+    note: '“Play Next” has no SDK command; Studio composes it from PlaylistRemove (tail) + PlaylistAdd (new items, then the tail again), checked by PlaylistGet.',
   },
   'queue.read': {
     status: 'confirmed',

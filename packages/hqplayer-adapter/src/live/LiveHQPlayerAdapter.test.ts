@@ -233,6 +233,54 @@ describe('LiveHQPlayerAdapter (experimental)', () => {
     }
   });
 
+  it('Play Next while playing: removes the tail, adds the new items, re-adds the tail', async () => {
+    const engine = await startFakeEngine({
+      playlist: [
+        { uri: 'file://E:\\a.flac', song: 'a', lengthSec: 300 },
+        { uri: 'file://E:\\b.flac', song: 'b', lengthSec: 300 },
+        { uri: 'file://E:\\c 「光」.flac', song: 'c', lengthSec: 300 },
+      ],
+      startPlaying: true,
+    });
+    const adapter = new LiveHQPlayerAdapter({
+      port: engine.port,
+      policy: { controlEnabled: true },
+    });
+    const item = (uri: string) => ({
+      studioTrackId: uri,
+      uri,
+      title: uri,
+      artist: 'x',
+      album: 'y',
+      durationMs: 1,
+    });
+    try {
+      await adapter.connect();
+      await vi.waitFor(async () => expect((await adapter.getStatus()).transport).toBe('playing'));
+      await adapter.insertNext([item('D:\\n1.flac'), item('D:\\n2.flac')], 0);
+      expect(engine.playlist().map((t) => t.uri)).toEqual([
+        'file://E:\\a.flac',
+        'file://D:\\n1.flac',
+        'file://D:\\n2.flac',
+        'file://E:\\b.flac',
+        'file://E:\\c 「光」.flac',
+      ]);
+      expect(engine.state()).toMatchObject({ transport: 2, current: 1 });
+      // Current track is the last one: nothing to take off, the items are just appended.
+      await adapter.insertNext([item('D:\\n3.flac')], 4);
+      expect(
+        engine
+          .playlist()
+          .map((t) => t.uri)
+          .at(-1),
+      ).toBe('file://D:\\n3.flac');
+      expect((await adapter.getStatus()).trackCount).toBe(6);
+    } finally {
+      await adapter.disconnect();
+      await engine.close();
+    }
+  });
+
   it('clearQueue stops and empties HQPlayer', async () => {
     const engine = await startFakeEngine({
       playlist: [{ uri: 'file://E:\\a.flac', song: 'a', lengthSec: 300 }],

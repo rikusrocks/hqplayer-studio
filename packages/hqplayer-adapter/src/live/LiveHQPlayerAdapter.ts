@@ -328,6 +328,62 @@ export class LiveHQPlayerAdapter implements HQPlayerAdapter {
     await this.refreshAfterEdit(conn);
   }
 
+  /**
+   * Play Next. HQPlayer has no insert or move command, so this uses only confirmed ones: take
+   * the entries after `afterIndex` off the end of the playlist (`PlaylistRemove`, last first, so
+   * the current track is never touched), `PlaylistAdd` the new items, then `PlaylistAdd` the
+   * removed entries back with the `file://` URIs HQPlayer reported (accepted unchanged, Gate C).
+   * The result is read back and checked.
+   */
+  async insertNext(items: PlayableTrack[], afterIndex: number | null = null): Promise<void> {
+    const conn = this.requireWrite('queue.append');
+    this.requireWrite('queue.replace'); // PlaylistRemove
+    const before = await this.readPlaylist(conn);
+    const at = Math.min(
+      Math.max(0, afterIndex === null ? 0 : afterIndex + 1),
+      before.entries.length,
+    );
+    const tail = before.entries.slice(at).map((e) => e.uri);
+    if (tail.some((uri) => !uri)) {
+      throw new EngineCommandError('PlaylistGet', 'HQPlayer did not report every playlist URI');
+    }
+    const playing = this.last.transport !== 'stopped' ? this.last.trackIndex : null;
+    if (playing !== null && playing >= at && tail.length > 0) {
+      throw new EngineCommandError(
+        'PlaylistRemove',
+        'HQPlayer is already playing a later track — please try again',
+      );
+    }
+    let removed = 0;
+    let failure: unknown = null;
+    try {
+      for (let n = before.entries.length; n > at; n -= 1) {
+        await conn.request('PlaylistRemove', { index: toEngineIndex(n - 1) });
+        removed += 1;
+      }
+      for (const item of items)
+        await conn.request('PlaylistAdd', { uri: item.uri, queued: 1, clear: 0 });
+    } catch (err) {
+      failure = err;
+    }
+    // Always put back what was taken off, even if adding the new items failed.
+    for (const uri of tail.slice(tail.length - removed)) {
+      await conn.request('PlaylistAdd', { uri: uri as string, queued: 1, clear: 0 });
+    }
+    const after = await this.readPlaylist(conn);
+    this.playlist = after;
+    this.publishPlaylistCount();
+    if (failure) throw failure;
+    const expectedLength = before.entries.length + items.length;
+    const tailBack = after.entries.slice(after.entries.length - tail.length).map((e) => e.uri);
+    if (after.entries.length !== expectedLength || tailBack.some((uri, i) => uri !== tail[i])) {
+      throw new EngineCommandError(
+        'PlaylistAdd',
+        `HQPlayer's playlist has ${after.entries.length} item(s) after Play Next (expected ${expectedLength})`,
+      );
+    }
+  }
+
   async removeFromQueue(engineIndex: number): Promise<void> {
     const conn = this.requireWrite('queue.replace');
     await conn.request('PlaylistRemove', { index: toEngineIndex(engineIndex) });
