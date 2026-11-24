@@ -287,9 +287,10 @@ export class MockHQPlayerAdapter implements HQPlayerAdapter {
     });
   }
 
-  insertNext(items: PlayableTrack[]): Promise<void> {
+  insertNext(items: PlayableTrack[], afterIndex?: number | null): Promise<void> {
     return this.command('PlaylistAdd(next)', () => {
-      const at = this.index === null ? 0 : this.index + 1;
+      const current = afterIndex === undefined ? this.index : afterIndex;
+      const at = Math.min(current === null ? 0 : current + 1, this.queue.length);
       this.queue.splice(at, 0, ...items);
       if (this.index === null) this.index = 0;
     });

@@ -287,7 +287,7 @@ export class QueueService {
             'queue.append',
             '"Play Next" is not supported by this engine adapter',
           );
-        return a.insertNext(playables);
+        return a.insertNext(playables, this.currentIndex);
       });
       const at = this.currentIndex === null ? 0 : this.currentIndex + 1;
       this.items.splice(at, 0, ...tracks.map((track) => ({ itemId: newId('qi'), track })));

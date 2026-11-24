@@ -101,8 +101,11 @@ export interface HQPlayerAdapter {
   setVolume?(volumeDb: number): Promise<void>;
   replaceQueue?(items: PlayableTrack[], options: ReplaceQueueOptions): Promise<void>;
   appendToQueue?(items: PlayableTrack[]): Promise<void>;
-  /** Insert right after the current engine track (Play Next). */
-  insertNext?(items: PlayableTrack[]): Promise<void>;
+  /**
+   * Insert right after the current track (Play Next). `afterIndex` is Studio's current index
+   * (0-based); the items go right after it, at the start when null.
+   */
+  insertNext?(items: PlayableTrack[], afterIndex?: number | null): Promise<void>;
   removeFromQueue?(engineIndex: number): Promise<void>;
   clearQueue?(): Promise<void>;
   selectIndex?(index: number, autoplay: boolean): Promise<void>;
